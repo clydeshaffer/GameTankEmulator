@@ -1,5 +1,5 @@
 #OBJS specifies which files to compile as part of the project
-OBJS = gtc.cpp
+OBJS = mos6502/mos6502.cpp gtc.cpp
 
 #CC specifies which compiler we're using
 CC = g++
@@ -10,7 +10,9 @@ SDL_ROOT = C:\Users\clyde\Dev\SDL2-2.0.12\x86_64-w64-mingw32
 INCLUDE_PATHS = -I$(SDL_ROOT)\include\SDL2
 
 #LIBRARY_PATHS specifies the additional library paths we'll need
-LIBRARY_PATHS = -L$(SDL_ROOT)\lib
+LIBRARY_PATHS = -L $(SDL_ROOT)\lib
+
+DEFINES = -D CPU_6502_STATIC -D CPU_6502_USE_LOCAL_HEADER
 
 #COMPILER_FLAGS specifies the additional compilation options we're using
 # -w suppresses all warnings
@@ -25,4 +27,4 @@ OBJ_NAME = GameTankEmulator
 
 #This is the target that compiles our executable
 all : $(OBJS)
-	$(CC) $(OBJS) $(INCLUDE_PATHS) $(LIBRARY_PATHS) $(COMPILER_FLAGS) $(LINKER_FLAGS) -o $(OBJ_NAME)
+	$(CC) $(OBJS) $(INCLUDE_PATHS) $(LIBRARY_PATHS) $(COMPILER_FLAGS) $(DEFINES) $(LINKER_FLAGS) -o $(OBJ_NAME)
