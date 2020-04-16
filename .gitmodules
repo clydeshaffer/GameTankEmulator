@@ -1,0 +1,3 @@
+[submodule "6502"]
+	path = 6502
+	url = https://github.com/redcode/6502.git
