@@ -134,14 +134,20 @@ void VDMA_Write(uint16_t address, uint8_t value) {
 	if(dma_control_reg & DMA_COPY_ENABLE_BIT) {
 		if(((address & 0xF) == 6) && (value == 1)) {
 			SDL_Rect gRect, vRect;
-			vRect.x = dma_params[DMA_PARAM_VX];
-			vRect.y = dma_params[DMA_PARAM_VY];
-			vRect.w = dma_params[DMA_PARAM_WIDTH];
-			vRect.h = dma_params[DMA_PARAM_HEIGHT];
-			gRect.x = dma_params[DMA_PARAM_GX];
-			gRect.y = dma_params[DMA_PARAM_GY];
-			gRect.w = dma_params[DMA_PARAM_WIDTH];
-			gRect.h = dma_params[DMA_PARAM_HEIGHT];
+			vRect.x = dma_params[DMA_PARAM_VX] & 0x7F;
+			vRect.y = dma_params[DMA_PARAM_VY] & 0x7F;
+			vRect.w = dma_params[DMA_PARAM_WIDTH] & 0x7F;
+			vRect.h = dma_params[DMA_PARAM_HEIGHT] & 0x7F;
+			gRect.x = dma_params[DMA_PARAM_GX] & 0x7F;
+			gRect.y = dma_params[DMA_PARAM_GY] & 0x7F;
+			gRect.w = dma_params[DMA_PARAM_WIDTH] & 0x7F;
+			gRect.h = dma_params[DMA_PARAM_HEIGHT] & 0x7F;
+			uint8_t outColor[2];
+			uint8_t colorSel = 0;
+			if(dma_params[DMA_PARAM_GX] & 0x80) {
+				colorSel = 1;
+			}
+			outColor[1] = dma_params[DMA_PARAM_COLOR];
 			printf("Copying from (%d, %d) to (%d, %d) at (%d x %d)\n",
 				gRect.x, gRect.y,
 				vRect.x, vRect.y,
@@ -161,14 +167,20 @@ void VDMA_Write(uint16_t address, uint8_t value) {
 				int vx = dma_params[DMA_PARAM_VX],
 					gx = dma_params[DMA_PARAM_GX];
 				for(uint16_t x = 0; x < dma_params[DMA_PARAM_WIDTH]; x++) {
-					vram_buffer[(vy << 7) | vx | vOffset] = gram_buffer[(gy << 7) | gx | gOffset];
+					outColor[0] = gram_buffer[(gy << 7) | gx | gOffset];
+					vram_buffer[(vy << 7) | vx | vOffset] = outColor[colorSel];
 					vx++;
 					gx++;
 				}
 				vy++;
 				gy++;
 			}
-			SDL_BlitSurface(gRAM_Surface, &gRect, vRAM_Surface, &vRect);
+			if(colorSel == 1) {
+				SDL_FillRect(vRAM_Surface, &vRect,  convert_color(vRAM_Surface, outColor[1]));
+			} else {
+				SDL_BlitSurface(gRAM_Surface, &gRect, vRAM_Surface, &vRect);
+			}
+
 			if(dma_control_reg & DMA_COPY_IRQ_BIT) {
 				cpu_core->IRQ();
 			}
@@ -240,6 +252,12 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 	}
 }
 
+bool running = true;
+
+void CPUStopped() {
+	running = false;
+}
+
 int main(int argC, char* argV[]) {
 	for(int i = 0; i < ROMSIZE; i++) {
 		rom_buffer[i] = 0;
@@ -259,7 +277,7 @@ int main(int argC, char* argV[]) {
 		}
 	}
 
-	cpu_core = new mos6502(MemoryRead, MemoryWrite);
+	cpu_core = new mos6502(MemoryRead, MemoryWrite, CPUStopped);
 	cpu_core->Reset();
 
 	SDL_Window* window = NULL;
@@ -296,10 +314,10 @@ int main(int argC, char* argV[]) {
 
 	uint64_t actual_cycles = 0;
 	uint64_t total_cycles = 0;
-	uint64_t target_runtime = 10;
+	uint64_t target_runtime = 60;
 	uint64_t target_cycles = target_runtime * 14000000;
 	int zeroConsec = 0;
-	while(total_cycles < target_cycles) {
+	while(running && (total_cycles < target_cycles)) {
 		actual_cycles = 0;
 		cpu_core->Run(233333, actual_cycles);
 		if(actual_cycles == 0) {
@@ -321,7 +339,7 @@ int main(int argC, char* argV[]) {
 	}
 	
 	printf("Finished running\n");
-	SDL_Delay(2000);
+	SDL_Delay(3000);
 	SDL_DestroyWindow(window);
 	SDL_Quit();
 	return 0;
