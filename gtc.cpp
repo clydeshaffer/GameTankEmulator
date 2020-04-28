@@ -252,6 +252,7 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 	}
 }
 
+SDL_Event e;
 bool running = true;
 
 void CPUStopped() {
@@ -313,11 +314,10 @@ int main(int argC, char* argV[]) {
 	SDL_FillRect(screenSurface, NULL, SDL_MapRGB(screenSurface->format, 0x00, 0x00, 0x00));
 
 	uint64_t actual_cycles = 0;
-	uint64_t total_cycles = 0;
 	uint64_t target_runtime = 60;
 	uint64_t target_cycles = target_runtime * 14000000;
 	int zeroConsec = 0;
-	while(running && (total_cycles < target_cycles)) {
+	while(running) {
 		actual_cycles = 0;
 		cpu_core->Run(233333, actual_cycles);
 		if(actual_cycles == 0) {
@@ -330,16 +330,25 @@ int main(int argC, char* argV[]) {
 			zeroConsec = 0;
 		}
 		SDL_Delay(actual_cycles/140000);
-		total_cycles += actual_cycles;
-		//printf("Ran for %ld\n", total_cycles);
 		cpu_core->NMI();
 		refreshScreen();
 		SDL_UpdateWindowSurface(window);
+
+		while( SDL_PollEvent( &e ) != 0 )
+        {
+            //User requests quit
+            if( e.type == SDL_QUIT )
+            {
+               running = false;
+            }
+        }
 		
 	}
 	
 	printf("Finished running\n");
-	SDL_Delay(3000);
+	
+
+
 	SDL_DestroyWindow(window);
 	SDL_Quit();
 	return 0;
