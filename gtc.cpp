@@ -147,7 +147,7 @@ void VDMA_Write(uint16_t address, uint8_t value) {
 			if(dma_params[DMA_PARAM_GX] & 0x80) {
 				colorSel = 1;
 			}
-			outColor[1] = dma_params[DMA_PARAM_COLOR];
+			outColor[1] = ~(dma_params[DMA_PARAM_COLOR]);
 			printf("Copying from (%d, %d) to (%d, %d) at (%d x %d)\n",
 				gRect.x, gRect.y,
 				vRect.x, vRect.y,
@@ -314,6 +314,7 @@ int main(int argC, char* argV[]) {
 	SDL_FillRect(screenSurface, NULL, SDL_MapRGB(screenSurface->format, 0x00, 0x00, 0x00));
 
 	uint64_t actual_cycles = 0;
+	uint64_t total_cycles = 0;
 	uint64_t target_runtime = 60;
 	uint64_t target_cycles = target_runtime * 14000000;
 	int zeroConsec = 0;
