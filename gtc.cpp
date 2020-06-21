@@ -136,12 +136,12 @@ void VDMA_Write(uint16_t address, uint8_t value) {
 			SDL_Rect gRect, vRect;
 			vRect.x = dma_params[DMA_PARAM_VX] & 0x7F;
 			vRect.y = dma_params[DMA_PARAM_VY] & 0x7F;
-			vRect.w = dma_params[DMA_PARAM_WIDTH] & 0x7F;
-			vRect.h = dma_params[DMA_PARAM_HEIGHT] & 0x7F;
+			vRect.w = dma_params[DMA_PARAM_WIDTH] + 1;
+			vRect.h = dma_params[DMA_PARAM_HEIGHT];
 			gRect.x = dma_params[DMA_PARAM_GX] & 0x7F;
 			gRect.y = dma_params[DMA_PARAM_GY] & 0x7F;
-			gRect.w = dma_params[DMA_PARAM_WIDTH] & 0x7F;
-			gRect.h = dma_params[DMA_PARAM_HEIGHT] & 0x7F;
+			gRect.w = dma_params[DMA_PARAM_WIDTH] + 1;
+			gRect.h = dma_params[DMA_PARAM_HEIGHT];
 			uint8_t outColor[2];
 			uint8_t colorSel = 0;
 			if(dma_params[DMA_PARAM_GX] & 0x80) {
@@ -314,7 +314,8 @@ int main(int argC, char* argV[]) {
 	SDL_FillRect(screenSurface, NULL, SDL_MapRGB(screenSurface->format, 0x00, 0x00, 0x00));
 
 	uint64_t actual_cycles = 0;
-	uint64_t total_cycles = 0;
+	uint64_t cycles_since_vsync = 0;
+	uint64_t cycles_per_vsync = 233333;
 	uint64_t target_runtime = 60;
 	uint64_t target_cycles = target_runtime * 14000000;
 	int zeroConsec = 0;
@@ -331,6 +332,11 @@ int main(int argC, char* argV[]) {
 			zeroConsec = 0;
 		}
 		SDL_Delay(actual_cycles/140000);
+		cycles_since_vsync += actual_cycles;
+		if(cycles_since_vsync >= cycles_per_vsync) {
+			cycles_since_vsync -= cycles_per_vsync;
+
+		}
 		cpu_core->NMI();
 		refreshScreen();
 		SDL_UpdateWindowSurface(window);
@@ -345,7 +351,6 @@ int main(int argC, char* argV[]) {
         }
 		
 	}
-	
 	printf("Finished running\n");
 	
 
