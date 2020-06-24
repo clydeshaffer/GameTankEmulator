@@ -2,6 +2,14 @@
 
 using namespace std;
 
+#define SQUARE1_NOTE 0
+#define SQUARE1_CTRL 1
+#define SQUARE2_NOTE 2
+#define SQUARE2_CTRL 3
+#define NOISE_CTRL   4
+#define WAVE_NOTE 5
+#define WAVE_CTRL 6
+
 typedef struct AudioState {
 	uint8_t regs[7];
 	uint8_t wavetable[4096];

@@ -13,10 +13,10 @@ uint8_t DynaWave::wavetable_read(uint16_t address) {
 uint8_t volume_convert[8] = {252, 141, 80, 45, 25, 14, 8, 0};
 void DynaWave::register_write(uint16_t address, uint8_t value) {
 	state.regs[address & 7] = value;
-	state.periods[0] = (state.regs[0] << ((state.regs[1] & 7) + 5)) / 325;
-	state.volumes[0] = volume_convert[(state.regs[1] >> 3) & 0x7];
-	state.periods[1] = (state.regs[2] << ((state.regs[3] & 7) + 5)) / 325;
-	state.volumes[1] = volume_convert[(state.regs[3] >> 3) & 0x7];
+	state.periods[0] = (state.regs[SQUARE1_NOTE] << ((state.regs[SQUARE1_CTRL] & 7) + 5)) / 325;
+	state.volumes[0] = volume_convert[(state.regs[SQUARE1_CTRL] >> 3) & 0x7];
+	state.periods[1] = (state.regs[SQUARE2_NOTE] << ((state.regs[SQUARE2_CTRL] & 7) + 5)) / 325;
+	state.volumes[1] = volume_convert[(state.regs[SQUARE2_CTRL] >> 3) & 0x7];
 }
 
 uint8_t mix_buffer[2048];
