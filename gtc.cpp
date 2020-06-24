@@ -1,6 +1,8 @@
 #include <SDL.h>
 #include <stdio.h>
 
+#include "dynawave.h"
+
 #include "mos6502/mos6502.h"
 
 using namespace std;
@@ -64,6 +66,8 @@ SDL_Surface* gRAM_Surface = NULL;
 SDL_Surface* vRAM_Surface = NULL;
 
 mos6502 *cpu_core;
+
+DynaWave *soundcard;
 
 bool pad1State = false;
 bool pad2State = false;
@@ -229,6 +233,8 @@ uint8_t MemoryRead(uint16_t address) {
 		return rom_buffer[address & 0x1FFF];
 	} else if(address & 0x4000) {
 		return VDMA_Read(address);
+	}else if(address >= 0x3000 && address <= 0x3FFF) {
+		return soundcard->wavetable_read(address);
 	} else if(address < 0x2000) {
 		return ram_buffer[address & 0x1FFF];
 	} else if(address == 0x2008) {
@@ -251,12 +257,13 @@ uint8_t MemoryRead(uint16_t address) {
 
 void MemoryWrite(uint16_t address, uint8_t value) {
 	if(address & 0x8000) {
-
+		//ROM -> don't write
 	}
 	else if(address & 0x4000) {
 		VDMA_Write(address, value);
-	}
-	else if(address & 0x2000) {
+	} else if(address >= 0x3000 && address <= 0x3FFF) {
+		soundcard->wavetable_write(address, value);
+	} else if(address & 0x2000) {
 		if((address & 0x000F) == 0x0007) {
 			dma_control_reg = value;
 			if(dma_control_reg & DMA_TRANSPARENCY_BIT) {
@@ -264,6 +271,8 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 			} else {
 				SDL_SetColorKey(gRAM_Surface, SDL_FALSE, 0);
 			}
+		} else {
+			soundcard->register_write(address, value);
 		}
 	}
 	else if(address < 0x2000) {
@@ -297,6 +306,7 @@ int main(int argC, char* argV[]) {
 		}
 	}
 
+	soundcard = new DynaWave();
 	cpu_core = new mos6502(MemoryRead, MemoryWrite, CPUStopped);
 	cpu_core->Reset();
 
@@ -332,15 +342,14 @@ int main(int argC, char* argV[]) {
 
 	SDL_FillRect(screenSurface, NULL, SDL_MapRGB(screenSurface->format, 0x00, 0x00, 0x00));
 
+	uint64_t system_clock = 315000000/88;
 	uint64_t actual_cycles = 0;
 	uint64_t cycles_since_vsync = 0;
-	uint64_t cycles_per_vsync = 233333;
-	uint64_t target_runtime = 60;
-	uint64_t target_cycles = target_runtime * 3000000;
+	uint64_t cycles_per_vsync = system_clock / 60;
 	int zeroConsec = 0;
 	while(running) {
 		actual_cycles = 0;
-		cpu_core->Run(233333, actual_cycles);
+		cpu_core->Run(cycles_per_vsync, actual_cycles);
 		if(actual_cycles == 0) {
 			zeroConsec++;
 			if(zeroConsec == 10) {
@@ -350,7 +359,7 @@ int main(int argC, char* argV[]) {
 		} else {
 			zeroConsec = 0;
 		}
-		SDL_Delay(actual_cycles/3000000);
+		SDL_Delay(1000 * actual_cycles/system_clock);
 		cycles_since_vsync += actual_cycles;
 		if(cycles_since_vsync >= cycles_per_vsync) {
 			cycles_since_vsync -= cycles_per_vsync;
@@ -404,6 +413,8 @@ int main(int argC, char* argV[]) {
             		case SDLK_RETURN:
             			buttonMask = 0b0000000000100000;
             			break;
+            		case SDLK_ESCAPE:
+            			running = false;
             		default:
             			break;
             	}
