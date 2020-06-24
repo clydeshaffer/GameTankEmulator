@@ -1,6 +1,7 @@
 #include <SDL.h>
 #include <stdio.h>
 
+#include "joystick_adapter.h"
 #include "dynawave.h"
 
 #include "mos6502/mos6502.h"
@@ -66,13 +67,8 @@ SDL_Surface* gRAM_Surface = NULL;
 SDL_Surface* vRAM_Surface = NULL;
 
 mos6502 *cpu_core;
-
 DynaWave *soundcard;
-
-bool pad1State = false;
-bool pad2State = false;
-uint16_t pad1Mask = 0;
-uint16_t pad2Mask = 0;
+JoystickAdapter *joysticks;
 
 uint8_t open_bus() {
 	return 0;
@@ -237,20 +233,8 @@ uint8_t MemoryRead(uint16_t address) {
 		return soundcard->wavetable_read(address);
 	} else if(address < 0x2000) {
 		return ram_buffer[address & 0x1FFF];
-	} else if(address == 0x2008) {
-		pad2State = false;
-		uint8_t outbyte = 0xFF;
-		if(pad1State) {
-			outbyte = (uint8_t) (pad1Mask >> 8);
-		} else {
-			outbyte = (uint8_t) pad1Mask;
-		}
-		pad1State = !pad1State;
-		return ~outbyte;
-	} else if(address == 0x2009) {
-		pad1State = false;
-		pad2State = !pad2State;
-		return 0xFF;
+	} else if(address == 0x2008 || address == 0x2009) {
+		return joysticks->read((uint8_t) address);
 	}
 	return open_bus();
 }
@@ -307,6 +291,7 @@ int main(int argC, char* argV[]) {
 		}
 	}
 
+	joysticks = new JoystickAdapter();
 	soundcard = new DynaWave();
 	cpu_core = new mos6502(MemoryRead, MemoryWrite, CPUStopped);
 	cpu_core->Reset();
@@ -380,43 +365,7 @@ int main(int argC, char* argV[]) {
             {
                running = false;
             } else if(e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) {
-            	uint16_t buttonMask = 0;
-            	/*
-            		Up - DB9 pin 1 - bit 3
-            		Down - DB9 pin 2 - bit 2
-            		Left - DB9 pin 3 (select HIGH) - bit 1
-            		Right - DB9 pin 4 (select HIGH) - bit 0
-            		A - DB9 pin 6 (select LOW) - bit 4
-            		B - DB9 pin 6 (select HIGH) - bit 4
-            		C - DB9 pin 9 (select HIGH) - bit 5
-            		Start - DB9 pin 9 (select LOW) - bit 5
-            		select status - bit 7
-            	*/
             	switch(e.key.keysym.sym) {
-            		case SDLK_UP:
-            			buttonMask = 0b0000100000001000;
-            			break;
-            		case SDLK_DOWN:
-            			buttonMask = 0b0000010000000100;
-            			break;
-            		case SDLK_LEFT:
-            			buttonMask = 0b0000001000000000;
-            			break;
-            		case SDLK_RIGHT:
-            			buttonMask = 0b0000000100000000;
-            			break;
-            		case SDLK_z:
-            			buttonMask = 0b0000000000010000;
-            			break;
-            		case SDLK_x:
-            			buttonMask = 0b0001000000000000;
-            			break;
-            		case SDLK_c:
-            			buttonMask = 0b0010000000000000;
-            			break;
-            		case SDLK_RETURN:
-            			buttonMask = 0b0000000000100000;
-            			break;
             		case SDLK_ESCAPE:
             			running = false;
             			break;
@@ -427,21 +376,14 @@ int main(int argC, char* argV[]) {
             			cpu_core->Reset();
             			break;
             		default:
+            			joysticks->update(&e);
             			break;
             	}
-        		if(e.type == SDL_KEYDOWN) {
-        			pad1Mask |= buttonMask;
-        		} else {
-        			pad1Mask &= ~buttonMask;
-        		}
             }
         }
 		
 	}
 	printf("Finished running\n");
-	
-
-
 	SDL_DestroyWindow(window);
 	SDL_Quit();
 	return 0;

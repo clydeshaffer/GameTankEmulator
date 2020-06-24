@@ -1,5 +1,5 @@
 #OBJS specifies which files to compile as part of the project
-OBJS = mos6502/mos6502.cpp dynawave.cpp gtc.cpp
+OBJS = mos6502/mos6502.cpp joystick_adapter.cpp dynawave.cpp gtc.cpp
 
 #CC specifies which compiler we're using
 CC = g++
