@@ -423,6 +423,9 @@ int main(int argC, char* argV[]) {
             		case SDLK_f:
             			gofast = (e.type == SDL_KEYDOWN);
             			break;
+            		case SDLK_r:
+            			cpu_core->Reset();
+            			break;
             		default:
             			break;
             	}
