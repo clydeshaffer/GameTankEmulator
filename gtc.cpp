@@ -153,10 +153,12 @@ void VDMA_Write(uint16_t address, uint8_t value) {
 				colorSel = 1;
 			}
 			outColor[1] = ~(dma_params[DMA_PARAM_COLOR]);
+#ifdef VIDDEBUG
 			printf("Copying from (%d, %d) to (%d, %d) at (%d x %d)\n",
 				gRect.x, gRect.y,
 				vRect.x, vRect.y,
 				gRect.w, gRect.h);
+#endif
 			uint16_t vOffset = 0, gOffset = 0;
 			if(dma_control_reg & DMA_V_PAGE_SELECT_BIT) {
 				vOffset = 0x4000;
@@ -190,7 +192,9 @@ void VDMA_Write(uint16_t address, uint8_t value) {
 				cpu_core->IRQ();
 			}
 		} else {
+#ifdef VIDDEBUG
 			printf("Setting DMA param %d to %d\n", address & 0xF, value);
+#endif
 			dma_params[address & 0xF] = value;
 		}
 	} else {
