@@ -282,6 +282,7 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 
 SDL_Event e;
 bool running = true;
+bool gofast = false;
 
 void CPUStopped() {
 	running = false;
@@ -359,7 +360,10 @@ int main(int argC, char* argV[]) {
 		} else {
 			zeroConsec = 0;
 		}
-		SDL_Delay(1000 * actual_cycles/system_clock);
+
+		if(!gofast) {
+			SDL_Delay(1000 * actual_cycles/system_clock);
+		}
 		cycles_since_vsync += actual_cycles;
 		if(cycles_since_vsync >= cycles_per_vsync) {
 			cycles_since_vsync -= cycles_per_vsync;
@@ -415,6 +419,10 @@ int main(int argC, char* argV[]) {
             			break;
             		case SDLK_ESCAPE:
             			running = false;
+            			break;
+            		case SDLK_f:
+            			gofast = (e.type == SDL_KEYDOWN);
+            			break;
             		default:
             			break;
             	}
