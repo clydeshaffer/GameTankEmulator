@@ -6,6 +6,9 @@ Powered by gianlucag's 6502 emulator library. (Forked to add some WDC 65C02 opco
 
 Currently I've only been testing and building this on Windows 10, but might eventually set up build scripts for Linux/OSX??
 
+| ![displaying a whole sprite sheet](img/spritesheet.PNG) | ![a simple platform game scene](img/simplelevel.PNG) |
+|-----------------|--------------------|
+
 ## How to use:
 The emulator is meant to test the same ROM files that I'd normally flash to an EEPROM cartridge. You can start the emulator with a ROM file
 either from the command line eg. `./GameTankEmulator.exe conway.gtr` or by dragging the ROM to the executable in Windows Explorer.
@@ -30,7 +33,9 @@ _For now I'm listing the differences between the emulator and the real hardware;
 
 The graphics board of the GameTank has all its features emulated in a _mostly accurate_ fashion. The emulated graphics can do anything you probably intended to do on the real thing, minus the composite video artifacts. Also absent is at least one known bug in the hardware that I hope to fix later.
 
-On the graphics board is 32K of framebuffer memory, 32K of "asset" or "sprite" memory, and a handful of control registers for a blitting engine. The DMA controller can be configured for direct CPU access to either page of the framebuffer, either page of the asset memory, or access to the blitting registers. Blitting operations consist of setting the width, height, X and Y within the asset memory, X and Y within the framebuffer for a rectangular area. The blitter will begin copying when its trigger register is written to.
+On the graphics board is 32K of framebuffer memory, 32K of "asset" or "sprite" memory, and a handful of control registers for a blitting engine. The rendered image is 128x128 pixels, though a TV cuts off the first and last few rows for an effective resolution of 128x100. Also the column 0 color is used for the border on each row, stretching between the image area and the true edges of the screen.
+
+The DMA controller can be configured for direct CPU access to either page of the framebuffer, either page of the asset memory, or access to the blitting registers. Blitting operations consist of setting the width, height, X and Y within the asset memory, X and Y within the framebuffer for a rectangular area. The blitter will begin copying when its trigger register is written to.
 
 The blitter can also be used to draw rectangles of solid color, or to skip copying pixels with value 0x00 to treat them as transparent.
 
