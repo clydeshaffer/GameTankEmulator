@@ -3,6 +3,7 @@
 
 #include "joystick_adapter.h"
 #include "dynawave.h"
+#include "gametank_palette.h"
 
 #include "mos6502/mos6502.h"
 
@@ -25,8 +26,7 @@ const int GT_HEIGHT = 128;
 
 const int SCREEN_WIDTH = 512;
 const int SCREEN_HEIGHT = 512;
-
-RGB_Color palette[256];
+RGB_Color *palette;
 uint8_t rom_buffer[ROMSIZE];
 uint8_t ram_buffer[RAMSIZE];
 uint8_t vram_buffer[FRAME_BUFFER_SIZE*2];
@@ -281,11 +281,7 @@ int main(int argC, char* argV[]) {
 		rom_buffer[i] = 0;
 	}
 
-	FILE* palFileP = fopen("GMETNK2.act", "rb");
-	if(palFileP) {
-		fread(palette, sizeof(RGB_Color), 256, palFileP);
-		fclose(palFileP);
-	}
+	palette = (RGB_Color*) gt_palette_vals;
 
 	if(argC > 1) {
 		FILE* romFileP = fopen(argV[1], "rb");
