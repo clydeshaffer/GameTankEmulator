@@ -20,6 +20,8 @@ typedef struct AudioState {
 	uint16_t periods[4];
 	uint8_t volumes[4];
 	uint8_t out[4];
+	uint16_t lfsr;
+	uint16_t wave_index;
 } AudioState;
 
 class DynaWave {
