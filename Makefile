@@ -4,7 +4,7 @@ OBJS = mos6502/mos6502.cpp joystick_adapter.cpp dynawave.cpp gtc.cpp
 #CC specifies which compiler we're using
 CC = g++
 
-SDL_ROOT = C:\Users\clyde\Dev\SDL2-2.0.12\x86_64-w64-mingw32
+SDL_ROOT = ..\SDL2-2.0.12\x86_64-w64-mingw32
 
 #INCLUDE_PATHS specifies the additional include paths we'll need
 INCLUDE_PATHS = -I$(SDL_ROOT)\include\SDL2
