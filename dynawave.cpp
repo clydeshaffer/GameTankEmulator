@@ -102,7 +102,7 @@ void fill_audio(void *udata, uint8_t *stream, int len) {
 			}
 		}
 
-		stream[i] = (state->out[SQUARE2] + state->out[SQUARE1] + state->out[NOISE] + state->out[WAVE]) / 4;
+		stream[i] = (state->out[SQUARE2] + state->out[SQUARE1] + state->out[NOISE] + state->out[WAVE]) / 8;
 	}
 	//SDL_MixAudio(stream, mix_buffer, len, SDL_MIX_MAXVOLUME / 2);
 }
@@ -135,7 +135,7 @@ DynaWave::DynaWave() {
 
     /* Set the audio format */
     wanted.freq = 44100;
-    wanted.format = AUDIO_U8;
+    wanted.format = AUDIO_S8;
     wanted.channels = 1;    /* 1 = mono, 2 = stereo */
     wanted.samples = 1024;  /* Good low-latency value for callback */
     wanted.callback = fill_audio;
