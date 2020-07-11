@@ -1,4 +1,4 @@
-#include <SDL.h>
+#include "SDL_inc.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>

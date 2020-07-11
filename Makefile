@@ -4,23 +4,28 @@ OBJS = mos6502/mos6502.cpp joystick_adapter.cpp dynawave.cpp gtc.cpp
 #CC specifies which compiler we're using
 CC = g++
 
-SDL_ROOT = ..\SDL2-2.0.12\x86_64-w64-mingw32
+ifeq ($(OS), Windows_NT)
+	SDL_ROOT = ..\SDL2-2.0.12\x86_64-w64-mingw32
 
-#INCLUDE_PATHS specifies the additional include paths we'll need
-INCLUDE_PATHS = -I$(SDL_ROOT)\include\SDL2
+	#INCLUDE_PATHS specifies the additional include paths we'll need
+	INCLUDE_PATHS = -I$(SDL_ROOT)\include\SDL2
 
-#LIBRARY_PATHS specifies the additional library paths we'll need
-LIBRARY_PATHS = -L $(SDL_ROOT)\lib
+	#LIBRARY_PATHS specifies the additional library paths we'll need
+	LIBRARY_PATHS = -L $(SDL_ROOT)\lib
+
+	#COMPILER_FLAGS specifies the additional compilation options we're using
+	# -w suppresses all warnings
+	# -Wl,-subsystem,windows gets rid of the console window
+	COMPILER_FLAGS = -w -Wl,-subsystem,windows
+	
+	#LINKER_FLAGS specifies the libraries we're linking against
+	LINKER_FLAGS = -lmingw32 -lSDL2main -lSDL2
+else
+	COMPILER_FLAGS = -w
+	LINKER_FLAGS = -lSDL2
+endif
 
 DEFINES = -D CPU_6502_STATIC -D CPU_6502_USE_LOCAL_HEADER
-
-#COMPILER_FLAGS specifies the additional compilation options we're using
-# -w suppresses all warnings
-# -Wl,-subsystem,windows gets rid of the console window
-COMPILER_FLAGS = -w -Wl,-subsystem,windows
-
-#LINKER_FLAGS specifies the libraries we're linking against
-LINKER_FLAGS = -lmingw32 -lSDL2main -lSDL2
 
 #OBJ_NAME specifies the name of our exectuable
 OBJ_NAME = GameTankEmulator
