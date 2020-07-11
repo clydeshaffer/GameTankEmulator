@@ -4,7 +4,8 @@ An emulator project for the GameTank 8-bit game console, to speed cross-developm
 
 Powered by gianlucag's 6502 emulator library. (Forked to add some WDC 65C02 opcodes)
 
-Currently I've only been testing and building this on Windows 10, but might eventually set up build scripts for Linux/OSX??
+I mainly develop this on Windows 10 but have also built it on Ubuntu. The Makefile checks for Windows or Linux. (OSX eventually?)
+For setting up the build enviroment I uzed LazyFoo's directions: http://lazyfoo.net/tutorials/SDL/01_hello_SDL/index.php
 
 | ![displaying a whole sprite sheet](img/spritesheet.PNG) | ![a simple platform game scene](img/simplelevel.PNG) |
 |-----------------|--------------------|
