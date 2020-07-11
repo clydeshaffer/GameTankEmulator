@@ -1,5 +1,7 @@
 #include <SDL.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 
 #include "joystick_adapter.h"
 #include "dynawave.h"
@@ -279,6 +281,11 @@ void CPUStopped() {
 int main(int argC, char* argV[]) {
 	for(int i = 0; i < ROMSIZE; i++) {
 		rom_buffer[i] = 0;
+	}
+
+	srand(time(NULL));
+	for(int i = 0; i < RAMSIZE; i++) {
+		ram_buffer[i] = rand() % 256;
 	}
 
 	palette = (RGB_Color*) gt_palette_vals;
