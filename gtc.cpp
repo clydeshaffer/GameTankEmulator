@@ -191,7 +191,7 @@ void VDMA_Write(uint16_t address, uint8_t value) {
 			}
 
 			if(dma_control_reg & DMA_COPY_IRQ_BIT) {
-				cpu_core->IRQ();
+				cpu_core->ScheduleIRQ((dma_params[DMA_PARAM_HEIGHT] * dma_params[DMA_PARAM_WIDTH]) / 4);
 			}
 		} else {
 #ifdef VIDDEBUG
