@@ -170,24 +170,26 @@ void VDMA_Write(uint16_t address, uint8_t value) {
 				gOffset = 0x4000;
 				gRect.y += GT_HEIGHT;
 			}
-			int vy = dma_params[DMA_PARAM_VY],
-				gy = dma_params[DMA_PARAM_GY];
+			int yShift = 0;
+			int vy = dma_params[DMA_PARAM_VY] & 0x7F,
+				gy = dma_params[DMA_PARAM_GY] & 0x7F;
+			if(dma_control_reg & DMA_V_PAGE_SELECT_BIT) {
+				yShift = GT_HEIGHT;
+			}
 			for(uint16_t y = 0; y < dma_params[DMA_PARAM_HEIGHT]; y++) {
-				int vx = dma_params[DMA_PARAM_VX],
-					gx = dma_params[DMA_PARAM_GX];
-				for(uint16_t x = 0; x < dma_params[DMA_PARAM_WIDTH]; x++) {
+				int vx = dma_params[DMA_PARAM_VX] & 0x7F,
+					gx = dma_params[DMA_PARAM_GX] & 0x7F;
+				for(uint16_t x = 0; x <= dma_params[DMA_PARAM_WIDTH]; x++) {
 					outColor[0] = gram_buffer[(gy << 7) | gx | gOffset];
-					vram_buffer[(vy << 7) | vx | vOffset] = outColor[colorSel];
+					if(!(dma_control_reg & DMA_TRANSPARENCY_BIT) || (outColor[colorSel] != 0)) {
+						vram_buffer[(vy << 7) | vx | vOffset] = outColor[colorSel];
+						put_pixel32(vRAM_Surface, vx, vy + yShift, convert_color(vRAM_Surface, outColor[colorSel]));
+					}
 					vx++;
 					gx++;
 				}
 				vy++;
 				gy++;
-			}
-			if(colorSel == 1) {
-				SDL_FillRect(vRAM_Surface, &vRect,  convert_color(vRAM_Surface, outColor[1]));
-			} else {
-				SDL_BlitSurface(gRAM_Surface, &gRect, vRAM_Surface, &vRect);
 			}
 
 			if(dma_control_reg & DMA_COPY_IRQ_BIT) {
