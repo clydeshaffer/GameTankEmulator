@@ -332,10 +332,16 @@ int main(int argC, char* argV[]) {
 	SDL_SetColorKey(vRAM_Surface, SDL_FALSE, 0);
 	SDL_SetColorKey(gRAM_Surface, SDL_FALSE, 0);
 
-	SDL_FillRect(gRAM_Surface, NULL, SDL_MapRGB(gRAM_Surface->format, 0, 0, 0));
-	SDL_FillRect(vRAM_Surface, NULL, SDL_MapRGB(vRAM_Surface->format, 0, 0, 0));
-
 	SDL_FillRect(screenSurface, NULL, SDL_MapRGB(screenSurface->format, 0x00, 0x00, 0x00));
+
+	for(int i = 0; i < FRAME_BUFFER_SIZE*2; i ++) {
+		vram_buffer[i] = rand() % 256;
+		put_pixel32(vRAM_Surface, i & 127, i >> 7, convert_color(vRAM_Surface, vram_buffer[i]));
+	}
+	for(int i = 0; i < FRAME_BUFFER_SIZE*2; i ++) {
+		gram_buffer[i] = rand() % 256;
+		put_pixel32(gRAM_Surface, i & 127, i >> 7, convert_color(gRAM_Surface, gram_buffer[i]));
+	}
 
 	uint64_t system_clock = 315000000/88;
 	uint64_t actual_cycles = 0;
