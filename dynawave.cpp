@@ -1,5 +1,6 @@
 #include "SDL_inc.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "dynawave.h"
 
@@ -132,6 +133,10 @@ DynaWave::DynaWave() {
 
 	state.lfsr = 0;
 	state.wave_index = 0;
+
+	for(int i = 0; i < 4096; i ++) {
+		state.wavetable[i] = rand() % 256;
+	}
 
     /* Set the audio format */
     wanted.freq = 44100;
