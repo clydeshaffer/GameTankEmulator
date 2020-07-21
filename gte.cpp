@@ -31,6 +31,7 @@ const int SCREEN_HEIGHT = 512;
 RGB_Color *palette;
 uint8_t rom_buffer[ROMSIZE];
 uint8_t ram_buffer[RAMSIZE];
+bool ram_inited[RAMSIZE];
 uint8_t vram_buffer[FRAME_BUFFER_SIZE*2];
 uint8_t gram_buffer[FRAME_BUFFER_SIZE*2];
 
@@ -231,6 +232,7 @@ void VDMA_Write(uint16_t address, uint8_t value) {
 }
 
 uint8_t MemoryRead(uint16_t address) {
+
 	if(address & 0x8000) {
 		if(rom_buffer[address & 0x1FFF] == 0x4C) {
 		}
@@ -240,6 +242,9 @@ uint8_t MemoryRead(uint16_t address) {
 	}else if(address >= 0x3000 && address <= 0x3FFF) {
 		return soundcard->wavetable_read(address);
 	} else if(address < 0x2000) {
+		if(!ram_inited[address & 0x1FFF]) {
+			printf("WARNING! Uninitialized RAM read at %x\n", address);
+		}
 		return ram_buffer[address & 0x1FFF];
 	} else if(address == 0x2008 || address == 0x2009) {
 		return joysticks->read((uint8_t) address);
@@ -268,6 +273,7 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 		}
 	}
 	else if(address < 0x2000) {
+		ram_inited[address & 0x1FFF] = true;
 		ram_buffer[address & 0x1FFF] = value;
 	}
 }
@@ -288,6 +294,7 @@ int main(int argC, char* argV[]) {
 	srand(time(NULL));
 	for(int i = 0; i < RAMSIZE; i++) {
 		ram_buffer[i] = rand() % 256;
+		ram_inited[i] = false;
 	}
 
 	palette = (RGB_Color*) gt_palette_vals;
