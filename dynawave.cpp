@@ -24,12 +24,12 @@ void DynaWave::register_write(uint16_t address, uint8_t value) {
 		case SQUARE1_CTRL:
 			state.volumes[SQUARE1] = volume_convert[(state.regs[SQUARE1_CTRL] >> 3) & 0x7];
 		case SQUARE1_NOTE:
-			state.periods[SQUARE1] = (state.regs[SQUARE1_NOTE] << ((state.regs[SQUARE1_CTRL] & 7) + 5)) / 325;
+			state.periods[SQUARE1] = ((state.regs[SQUARE1_NOTE]+1) << ((state.regs[SQUARE1_CTRL] & 7) + 5)) / 325;
 			break;
 		case SQUARE2_CTRL:
 			state.volumes[SQUARE2] = volume_convert[(state.regs[SQUARE2_CTRL] >> 3) & 0x7];
 		case SQUARE2_NOTE:
-			state.periods[SQUARE2] = (state.regs[SQUARE2_NOTE] << ((state.regs[SQUARE2_CTRL] & 7) + 5)) / 325;
+			state.periods[SQUARE2] = ((state.regs[SQUARE2_NOTE]+1) << ((state.regs[SQUARE2_CTRL] & 7) + 5)) / 325;
 			break;
 		case NOISE_CTRL:
 			state.periods[NOISE] = reclock_table[state.regs[NOISE_CTRL] & 7];
@@ -142,7 +142,7 @@ DynaWave::DynaWave() {
     wanted.freq = 44100;
     wanted.format = AUDIO_S8;
     wanted.channels = 1;    /* 1 = mono, 2 = stereo */
-    wanted.samples = 1024;  /* Good low-latency value for callback */
+    wanted.samples = 512;  /* Good low-latency value for callback */
     wanted.callback = fill_audio;
     wanted.userdata = &state;
 
