@@ -354,6 +354,11 @@ int main(int argC, char* argV[]) {
 	uint64_t actual_cycles = 0;
 	uint64_t cycles_since_vsync = 0;
 	uint64_t cycles_per_vsync = system_clock / 60;
+	double time_scaling = 1000;
+	double scaling_increment = 100;
+	uint32_t lastTicks = 0, currentTicks;
+	uint8_t frameCount = 0;
+	bool prev_overlong = false;
 	int zeroConsec = 0;
 	while(running) {
 		actual_cycles = 0;
@@ -369,8 +374,40 @@ int main(int argC, char* argV[]) {
 		}
 
 		if(!gofast) {
-			SDL_Delay(1000 * actual_cycles/system_clock);
+			SDL_Delay(time_scaling * actual_cycles/system_clock);
+		} else {
+			lastTicks = 0;
 		}
+		currentTicks = SDL_GetTicks();
+		if(lastTicks != 0) {
+			int time_error = (currentTicks - lastTicks) - (1000 * actual_cycles/system_clock);
+			if(frameCount % 64 == 0)
+				printf("scaling: %f\tincrement: %f\terror: %d\n", time_scaling, scaling_increment, time_error);
+			bool overlong = time_error > 0;
+			if(overlong == prev_overlong) {
+				//scaling_increment = 1;
+			} else if(scaling_increment > 1) {
+				scaling_increment -= 1;
+			}
+			if((scaling_increment > 1) || (abs(time_error) > 2)) {
+				if(overlong) {
+					time_scaling -= scaling_increment;
+				} else {
+					time_scaling += scaling_increment;
+				}
+			}
+			prev_overlong = overlong;
+
+			if(time_scaling < 100) {
+				time_scaling = 100;
+			} else if(time_scaling > 2000) {
+				time_scaling = 2000;
+			}
+		}
+		lastTicks = currentTicks;
+
+		frameCount++;
+
 		cycles_since_vsync += actual_cycles;
 		if(cycles_since_vsync >= cycles_per_vsync) {
 			cycles_since_vsync -= cycles_per_vsync;
