@@ -11,7 +11,7 @@ ifeq ($(OS), Windows_NT)
 	INCLUDE_PATHS = -I$(SDL_ROOT)\include\SDL2
 
 	#LIBRARY_PATHS specifies the additional library paths we'll need
-	LIBRARY_PATHS = -L $(SDL_ROOT)\lib
+	LIBRARY_PATHS = -L$(SDL_ROOT)\lib
 
 	#COMPILER_FLAGS specifies the additional compilation options we're using
 	# -w suppresses all warnings
@@ -19,7 +19,7 @@ ifeq ($(OS), Windows_NT)
 	COMPILER_FLAGS = -w -Wl,-subsystem,windows
 	
 	#LINKER_FLAGS specifies the libraries we're linking against
-	LINKER_FLAGS = -lmingw32 -lSDL2main -lSDL2
+	LINKER_FLAGS = -lmingw32 -lSDL2main -lSDL2 -Wl,-Bstatic -mwindows -lm -ldinput8 -ldxguid -ldxerr8 -luser32 -lgdi32 -lwinmm -limm32 -lole32 -loleaut32 -lshell32 -lversion -luuid -static-libgcc -lsetupapi
 else
 	COMPILER_FLAGS = -w
 	LINKER_FLAGS = -lSDL2
