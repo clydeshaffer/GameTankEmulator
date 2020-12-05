@@ -26,6 +26,8 @@ Other utility keys are:
 
 * Press Esc to exit the program
 
+* Press O to load a rom file at runtime. The dialog also appears if the emulator is launched without specifying a rom file.
+
 _For now I'm listing the differences between the emulator and the real hardware; stopping short of writing a programming manual for the GameTank which will be a separate wiki-like document to come later_
 
 ## Emulated Capabilities:

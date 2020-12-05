@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <time.h>
 
+#include "tinyfd/tinyfiledialogs.h"
+
 #include "joystick_adapter.h"
 #include "dynawave.h"
 #include "gametank_palette.h"
@@ -281,9 +283,25 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 SDL_Event e;
 bool running = true;
 bool gofast = false;
+bool paused = false;
 
 void CPUStopped() {
-	running = false;
+	paused = true;
+	printf("CPU stopped");
+	tinyfd_notifyPopup("Alert",
+		"CPU has stopped either due to STP opcode",
+		"info");
+}
+
+char * open_rom_dialog() {
+	char const * lFilterPatterns[1] = {"*.gtr"};
+	return tinyfd_openFileDialog(
+		"Select a GameTank ROM file",
+		"",
+		1,
+		lFilterPatterns,
+		"GameTank Rom",
+		0);
 }
 
 int main(int argC, char* argV[]) {
@@ -299,12 +317,25 @@ int main(int argC, char* argV[]) {
 
 	palette = (RGB_Color*) gt_palette_vals;
 
+	char const * lTheOpenFileName = NULL;
+
 	if(argC > 1) {
-		FILE* romFileP = fopen(argV[1], "rb");
+		lTheOpenFileName = argV[1];
+	} else {
+		lTheOpenFileName = open_rom_dialog();
+	}
+
+	if(lTheOpenFileName) {
+		FILE* romFileP = fopen(lTheOpenFileName, "rb");
 		if(romFileP) {
 			fread(rom_buffer, sizeof(uint8_t), ROMSIZE, romFileP);
 			fclose(romFileP);
 		}
+	} else {
+		paused = true;
+		tinyfd_notifyPopup("Alert",
+		"No ROM was loaded",
+		"warning");
 	}
 
 	joysticks = new JoystickAdapter();
@@ -361,59 +392,63 @@ int main(int argC, char* argV[]) {
 	bool prev_overlong = false;
 	int zeroConsec = 0;
 	while(running) {
-		actual_cycles = 0;
-		cpu_core->Run(cycles_per_vsync, actual_cycles);
-		if(actual_cycles == 0) {
-			zeroConsec++;
-			if(zeroConsec == 10) {
-				printf("(Got stuck!)\n");
-				break;
+		if(!paused) {
+			actual_cycles = 0;
+			cpu_core->Run(cycles_per_vsync, actual_cycles);
+			if(actual_cycles == 0) {
+				zeroConsec++;
+				if(zeroConsec == 10) {
+					printf("(Got stuck!)\n");
+					paused = true;
+				}
+			} else {
+				zeroConsec = 0;
 			}
-		} else {
-			zeroConsec = 0;
-		}
 
-		if(!gofast) {
-			SDL_Delay(time_scaling * actual_cycles/system_clock);
-		} else {
-			lastTicks = 0;
-		}
-		currentTicks = SDL_GetTicks();
-		if(lastTicks != 0) {
-			int time_error = (currentTicks - lastTicks) - (1000 * actual_cycles/system_clock);
-			if(frameCount % 64 == 0)
-				printf("scaling: %f\tincrement: %f\terror: %d\n", time_scaling, scaling_increment, time_error);
-			bool overlong = time_error > 0;
-			if(overlong == prev_overlong) {
-				//scaling_increment = 1;
-			} else if(scaling_increment > 1) {
-				scaling_increment -= 1;
+			if(!gofast) {
+				SDL_Delay(time_scaling * actual_cycles/system_clock);
+			} else {
+				lastTicks = 0;
 			}
-			if((scaling_increment > 1) || (abs(time_error) > 2)) {
-				if(overlong) {
-					time_scaling -= scaling_increment;
-				} else {
-					time_scaling += scaling_increment;
+			currentTicks = SDL_GetTicks();
+			if(lastTicks != 0) {
+				int time_error = (currentTicks - lastTicks) - (1000 * actual_cycles/system_clock);
+				if(frameCount % 64 == 0)
+					printf("scaling: %f\tincrement: %f\terror: %d\n", time_scaling, scaling_increment, time_error);
+				bool overlong = time_error > 0;
+				if(overlong == prev_overlong) {
+					//scaling_increment = 1;
+				} else if(scaling_increment > 1) {
+					scaling_increment -= 1;
+				}
+				if((scaling_increment > 1) || (abs(time_error) > 2)) {
+					if(overlong) {
+						time_scaling -= scaling_increment;
+					} else {
+						time_scaling += scaling_increment;
+					}
+				}
+				prev_overlong = overlong;
+
+				if(time_scaling < 100) {
+					time_scaling = 100;
+				} else if(time_scaling > 2000) {
+					time_scaling = 2000;
 				}
 			}
-			prev_overlong = overlong;
+			lastTicks = currentTicks;
 
-			if(time_scaling < 100) {
-				time_scaling = 100;
-			} else if(time_scaling > 2000) {
-				time_scaling = 2000;
+			frameCount++;
+
+			cycles_since_vsync += actual_cycles;
+			if(cycles_since_vsync >= cycles_per_vsync) {
+				cycles_since_vsync -= cycles_per_vsync;
+
 			}
+			cpu_core->NMI();
+		} else {
+			SDL_Delay(100);
 		}
-		lastTicks = currentTicks;
-
-		frameCount++;
-
-		cycles_since_vsync += actual_cycles;
-		if(cycles_since_vsync >= cycles_per_vsync) {
-			cycles_since_vsync -= cycles_per_vsync;
-
-		}
-		cpu_core->NMI();
 		refreshScreen();
 		SDL_UpdateWindowSurface(window);
 
@@ -432,7 +467,26 @@ int main(int argC, char* argV[]) {
             			gofast = (e.type == SDL_KEYDOWN);
             			break;
             		case SDLK_r:
+            			paused = false;
             			cpu_core->Reset();
+            			break;
+            		case SDLK_o:
+            			if(e.type == SDL_KEYDOWN) {
+            				lTheOpenFileName = open_rom_dialog();
+	            			if(lTheOpenFileName) {
+								FILE* romFileP = fopen(lTheOpenFileName, "rb");
+								if(romFileP) {
+									fread(rom_buffer, sizeof(uint8_t), ROMSIZE, romFileP);
+									fclose(romFileP);
+								}
+								paused = false;
+	            				cpu_core->Reset();
+							} else {
+								tinyfd_notifyPopup("Alert",
+								"No ROM was loaded",
+								"warning");
+							}
+	            		}
             			break;
             		default:
             			joysticks->update(&e);
