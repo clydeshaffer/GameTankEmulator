@@ -144,11 +144,11 @@ void VDMA_Write(uint16_t address, uint8_t value) {
 			SDL_Rect gRect, vRect;
 			vRect.x = dma_params[DMA_PARAM_VX] & 0x7F;
 			vRect.y = dma_params[DMA_PARAM_VY] & 0x7F;
-			vRect.w = dma_params[DMA_PARAM_WIDTH] + 1;
+			vRect.w = dma_params[DMA_PARAM_WIDTH];
 			vRect.h = dma_params[DMA_PARAM_HEIGHT];
 			gRect.x = dma_params[DMA_PARAM_GX] & 0x7F;
 			gRect.y = dma_params[DMA_PARAM_GY] & 0x7F;
-			gRect.w = dma_params[DMA_PARAM_WIDTH] + 1;
+			gRect.w = dma_params[DMA_PARAM_WIDTH];
 			gRect.h = dma_params[DMA_PARAM_HEIGHT];
 			uint8_t outColor[2];
 			uint8_t colorSel = 0;
@@ -180,7 +180,7 @@ void VDMA_Write(uint16_t address, uint8_t value) {
 			for(uint16_t y = 0; y < dma_params[DMA_PARAM_HEIGHT]; y++) {
 				int vx = dma_params[DMA_PARAM_VX] & 0x7F,
 					gx = dma_params[DMA_PARAM_GX] & 0x7F;
-				for(uint16_t x = 0; x <= dma_params[DMA_PARAM_WIDTH]; x++) {
+				for(uint16_t x = 0; x < dma_params[DMA_PARAM_WIDTH]; x++) {
 					outColor[0] = gram_buffer[(gy << 7) | gx | gOffset];
 					if(!(dma_control_reg & DMA_TRANSPARENCY_BIT) || (outColor[colorSel] != 0)) {
 						vram_buffer[(vy << 7) | vx | vOffset] = outColor[colorSel];
@@ -260,7 +260,7 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 		VDMA_Write(address, value);
 	} else if(address >= 0x3000 && address <= 0x3FFF) {
 		soundcard->wavetable_write(address, value);
-	} else if(address & 0x2000) {
+	} else if((address & 0x2000) && !(address & 0x800)) {
 		if((address & 0x000F) == 0x0007) {
 			dma_control_reg = value;
 			if(dma_control_reg & DMA_TRANSPARENCY_BIT) {
