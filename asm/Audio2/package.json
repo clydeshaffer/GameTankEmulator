@@ -1,0 +1,14 @@
+{
+  "name": "gt_midi_convert",
+  "version": "1.0.0",
+  "description": "converts midi files for playing on the gametank",
+  "main": "midiconvert.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "midi-file": "^1.1.2"
+  }
+}

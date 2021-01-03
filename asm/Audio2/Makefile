@@ -18,17 +18,20 @@ acp_melodic:
 
 acp_dynawave:
 	vasm6502_oldstyle -dotdir -wdc02 -Fbin acp_dynawave.asm -o dynawave.acp
+	zopfli --deflate dynawave.acp
 
 ROMFILE=undefined
+
+USB=COM8
 
 flash:
 	ls $(ROMFILE)
 	cd ../../../eepromProgrammer ;\
-	node index.js COM8 ../GameTankEmulator/asm/Audio2/$(ROMFILE)
+	node index.js $(USB) ../GameTankEmulator/asm/Audio2/$(ROMFILE)
 
 flash_smd:
 	ls $(ROMFILE)
 	cd ../../../eepromProgrammer/scrambler ;\
 	./scrambler.exe ../../GameTankEmulator/asm/Audio2/$(ROMFILE) ../../GameTankEmulator/asm/Audio2/$(ROMFILE).scrambled ;\
 	cd .. ;\
-	node index.js COM8 ../GameTankEmulator/asm/Audio2/$(ROMFILE).scrambled
+	node index.js $(USB) ../GameTankEmulator/asm/Audio2/$(ROMFILE).scrambled
