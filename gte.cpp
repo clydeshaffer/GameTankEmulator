@@ -6,7 +6,7 @@
 #include "tinyfd/tinyfiledialogs.h"
 
 #include "joystick_adapter.h"
-#include "dynawave.h"
+#include "audio_coprocessor.h"
 #include "gametank_palette.h"
 
 #include "mos6502/mos6502.h"
@@ -72,7 +72,7 @@ SDL_Surface* gRAM_Surface = NULL;
 SDL_Surface* vRAM_Surface = NULL;
 
 mos6502 *cpu_core;
-DynaWave *soundcard;
+AudioCoprocessor *soundcard;
 JoystickAdapter *joysticks;
 
 uint8_t open_bus() {
@@ -242,7 +242,7 @@ uint8_t MemoryRead(uint16_t address) {
 	} else if(address & 0x4000) {
 		return VDMA_Read(address);
 	}else if(address >= 0x3000 && address <= 0x3FFF) {
-		return soundcard->wavetable_read(address);
+		return soundcard->ram_read(address);
 	} else if(address < 0x2000) {
 		if(!ram_inited[address & 0x1FFF]) {
 			printf("WARNING! Uninitialized RAM read at %x\n", address);
@@ -261,7 +261,7 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 	else if(address & 0x4000) {
 		VDMA_Write(address, value);
 	} else if(address >= 0x3000 && address <= 0x3FFF) {
-		soundcard->wavetable_write(address, value);
+		soundcard->ram_write(address, value);
 	} else if((address & 0x2000) && !(address & 0x800)) {
 		if((address & 0x000F) == 0x0007) {
 			dma_control_reg = value;
@@ -339,7 +339,7 @@ int main(int argC, char* argV[]) {
 	}
 
 	joysticks = new JoystickAdapter();
-	soundcard = new DynaWave();
+	soundcard = new AudioCoprocessor();
 	cpu_core = new mos6502(MemoryRead, MemoryWrite, CPUStopped);
 	cpu_core->Reset();
 

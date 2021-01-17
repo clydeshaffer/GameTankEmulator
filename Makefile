@@ -1,5 +1,5 @@
 #OBJS specifies which files to compile as part of the project
-OBJS = mos6502/mos6502.cpp joystick_adapter.cpp dynawave.cpp gte.cpp
+OBJS = mos6502/mos6502.cpp joystick_adapter.cpp audio_coprocessor.cpp gte.cpp
 C_OBJS = tinyfd/tinyfiledialogs.c
 
 #CC specifies which C compiler we're using
