@@ -21,17 +21,28 @@ typedef struct RGBA_Color {
 	uint8_t r, g, b, a;
 } RGBA_Color;
 
-const int ROMSIZE = 8192;
+int ROMSIZE = 8192;
 const int RAMSIZE = 8192;
 const int FRAME_BUFFER_SIZE = 16384;
 
 const int GT_WIDTH = 128;
 const int GT_HEIGHT = 128;
 
+enum RomType {
+	UNKNOWN,
+	EEPROM8K,
+	EEPROM32K,
+	FLASH2M,	
+};
+
+uint8_t flash2M_highbits_shifter;
+uint8_t flash2M_highbits;
+RomType loadedRomType;
+
 const int SCREEN_WIDTH = 512;
 const int SCREEN_HEIGHT = 512;
 RGB_Color *palette;
-uint8_t rom_buffer[ROMSIZE];
+uint8_t *rom_buffer;
 uint8_t ram_buffer[RAMSIZE];
 bool ram_inited[RAMSIZE];
 uint8_t vram_buffer[FRAME_BUFFER_SIZE*2];
@@ -233,12 +244,38 @@ void VDMA_Write(uint16_t address, uint8_t value) {
 	}
 }
 
+uint8_t MemoryRead_Flash2M(uint16_t address) {
+	if(address & 0x4000) {
+		return rom_buffer[0b111111100000000000000 | (address & 0x3FFF)];
+	} else {
+		return rom_buffer[(flash2M_highbits << 14) | (address & 0x3FFF)];
+	}
+}
+
+uint8_t MemoryRead_Unknown(uint16_t address) {
+	//If ROMSIZE is smaller than unbanked ROM range, align end with 0xFFFF and wrap
+	//If ROMSIZE is bigger than unbanked ROM range, access window at end of file.
+	//TODO: Decide if unknown ROM type should just terminate emulator :P
+	if(ROMSIZE <= 32768) {
+		return rom_buffer[((address & 0x7FFF) + 32768 - ROMSIZE) % ROMSIZE];
+	} else {
+		return rom_buffer[((address & 0x7FFF) + ROMSIZE - 32768)];
+	}
+}
+
 uint8_t MemoryRead(uint16_t address) {
 
 	if(address & 0x8000) {
-		if(rom_buffer[address & 0x1FFF] == 0x4C) {
+		switch(loadedRomType) {
+			case RomType::EEPROM8K:
+			return rom_buffer[address & 0x1FFF];
+			case RomType::EEPROM32K:
+			return rom_buffer[address & 0x7FFF];
+			case RomType::FLASH2M:
+			return MemoryRead_Flash2M(address);
+			case RomType::UNKNOWN:
+			return MemoryRead_Unknown(address);
 		}
-		return rom_buffer[address & 0x1FFF];
 	} else if(address & 0x4000) {
 		return VDMA_Read(address);
 	}else if(address >= 0x3000 && address <= 0x3FFF) {
@@ -305,9 +342,6 @@ char * open_rom_dialog() {
 }
 
 int main(int argC, char* argV[]) {
-	for(int i = 0; i < ROMSIZE; i++) {
-		rom_buffer[i] = 0;
-	}
 
 	srand(time(NULL));
 	for(int i = 0; i < RAMSIZE; i++) {
@@ -328,6 +362,28 @@ int main(int argC, char* argV[]) {
 	if(lTheOpenFileName) {
 		FILE* romFileP = fopen(lTheOpenFileName, "rb");
 		if(romFileP) {
+			fseek(romFileP, 0L, SEEK_END);
+			ROMSIZE = ftell(romFileP);
+			rom_buffer = new uint8_t [ROMSIZE];
+			rewind(romFileP);
+			switch(ROMSIZE) {
+				case 8192:
+				loadedRomType = RomType::EEPROM8K;
+				printf("Detected 8K (EEPROM)\n");
+				break;
+				case 32768:
+				loadedRomType = RomType::EEPROM32K;
+				printf("Detected 32K (EEPROM)\n");
+				break;
+				case 2097152:
+				loadedRomType = RomType::FLASH2M;
+				printf("Detected 2M (Flash)\n");
+				break;
+				default:
+				loadedRomType = RomType::UNKNOWN;
+				printf("Unknown ROM type: Size is %d bytes\n");
+				break;
+			}
 			fread(rom_buffer, sizeof(uint8_t), ROMSIZE, romFileP);
 			fclose(romFileP);
 		}
@@ -336,6 +392,10 @@ int main(int argC, char* argV[]) {
 		tinyfd_notifyPopup("Alert",
 		"No ROM was loaded",
 		"warning");
+		rom_buffer = new uint8_t [ROMSIZE];
+		for(int i = 0; i < ROMSIZE; i++) {
+			rom_buffer[i] = 0;
+		}
 	}
 
 	joysticks = new JoystickAdapter();
