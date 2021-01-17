@@ -275,11 +275,12 @@ void UpdateFlashShiftRegister(uint8_t nextVal) {
 	uint8_t risingBits = nextVal & ~oldVal;
 	if(risingBits & VIA_SPI_BIT_CLK) {
 		flash2M_highbits_shifter = flash2M_highbits_shifter << 1;
-		flash2M_highbits_shifter |= !(oldVal & VIA_SPI_BIT_MOSI);
+		flash2M_highbits_shifter &= 0xFE;
+		flash2M_highbits_shifter |= !!(oldVal & VIA_SPI_BIT_MOSI);
 	} else if(risingBits & VIA_SPI_BIT_CS) {
 		//flash cart CS is connected to latch clock
 		flash2M_highbits = flash2M_highbits_shifter & 0xFF;
-		printf("Flash highbits set to %x\n", flash2M_highbits);
+		printf("Flash highbits set to %x\n", flash2M_highbits & 0x7F);
 	}
 }
 
@@ -454,7 +455,6 @@ int main(int argC, char* argV[]) {
 	cpu_core->Reset();
 
 	SDL_Window* window = NULL;
-
 	SDL_Init(SDL_INIT_VIDEO);
 	atexit(SDL_Quit);
 	window = SDL_CreateWindow( "GameTank Emulator", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN );
