@@ -7,9 +7,11 @@ var outputFileBaseName = filename.split(".").slice(0,-1).join(".");
 var inputFile = fs.readFileSync(filename);
 var parsedInput = parseMidi(inputFile);
 
+var doPrints = false;
+
 class GTNote {
     constructor(frames, noteNumber) {
-        this.frames = Math.floor(frames);
+        this.frames = Math.floor(frames) % 256;
         this.noteNumber = noteNumber;
         if(noteNumber == 0) {
             this.noteCode = 0;
@@ -37,6 +39,7 @@ function processChannel(ch, outname) {
     var eventTypes = {};
     var noteTracker = {};
     var totalTicks = 0;
+    var totalFrames = 0;
     var chNotes = [];
     var chLength = 0;
     var lastOff = 0;
@@ -44,24 +47,31 @@ function processChannel(ch, outname) {
     var notesOn = 0;
     var lastNoteOn = 0;
     var timeError = 0;
-
+    var firstOn = -1;
+    var noteCnt = 0;
+    var restCnt = 0;
+    var allError = 0;
 
     function doNoteOff(noteNumber) {
         if(noteTracker[noteNumber] >= 0) {
             notesOn--;
             lastOff = totalTicks;
-            var noteTicks = 1 + totalTicks - noteTracker[noteNumber];
+            var noteTicks = totalTicks - noteTracker[noteNumber];
             var noteFrames = framesPerBeat * noteTicks / ticksPerBeat;
-            if(noteFrames > 255) {
+            if(noteFrames > 256) {
                 console.log("TODO: add rest after unsupportedly long notes");
             }
-            var noteError = noteFrames - Math.floor(noteFrames);
+
+            timeError += noteFrames - Math.floor(noteFrames);
+            allError += noteFrames - Math.floor(noteFrames);
             noteFrames = Math.floor(noteFrames);
-            timeError += noteError;
+            //console.log("time error: " + timeError);
             noteFrames += Math.floor(timeError);
             timeError -= Math.floor(timeError);
             if(noteFrames >= 1) {
                 chNotes.push(new GTNote(noteFrames, noteNumber));
+                totalFrames += noteFrames;
+                noteCnt++;
             }
             delete noteTracker[noteNumber];
         }
@@ -70,23 +80,48 @@ function processChannel(ch, outname) {
     ch.forEach(function(evt, ind) {
         totalTicks += evt.deltaTime;
         if(evt.type == "noteOn") {
+            if(firstOn == -1) {
+                firstOn = totalTicks;
+                console.log("first note at " + firstOn);
+            }
+            if(totalTicks == 6144) {
+                console.log( totalTicks - lastOff - 1);
+            }
             if(notesOn > 0) {
                 doNoteOff(lastNoteOn);
             }
             notesOn++;
-            var sinceLastOff = totalTicks - lastOff - 1;
+            var sinceLastOff = totalTicks - lastOff;
             if(sinceLastOff >= 1) {
                 var restFrames = framesPerBeat * sinceLastOff / ticksPerBeat;
-                console.log("time error: " + timeError);
+                if(totalTicks == 6144) {
+                    console.log(framesPerBeat);
+                    console.log(ticksPerBeat);
+                    console.log(restFrames);
+                }
+                timeError += restFrames - Math.floor(restFrames);
+                allError += restFrames - Math.floor(restFrames);
+                restFrames = Math.floor(restFrames);
+                //console.log("time error: " + timeError);
                 restFrames += Math.floor(timeError);
                 timeError -= Math.floor(timeError);
-                while(restFrames > 255) {
-                    chNotes.push(new GTNote(255, 0)); //insert a max length rest
-                    restFrames -= 255;
+                while(restFrames >= 256) {
+                    chNotes.push(new GTNote(256, 0)); //insert a max length rest
+                    restFrames -= 256;
+                    totalFrames += 256;
+                    restCnt++;
                 }
                 if(restFrames >= 1) {
                     chNotes.push(new GTNote(restFrames, 0)); //insert a rest
+                    totalFrames += restFrames;
+                    restCnt++;
                 }
+            }
+            if(totalTicks == 6144) {
+                console.log("note at 6144");
+                console.log("frames is " + totalFrames);
+                console.log("error is " + allError);
+                console.log(noteCnt + " notes, " + restCnt + " rests")
             }
             noteTracker[evt.noteNumber] = totalTicks;
             lastNoteOn = evt.noteNumber;
@@ -116,7 +151,8 @@ function processChannel(ch, outname) {
         lastTrackLength = chLength;
     }
 
-    var b = new Buffer(chNotes.length * 2);
+    //var b = new Buffer(chNotes.length * 2);
+    var b = Buffer.alloc(chNotes.length * 2);
     chNotes.forEach((item, ind) => {
         b[ind*2] = item.frames % 256;
         b[ind*2 + 1] = item.noteCode;
@@ -153,6 +189,7 @@ function bwrap(num) {
 }
 
 var stream = fs.createWriteStream(outputFileBaseName + "_alltracks.gtm");
+
 stream.on("error", console.error);
 stream.write(bwrap(lowByte(lastTrackLength)));
 stream.write(bwrap(highByte(lastTrackLength)));

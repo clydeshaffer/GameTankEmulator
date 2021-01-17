@@ -30,7 +30,7 @@ inflate_zp = $F0 ; F1, F2, F3
 
 inflate_data = $0200 ; until $04FD
 
-LoadedMusicFirstPage = $0600
+LoadedMusicFirstPage = $4000
 
 Audio_Reset = $2000
 Audio_NMI = $2001
@@ -61,6 +61,9 @@ RESET:
 	STZ MusicEnvI_Ch2
 	STZ MusicEnvI_Ch3
 	STZ MusicEnvI_Ch4
+
+	LDA #%01100100 ;load this hardcoded value into the A register
+	STA DMA_Flags ;store the value from the A register into DMA_Flags
 
 	LDA #<MusicPkg_Main
 	STA inflate_zp
@@ -104,24 +107,28 @@ RestartMusic:
 	STA MusicTicksLeft
 	LDA MusicTicksTotal+1
 	STA MusicTicksLeft+1
+
 	LDA MusicStart_Ch1
 	STA MusicPtr_Ch1
 	LDA MusicStart_Ch1+1
 	STA MusicPtr_Ch1+1
 	LDA #1
 	STA MusicNext_Ch1
+
 	LDA MusicStart_Ch2
 	STA MusicPtr_Ch2
 	LDA MusicStart_Ch2+1
 	STA MusicPtr_Ch2+1
 	LDA #1
 	STA MusicNext_Ch2
+
 	LDA MusicStart_Ch3
 	STA MusicPtr_Ch3
 	LDA MusicStart_Ch3+1
 	STA MusicPtr_Ch3+1
 	LDA #1
 	STA MusicNext_Ch3
+
 	LDA MusicStart_Ch4
 	STA MusicPtr_Ch4
 	LDA MusicStart_Ch4+1
@@ -253,6 +260,7 @@ HoldNote_Ch3:
 	ADC #$F8 ;Midpoint is $08
 	CLC
 	ADC temp
+	LDA #$FF
 	STA ARAM+FreqsL+2
 	LDA OctaveBuf
 	STA ARAM+FreqsH+2
@@ -341,9 +349,9 @@ LoadMusic:
 	LDA #$01
 	STA MusicNext_Ch2
 
-	LDA #<InstrumEnv2
+	LDA #<InstrumEnvSnare
 	STA MusicEnvP_Ch3
-	LDA #>InstrumEnv2
+	LDA #>InstrumEnvSnare
 	STA MusicEnvP_Ch3+1
 	LDA #$01
 	STA MusicNext_Ch3
@@ -360,10 +368,11 @@ LoadMusic:
 	;LByte HByte - add to LoadedMusicFirstPage to get ch2 data
 	;LByte HByte - add to LoadedMusicFirstPage to get ch3 data
 	;LByte HByte - add to LoadedMusicFirstPage to get ch4 data
+MusicHeaderLength = 8
 
-	LDA #<(LoadedMusicFirstPage+4)
+	LDA #<(LoadedMusicFirstPage+MusicHeaderLength)
 	STA MusicStart_Ch1
-	LDA #>(LoadedMusicFirstPage+4)
+	LDA #>(LoadedMusicFirstPage+MusicHeaderLength)
 	STA MusicStart_Ch1+1
 
 	LDA #<LoadedMusicFirstPage
@@ -443,24 +452,24 @@ Pitches:
 	.incbin "pitches.dat"
 
 InstrumEnv1:
-	.db $08, $08, $08, $08, $18
-	.db $28, $38, $48, $58, $68
-	.db $F8
+	.db $58, $58, $58, $58, $48
+	.db $48, $38, $38, $28, $08
+	.db $88
 InstrumEnv2:
-	.db $1F, $1C, $18, $18, $18
-	.db $28, $28, $38, $38, $48
-	.db $48, $48, $58, $58, $58
-	.db $58, $68, $68, $68, $68
-	.db $F8
+	.db $5F, $5C, $48, $38, $38
+	.db $38, $38, $38, $38, $38
+	.db $28, $28, $28, $28, $28
+	.db $18, $18, $18, $18, $18
+	.db $88
+InstrumEnvSnare:
+	.db $48, $18, $08
+	.db $88
 InstrumEnvSine:
-	.db $1F, $1C, $18, $18, $18
-	.db $28, $28, $38, $38, $48
-	.db $48, $48, $58, $58, $58
-	.db $58, $68, $68, $68, $08
+	.db $28, $26, $25, $24, $23
 	.db $F8 
 
 MusicPkg_Main:
-	.incbin "megalo1_alltracks.gtm.deflate"
+	.incbin "bad-apple-fullspeed_alltracks.gtm.deflate"
 
 IRQ:
     RTI
