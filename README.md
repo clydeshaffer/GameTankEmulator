@@ -28,6 +28,8 @@ Other utility keys are:
 
 * Press O to load a rom file at runtime. The dialog also appears if the emulator is launched without specifying a rom file.
 
+For Windows users, I've set up an automated [nightly build](https://clydeshaffer.com/builds/GameTankEmulator/latest.php) that contains the latest features... and of course the latest bugs.
+
 _For now I'm listing the differences between the emulator and the real hardware; stopping short of writing a programming manual for the GameTank which will be a separate wiki-like document to come later_
 
 ## Emulated Capabilities:
