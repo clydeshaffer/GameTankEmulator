@@ -36,7 +36,7 @@ enum RomType {
 };
 
 uint8_t flash2M_highbits_shifter;
-uint8_t flash2M_highbits;
+uint32_t flash2M_highbits;
 RomType loadedRomType;
 
 const int SCREEN_WIDTH = 512;
@@ -47,6 +47,30 @@ uint8_t ram_buffer[RAMSIZE];
 bool ram_inited[RAMSIZE];
 uint8_t vram_buffer[FRAME_BUFFER_SIZE*2];
 uint8_t gram_buffer[FRAME_BUFFER_SIZE*2];
+
+uint8_t VIA_regs[16];
+const uint8_t VIA_ORB    = 0x0;
+const uint8_t VIA_ORA    = 0x1;
+const uint8_t VIA_DDRB   = 0x2;
+const uint8_t VIA_DDRA   = 0x3;
+const uint8_t VIA_T1CL   = 0x4;
+const uint8_t VIA_T1CH   = 0x5;
+const uint8_t VIA_T1LL   = 0x6;
+const uint8_t VIA_T1LH   = 0x7;
+const uint8_t VIA_T2CL   = 0x8;
+const uint8_t VIA_T2CH   = 0x9;
+const uint8_t VIA_SR     = 0xA;
+const uint8_t VIA_ACR    = 0xB;
+const uint8_t VIA_PCR    = 0xC;
+const uint8_t VIA_IFR    = 0xD;
+const uint8_t VIA_IER    = 0xE;
+const uint8_t VIA_ORA_NH = 0xF;
+
+//Pins of VIA Port A used for Serial comms (or other misc cartridge use)
+const uint8_t VIA_SPI_BIT_CLK  = 0b00000001;
+const uint8_t VIA_SPI_BIT_MOSI = 0b00000010;
+const uint8_t VIA_SPI_BIT_CS   = 0b00000100;
+const uint8_t VIA_SPI_BIT_MISO = 0b10000000;
 
 /**
  *   1 - Enable copy controller
@@ -244,11 +268,26 @@ void VDMA_Write(uint16_t address, uint8_t value) {
 	}
 }
 
+void UpdateFlashShiftRegister(uint8_t nextVal) {
+	//TODO: Care about DDR bits
+	//For now assuming that if we're using Flash2M hardware we're behaving ourselves
+	uint8_t oldVal = VIA_regs[VIA_ORA];
+	uint8_t risingBits = nextVal & ~oldVal;
+	if(risingBits & VIA_SPI_BIT_CLK) {
+		flash2M_highbits_shifter = flash2M_highbits_shifter << 1;
+		flash2M_highbits_shifter |= !(oldVal & VIA_SPI_BIT_MOSI);
+	} else if(risingBits & VIA_SPI_BIT_CS) {
+		//flash cart CS is connected to latch clock
+		flash2M_highbits = flash2M_highbits_shifter & 0xFF;
+		printf("Flash highbits set to %x\n", flash2M_highbits);
+	}
+}
+
 uint8_t MemoryRead_Flash2M(uint16_t address) {
 	if(address & 0x4000) {
 		return rom_buffer[0b111111100000000000000 | (address & 0x3FFF)];
 	} else {
-		return rom_buffer[(flash2M_highbits << 14) | (address & 0x3FFF)];
+		return rom_buffer[((flash2M_highbits & 0x7F) << 14) | (address & 0x3FFF)];
 	}
 }
 
@@ -278,8 +317,10 @@ uint8_t MemoryRead(uint16_t address) {
 		}
 	} else if(address & 0x4000) {
 		return VDMA_Read(address);
-	}else if(address >= 0x3000 && address <= 0x3FFF) {
+	} else if(address >= 0x3000 && address <= 0x3FFF) {
 		return soundcard->ram_read(address);
+	} else if(address & 0x2800) {
+		return VIA_regs[address & 0xF];
 	} else if(address < 0x2000) {
 		if(!ram_inited[address & 0x1FFF]) {
 			printf("WARNING! Uninitialized RAM read at %x\n", address);
@@ -299,16 +340,25 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 		VDMA_Write(address, value);
 	} else if(address >= 0x3000 && address <= 0x3FFF) {
 		soundcard->ram_write(address, value);
-	} else if((address & 0x2000) && !(address & 0x800)) {
-		if((address & 0x000F) == 0x0007) {
-			dma_control_reg = value;
-			if(dma_control_reg & DMA_TRANSPARENCY_BIT) {
-				SDL_SetColorKey(gRAM_Surface, SDL_TRUE, SDL_MapRGB(gRAM_Surface->format, 0, 0, 0));
-			} else {
-				SDL_SetColorKey(gRAM_Surface, SDL_FALSE, 0);
+	} else if((address & 0x2000)) {
+		if(address & 0x800) {
+			if(loadedRomType == RomType::FLASH2M) {
+				if((address & 0xF) == VIA_ORA) {
+					UpdateFlashShiftRegister(value);
+				}
 			}
+			VIA_regs[address & 0xF] = value;
 		} else {
-			soundcard->register_write(address, value);
+			if((address & 0x000F) == 0x0007) {
+				dma_control_reg = value;
+				if(dma_control_reg & DMA_TRANSPARENCY_BIT) {
+					SDL_SetColorKey(gRAM_Surface, SDL_TRUE, SDL_MapRGB(gRAM_Surface->format, 0, 0, 0));
+				} else {
+					SDL_SetColorKey(gRAM_Surface, SDL_FALSE, 0);
+				}
+			} else {
+				soundcard->register_write(address, value);
+			}
 		}
 	}
 	else if(address < 0x2000) {
