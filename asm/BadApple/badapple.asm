@@ -590,9 +590,9 @@ SetFreqAndOctave:
 	ADC temp+1
 	ASL
 	TAX
-	LDA Pitches, x
+	LDA Pitches+2, x
 	STA OctaveBuf
-	LDA Pitches+1, x
+	LDA Pitches+3, x
 	RTS
 
 AwaitVSync:
