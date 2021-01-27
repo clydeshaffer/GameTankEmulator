@@ -555,7 +555,9 @@ int main(int argC, char* argV[]) {
 				cycles_since_vsync -= cycles_per_vsync;
 
 			}
-			cpu_core->NMI();
+			if(dma_control_reg & DMA_VSYNC_NMI_BIT) {
+				cpu_core->NMI();
+			}
 		} else {
 			SDL_Delay(100);
 		}

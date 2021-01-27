@@ -8,6 +8,7 @@ nextFrameCounter = $26
 musicDelay = $27
 
 FrameFlag = $30
+DMA_Flags_buf = $31
 
 OctaveBuf      = $50
 MusicPtr_Ch1   = $51 ; 52
@@ -74,6 +75,7 @@ DMA_Status = $4006
 DMA_Color = $4007
 
 MusicVRAMBank = %01000100
+DrawingVRAMBank = %0100101
 
 NoteDecay = 4
 
@@ -124,7 +126,7 @@ RESET:
 	STA Audio_Rate
 
 	;Clear the screen
-	LDA #%01000001
+	LDA #DrawingVRAMBank
 	STA DMA_Flags
 	LDA #$40
 	STA DMA_WIDTH
@@ -418,7 +420,7 @@ MusicDone:
 	STA nextFrameCounter
 
 	;go into DMA mode and make sure we're drawing solid rects
-	LDA #%01000001
+	LDA #DrawingVRAMBank
 	STA DMA_Flags
 	LDA #$80
 	STA DMA_GX
