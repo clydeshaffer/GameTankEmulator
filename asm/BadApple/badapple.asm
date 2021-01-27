@@ -719,7 +719,7 @@ InstrumEnvSine:
 	.db $F8 
 
 MusicPkg_Main:
-	.incbin "bad-apple-fullspeed_alltracks.gtm.deflate"
+	.incbin "bad-apple-v2_alltracks.gtm.deflate"
 
 IRQ:
     RTI
