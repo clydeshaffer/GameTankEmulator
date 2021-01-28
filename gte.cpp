@@ -219,7 +219,7 @@ void VDMA_Write(uint16_t address, uint8_t value) {
 					gx = dma_params[DMA_PARAM_GX] & 0x7F;
 				for(uint16_t x = 0; x < dma_params[DMA_PARAM_WIDTH]; x++) {
 					outColor[0] = gram_buffer[(gy << 7) | gx | gOffset];
-					if(!(dma_control_reg & DMA_TRANSPARENCY_BIT) || (outColor[colorSel] != 0)) {
+					if((dma_control_reg & DMA_TRANSPARENCY_BIT) || (outColor[colorSel] != 0)) {
 						vram_buffer[(vy << 7) | vx | vOffset] = outColor[colorSel];
 						put_pixel32(vRAM_Surface, vx, vy + yShift, convert_color(vRAM_Surface, outColor[colorSel]));
 					}
@@ -320,7 +320,7 @@ uint8_t MemoryRead(uint16_t address) {
 		return VDMA_Read(address);
 	} else if(address >= 0x3000 && address <= 0x3FFF) {
 		return soundcard->ram_read(address);
-	} else if(address & 0x2800) {
+	} else if(address & 0x2800 == address) {
 		return VIA_regs[address & 0xF];
 	} else if(address < 0x2000) {
 		if(!ram_inited[address & 0x1FFF]) {
