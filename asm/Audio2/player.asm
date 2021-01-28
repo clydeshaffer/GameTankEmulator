@@ -266,7 +266,7 @@ HoldNote_Ch3:
 	STA ARAM+FreqsH+2
 	PLA
 	AND #$70
-	LSR
+	ASL
 	STA ARAM+Amplitudes+2
 
 	JMP Music_SetCh4
@@ -462,14 +462,14 @@ InstrumEnv2:
 	.db $18, $18, $18, $18, $18
 	.db $88
 InstrumEnvSnare:
-	.db $48, $18, $08
-	.db $88
+	.db $28, $38, $48, $58, $68, $78
+	.db $F8
 InstrumEnvSine:
 	.db $28, $26, $25, $24, $23
 	.db $F8 
 
 MusicPkg_Main:
-	.incbin "bad-apple-fullspeed_alltracks.gtm.deflate"
+	.incbin "bad-apple-v2_alltracks.gtm.deflate"
 
 IRQ:
     RTI

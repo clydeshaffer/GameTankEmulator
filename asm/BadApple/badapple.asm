@@ -77,7 +77,7 @@ DMA_Color = $4007
 MusicVRAMBank = %01000100
 DrawingVRAMBank = %0100101
 
-NoteDecay = 4
+startColor = %10011111
 
     .org $E000
 Inflate:
@@ -121,7 +121,7 @@ RESET:
 
 	STZ Audio_Reset
 
-	;enable RDY
+	;enable Audio RDY
 	LDA #$FF
 	STA Audio_Rate
 
@@ -349,20 +349,23 @@ HoldNote_Ch3:
 	ADC #$F8 ;Midpoint is $08
 	CLC
 	ADC temp
-	LDA #$FF
 	STA ARAM+FreqsL+2
 	LDA OctaveBuf
 	STA ARAM+FreqsH+2
+	CLC
+	ROL ARAM+FreqsL+2
+	ROL ARAM+FreqsH+2
 	PLA
 	AND #$70
-	LSR
+	ASL
 	STA ARAM+Amplitudes+2
 
 	JMP Music_SetCh4
 Rest_Ch3:
 	STZ ARAM+FreqsL+2
 	STZ ARAM+FreqsH+2
-	STZ ARAM+Amplitudes+2
+	LDA #$F0
+	STA ARAM+Amplitudes+2
 
 
 Music_SetCh4:
@@ -410,7 +413,7 @@ HoldNote_Ch4:
 Rest_Ch4:
 	STZ ARAM+FreqsL+3
 	STZ ARAM+FreqsH+3
-	STZ ARAM+Amplitudes+3
+	;STZ ARAM+Amplitudes+3
 
 MusicDone:
 
@@ -432,7 +435,7 @@ MusicDone:
 	STZ cursorX
 	LDX #96 ; using register X as line counter
 	;Start decoding next animation frame
-	LDA #$FE
+	LDA #startColor
 	STA currentColor
 NextRun:
 	LDY #0
@@ -453,7 +456,7 @@ NextRun:
 	ADC cursorX
 	BPL NotNextLine
 	LDA currentColor
-	EOR #$FF
+	EOR #%00000111
 	STA currentColor
 	DEC cursorY
 	DEX
@@ -462,7 +465,7 @@ NextRun:
 NotNextLine:
 	STA cursorX
 	LDA currentColor
-	EOR #$FF
+	EOR #%00000111
 	STA currentColor
 AdvPointer:
 	;advance the animation pointer
@@ -612,7 +615,7 @@ RestartAnimation:
 	STA animPtr+1
 	LDA #0
 	JSR ShiftHighBits
-	LDA #$FE
+	LDA #startColor
 	STA currentColor
 	LDA #$80
 	STA animSector
@@ -712,11 +715,11 @@ InstrumEnv2:
 	.db $18, $18, $18, $18, $18
 	.db $88
 InstrumEnvSnare:
-	.db $48, $18, $08
-	.db $88
+	.db $28, $38, $48, $58, $68, $78
+	.db $F8
 InstrumEnvSine:
 	.db $28, $26, $25, $24, $23
-	.db $F8 
+	.db $A8 
 
 MusicPkg_Main:
 	.incbin "bad-apple-v2_alltracks.gtm.deflate"

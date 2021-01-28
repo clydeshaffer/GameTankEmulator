@@ -72,18 +72,69 @@ IRQ:
 	BCC *+4
 	EOR #$39
 	STA LFSR
+	LDA LFSR
+	ASL
+	ROL LFSR+1
+	BCC *+4
+	EOR #$39
+	STA LFSR
+	LDA LFSR
+	ASL
+	ROL LFSR+1
+	BCC *+4
+	EOR #$39
+	STA LFSR
+	LDA LFSR
+	ASL
+	ROL LFSR+1
+	BCC *+4
+	EOR #$39
+	STA LFSR
+	LDA LFSR
+	ASL
+	ROL LFSR+1
+	BCC *+4
+	EOR #$39
+	STA LFSR
+	LDA LFSR
+	ASL
+	ROL LFSR+1
+	BCC *+4
+	EOR #$39
+	STA LFSR
+	LDA LFSR
+	ASL
+	ROL LFSR+1
+	BCC *+4
+	EOR #$39
+	STA LFSR
+	LDA LFSR
+	ASL
+	ROL LFSR+1
+	BCC *+4
+	EOR #$39
+	STA LFSR
 
 AddNoise:
+	LDA Amplitudes+2
+	LSR
+	LSR
+	LSR
+	LSR
+	LSR
+	BEQ SkipNoiseAttenuation
+	TAX
 	LDA LFSR
-	ROL ;2
-	LDA #$FF ;2
-	ADC #$00 ;2
-	AND Amplitudes+2 ;3
+ShiftLoop:
+	LSR
+	DEX
+	BNE ShiftLoop
+SkipNoiseAttenuation:
 	CLC ;2
 	ADC AccBuf ;3
 	STA AccBuf ;3
-
-	;Sine channel
+	
+SineChannel:
 	CLC ;2
 	LDA WaveStatesL+3 ;3
 	ADC FreqsL+3 ;3
