@@ -9,6 +9,7 @@ musicDelay = $27
 
 FrameFlag = $30
 DMA_Flags_buf = $31
+DoubleBufMask = $32
 
 OctaveBuf      = $50
 MusicPtr_Ch1   = $51 ; 52
@@ -83,6 +84,9 @@ startColor = %10011111
 Inflate:
 	.incbin "inflate_e000_0200.obx"
 RESET:
+	LDA #%00000010
+	STA DoubleBufMask
+
 	LDA #114
 	STA musicDelay
 
@@ -127,44 +131,18 @@ RESET:
 
 	;Clear the screen
 	LDA #DrawingVRAMBank
+	ORA DoubleBufMask
 	STA DMA_Flags
-	LDA #$40
-	STA DMA_WIDTH
-	STA DMA_HEIGHT
-	STZ DMA_VX
-	STZ DMA_VY
-	LDA #$80
-	STA DMA_GX
-	STZ DMA_GY
-	LDA #$FE
-	STA DMA_Color
-	LDA #1
-	STA DMA_Status
-	WAI
+	JSR ClearScreen
 
-	LDA #$40
-	STA DMA_VX
-	LDA #$00
-	STA DMA_VY
-	LDA #1
-	STA DMA_Status
-	WAI
+	LDA DoubleBufMask
+	EOR #%00010010
+	STA DoubleBufMask
 
-	LDA #$00
-	STA DMA_VX
-	LDA #$40
-	STA DMA_VY
-	LDA #1
-	STA DMA_Status
-	WAI
-
-	LDA #$40
-	STA DMA_VX
-	LDA #$40
-	STA DMA_VY
-	LDA #1
-	STA DMA_Status
-	WAI
+	LDA #DrawingVRAMBank
+	ORA DoubleBufMask
+	STA DMA_Flags
+	JSR ClearScreen
 
 	JSR RestartAnimation
 
@@ -180,6 +158,7 @@ Forever:
 DoMusic:
 
 	LDA #MusicVRAMBank
+	ORA DoubleBufMask
 	STA DMA_Flags
 
 	LDA MusicTicksLeft
@@ -418,19 +397,22 @@ Rest_Ch4:
 MusicDone:
 
 	DEC nextFrameCounter
-	BNE FrameDone
+	BEQ *+5
+	JMP NoFrame
+
 	LDA #$4
 	STA nextFrameCounter
 
 	;go into DMA mode and make sure we're drawing solid rects
 	LDA #DrawingVRAMBank
+	ORA DoubleBufMask
 	STA DMA_Flags
 	LDA #$80
 	STA DMA_GX
 	STZ DMA_GY
 	LDA #1
 	STA DMA_HEIGHT
-	LDA #112
+	LDA #106
 	STA cursorY
 	STZ cursorX
 	LDX #96 ; using register X as line counter
@@ -440,6 +422,8 @@ MusicDone:
 NextRun:
 	LDY #0
 	LDA (animPtr), y
+	CMP #$80
+	BEQ DoubleShot
 	STA DMA_WIDTH
 	LDA cursorX
 	STA DMA_VX
@@ -450,6 +434,35 @@ NextRun:
 	LDA #1
 	STA DMA_Status
 
+	JMP EndDoubleShot
+DoubleShot:
+	LDA #$40
+	STA DMA_WIDTH
+	LDA cursorX
+	STA DMA_VX
+	LDA cursorY
+	STA DMA_VY
+	LDA currentColor
+	STA DMA_Color
+	LDA #1
+	STA DMA_Status
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	LDA #$40
+	STA DMA_VX
+	LDA #1
+	STA DMA_Status
+EndDoubleShot:
 	;advance the cursor
 	CLC
 	LDA (animPtr), y
@@ -487,11 +500,77 @@ NotNextPage:
 	JMP NextRun
 FrameDone:
 
+	LDA #$2
+	STA DMA_WIDTH
+	LDA #102
+	STA DMA_HEIGHT
+	LDA #$7F
+	STA DMA_VX
+	LDA #10
+	STA DMA_VY
+	LDA #$80
+	STA DMA_GX
+	STZ DMA_GY
+	LDA #$FE
+	STA DMA_Color
+	LDA #1
+	STA DMA_Status
+	
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	
+	
+
+	LDA DoubleBufMask
+	EOR #%00010010
+	STA DoubleBufMask
+
+	LDA #DrawingVRAMBank
+	ORA DoubleBufMask
+	STA DMA_Flags
+NoFrame:
+
+	
+
 ReturnToTop:
     JMP Forever
 
 LoadMusic:
 	LDA #MusicVRAMBank
+	ORA DoubleBufMask
 	STA DMA_Flags
 
 	LDA #<LoadedMusicFirstPage
@@ -692,6 +771,47 @@ ShiftHighBits:
 
 	ORA #4
 	STA VIA+ORA
+
+	RTS
+
+ClearScreen:
+	LDA #$40
+	STA DMA_WIDTH
+	STA DMA_HEIGHT
+	STZ DMA_VX
+	STZ DMA_VY
+	LDA #$80
+	STA DMA_GX
+	STZ DMA_GY
+	LDA #$FE
+	STA DMA_Color
+	LDA #1
+	STA DMA_Status
+	WAI
+
+	LDA #$40
+	STA DMA_VX
+	LDA #$00
+	STA DMA_VY
+	LDA #1
+	STA DMA_Status
+	WAI
+
+	LDA #$00
+	STA DMA_VX
+	LDA #$40
+	STA DMA_VY
+	LDA #1
+	STA DMA_Status
+	WAI
+
+	LDA #$40
+	STA DMA_VX
+	LDA #$40
+	STA DMA_VY
+	LDA #1
+	STA DMA_Status
+	WAI
 
 	RTS
 
