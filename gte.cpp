@@ -505,10 +505,13 @@ int main(int argC, char* argV[]) {
 		if(!paused) {
 			actual_cycles = 0;
 			cpu_core->Run(cycles_per_vsync, actual_cycles);
-			if(actual_cycles == 0) {
+			if(cpu_core->illegalOpcode) {
+				printf("Hit illegal opcode %x\npc = %x\n", cpu_core->illegalOpcodeSrc, cpu_core->pc);
+				paused = true;
+			} else if(actual_cycles == 0) {
 				zeroConsec++;
 				if(zeroConsec == 10) {
-					printf("(Got stuck!)\n");
+					printf("(Got stuck at 0x%x)\n", cpu_core->pc);
 					paused = true;
 				}
 			} else {
