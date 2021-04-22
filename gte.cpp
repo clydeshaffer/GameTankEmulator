@@ -111,7 +111,7 @@ AudioCoprocessor *soundcard;
 JoystickAdapter *joysticks;
 
 uint8_t open_bus() {
-	return 0;
+	return rand() % 256;
 }
 
 Uint32 convert_color(SDL_Surface* target, uint8_t cIndex) {
@@ -330,6 +330,7 @@ uint8_t MemoryRead(uint16_t address) {
 	} else if(address == 0x2008 || address == 0x2009) {
 		return joysticks->read((uint8_t) address);
 	}
+	printf("Attempted to read write-only device, may be unintended? %x\n", address);
 	return open_bus();
 }
 
