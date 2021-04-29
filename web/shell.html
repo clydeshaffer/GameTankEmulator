@@ -54,6 +54,12 @@
       <progress value="0" max="100" id="progress" hidden=1></progress>  
     </div>
     <div class="emscripten_border">
+      <select id="RomSelectList" size="4" style="float: left;" ondblclick="loadRomFromList(this);">  
+        <option value="ctest.gtr"> Hello World </option>
+        <option value="tetris.gtr"> Tetris </option>
+        <option value="badapple.gtr"> Bad Apple </option>
+        <option value="cubicle.gtr"> Cubicle Knight </option>
+      </select> 
       <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1></canvas>
     </div>
     <hr/>
@@ -151,7 +157,6 @@
           fr.onload = function () {
               var data = new Uint8Array(fr.result);
               console.log("loaded file");
-              //Module['FS_writeFile']('/' + file.name, data, 'w');
               Module['FS_createDataFile']('/', file.name, data, true, true, true);
               console.log("calling LoadRomFile");
               Module.ccall('LoadRomFile', null, ["string"], [file.name]);
@@ -160,6 +165,35 @@
           };
           fr.readAsArrayBuffer(file);
       }
+
+      function checkStatus(response) {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status} - ${response.statusText}`);
+        }
+        return response;
+      }
+
+      var loadedFiles = {};
+
+      function loadRomFromList(listBox) {
+        var romName = listBox.value;
+        var romUrl = "../roms/" + romName;
+        if(!loadedFiles[romName]) {
+          fetch(romUrl)
+          .then(response => checkStatus(response) && response.arrayBuffer())
+          .then(buffer => {
+            var data = new Uint8Array(buffer);
+            Module['FS_createDataFile']('/', romName, data, true, true, true);
+            loadedFiles[romName] = 1;
+            Module.ccall('LoadRomFile', null, ["string"], [romName]);
+          })
+          .catch(err=>console.error(err));
+        } else {
+          Module.ccall('LoadRomFile', null, ["string"], [romName]);
+        }
+        
+      }
+
     </script>
     {{{ SCRIPT }}}
   </body>
