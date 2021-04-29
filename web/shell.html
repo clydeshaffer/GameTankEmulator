@@ -58,11 +58,8 @@
     </div>
     <hr/>
     <div class="emscripten">
-      <input type="checkbox" id="resize">Resize canvas
-      <input type="checkbox" id="pointerLock" checked>Lock/hide mouse pointer
-      &nbsp;&nbsp;&nbsp;
-      <input type="button" value="Fullscreen" onclick="Module.requestFullscreen(document.getElementById('pointerLock').checked, 
-                                                                                document.getElementById('resize').checked)">
+      <input id="RomFileInput" type="file" onchange="useFileInput(this);" style="display: none"/>
+      <input type="button" id="loadimg" value="Load ROM" onclick="document.getElementById('RomFileInput').click();" />
     </div>
     
     <hr/>
@@ -143,6 +140,26 @@
           if (text) Module.printErr('[post-exception status] ' + text);
         };
       };
+
+      function useFileInput(fileInput) {
+          console.log("useFileInput called");
+          if (fileInput.files.length == 0)
+              return;
+          var file = fileInput.files[0];
+          console.log("loading file " + file.name);
+          var fr = new FileReader();
+          fr.onload = function () {
+              var data = new Uint8Array(fr.result);
+              console.log("loaded file");
+              //Module['FS_writeFile']('/' + file.name, data, 'w');
+              Module['FS_createDataFile']('/', file.name, data, true, true, true);
+              console.log("calling LoadRomFile");
+              Module.ccall('LoadRomFile', null, ["string"], [file.name]);
+
+              fileInput.value = '';
+          };
+          fr.readAsArrayBuffer(file);
+      }
     </script>
     {{{ SCRIPT }}}
   </body>

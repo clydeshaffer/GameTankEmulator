@@ -403,6 +403,41 @@ char * open_rom_dialog() {
 #endif
 }
 
+extern "C" {
+	void LoadRomFile(const char* filename) {
+		printf("loading %s\n", filename);
+		FILE* romFileP = fopen(filename, "rb");
+		if(romFileP) {
+			fseek(romFileP, 0L, SEEK_END);
+			ROMSIZE = ftell(romFileP);
+			rom_buffer = new uint8_t [ROMSIZE];
+			rewind(romFileP);
+			switch(ROMSIZE) {
+				case 8192:
+				loadedRomType = RomType::EEPROM8K;
+				printf("Detected 8K (EEPROM)\n");
+				break;
+				case 32768:
+				loadedRomType = RomType::EEPROM32K;
+				printf("Detected 32K (EEPROM)\n");
+				break;
+				case 2097152:
+				loadedRomType = RomType::FLASH2M;
+				printf("Detected 2M (Flash)\n");
+				break;
+				default:
+				loadedRomType = RomType::UNKNOWN;
+				printf("Unknown ROM type: Size is %d bytes\n");
+				break;
+			}
+			fread(rom_buffer, sizeof(uint8_t), ROMSIZE, romFileP);
+			fclose(romFileP);
+		}
+		paused = false;
+		cpu_core->Reset();
+	}
+}
+
 char const * lTheOpenFileName = NULL;
 SDL_Window* window = NULL;
 Uint32 rmask, gmask, bmask, amask;
@@ -505,13 +540,7 @@ void mainloop() {
             			if(e.type == SDL_KEYDOWN) {
             				lTheOpenFileName = open_rom_dialog();
 	            			if(lTheOpenFileName) {
-								FILE* romFileP = fopen(lTheOpenFileName, "rb");
-								if(romFileP) {
-									fread(rom_buffer, sizeof(uint8_t), ROMSIZE, romFileP);
-									fclose(romFileP);
-								}
-								paused = false;
-	            				cpu_core->Reset();
+								LoadRomFile(lTheOpenFileName);
 							} else {
 #ifdef TINYFILEDIALOGS_H
 								tinyfd_notifyPopup("Alert",
