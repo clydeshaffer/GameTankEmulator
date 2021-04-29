@@ -53,13 +53,16 @@
     <div class="emscripten">
       <progress value="0" max="100" id="progress" hidden=1></progress>  
     </div>
-    <div class="emscripten_border">
-      <select id="RomSelectList" size="4" style="float: left;" ondblclick="loadRomFromList(this);">  
-        <option value="ctest.gtr"> Hello World </option>
-        <option value="tetris.gtr"> Tetris </option>
-        <option value="badapple.gtr"> Bad Apple </option>
-        <option value="cubicle.gtr"> Cubicle Knight </option>
-      </select> 
+    <div class="emscripten_border" style="position:relative;">
+      <div style="position: absolute;" >
+        Double click to select a demo:<br>
+        <select id="RomSelectList" size="4" ondblclick="loadRomFromList(this);">  
+          <option value="ctest.gtr"> Hello World </option>
+          <option value="tetris.gtr"> Tetris </option>
+          <option value="badapple.gtr"> Bad Apple </option>
+          <option value="cubicle.gtr"> Cubicle Knight </option>
+        </select>
+      </div>
       <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1></canvas>
     </div>
     <hr/>
@@ -70,7 +73,17 @@
     
     <hr/>
     <textarea class="emscripten" id="output" rows="8"></textarea>
-    <hr>
+    <hr/>
+    <div>
+      <h2>Controls:</h2>
+      <ul>
+        <li>Arrow Keys = Directional Buttons</li>
+        <li>Enter = Start</li>
+        <li>Z, X, C = A, B, C</li>
+        <li>R = Reset</li>
+      </ul>
+    </div>
+    <hr/>
     <script type='text/javascript'>
       var statusElement = document.getElementById('status');
       var progressElement = document.getElementById('progress');
