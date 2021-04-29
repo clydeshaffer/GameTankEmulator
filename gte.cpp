@@ -3,7 +3,11 @@
 #include <stdlib.h>
 #include <time.h>
 
+#ifdef WASM_BUILD
+#include "emscripten.h"
+#else
 #include "tinyfd/tinyfiledialogs.h"
+#endif
 
 #include "joystick_adapter.h"
 #include "audio_coprocessor.h"
@@ -377,13 +381,16 @@ bool paused = false;
 void CPUStopped() {
 	paused = true;
 	printf("CPU stopped");
+#ifdef TINYFILEDIALOGS_H
 	tinyfd_notifyPopup("Alert",
 		"CPU has stopped either due to STP opcode",
 		"info");
+#endif
 }
 
 char * open_rom_dialog() {
 	char const * lFilterPatterns[1] = {"*.gtr"};
+#ifdef TINYFILEDIALOGS_H
 	return tinyfd_openFileDialog(
 		"Select a GameTank ROM file",
 		"",
@@ -391,119 +398,27 @@ char * open_rom_dialog() {
 		lFilterPatterns,
 		"GameTank Rom",
 		0);
+#else
+	return EMBED_ROM_FILE;
+#endif
 }
 
-int main(int argC, char* argV[]) {
+char const * lTheOpenFileName = NULL;
+SDL_Window* window = NULL;
+Uint32 rmask, gmask, bmask, amask;
+uint64_t system_clock = 315000000/88;
+uint64_t actual_cycles = 0;
+uint64_t cycles_since_vsync = 0;
+uint64_t cycles_per_vsync = system_clock / 60;
+double time_scaling = 1000;
+double scaling_increment = 100;
+uint32_t lastTicks = 0, currentTicks;
+uint8_t frameCount = 0;
+bool prev_overlong = false;
+int zeroConsec = 0;
 
-	srand(time(NULL));
-	for(int i = 0; i < RAMSIZE; i++) {
-		ram_buffer[i] = rand() % 256;
-		ram_inited[i] = false;
-	}
-
-	palette = (RGB_Color*) gt_palette_vals;
-
-	char const * lTheOpenFileName = NULL;
-
-	if(argC > 1) {
-		lTheOpenFileName = argV[1];
-	} else {
-		lTheOpenFileName = open_rom_dialog();
-	}
-
-	if(lTheOpenFileName) {
-		FILE* romFileP = fopen(lTheOpenFileName, "rb");
-		if(romFileP) {
-			fseek(romFileP, 0L, SEEK_END);
-			ROMSIZE = ftell(romFileP);
-			rom_buffer = new uint8_t [ROMSIZE];
-			rewind(romFileP);
-			switch(ROMSIZE) {
-				case 8192:
-				loadedRomType = RomType::EEPROM8K;
-				printf("Detected 8K (EEPROM)\n");
-				break;
-				case 32768:
-				loadedRomType = RomType::EEPROM32K;
-				printf("Detected 32K (EEPROM)\n");
-				break;
-				case 2097152:
-				loadedRomType = RomType::FLASH2M;
-				printf("Detected 2M (Flash)\n");
-				break;
-				default:
-				loadedRomType = RomType::UNKNOWN;
-				printf("Unknown ROM type: Size is %d bytes\n");
-				break;
-			}
-			fread(rom_buffer, sizeof(uint8_t), ROMSIZE, romFileP);
-			fclose(romFileP);
-		}
-	} else {
-		paused = true;
-		tinyfd_notifyPopup("Alert",
-		"No ROM was loaded",
-		"warning");
-		rom_buffer = new uint8_t [ROMSIZE];
-		for(int i = 0; i < ROMSIZE; i++) {
-			rom_buffer[i] = 0;
-		}
-	}
-
-	joysticks = new JoystickAdapter();
-	soundcard = new AudioCoprocessor();
-	cpu_core = new mos6502(MemoryRead, MemoryWrite, CPUStopped);
-	cpu_core->Reset();
-
-	SDL_Window* window = NULL;
-	SDL_Init(SDL_INIT_VIDEO);
-	atexit(SDL_Quit);
-	window = SDL_CreateWindow( "GameTank Emulator", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN );
-	screenSurface = SDL_GetWindowSurface(window);
-	SDL_SetColorKey(screenSurface, SDL_FALSE, 0);
-
-	Uint32 rmask, gmask, bmask, amask;
-	#if SDL_BYTEORDER == SDL_BIG_ENDIAN
-	    rmask = 0xff000000;
-	    gmask = 0x00ff0000;
-	    bmask = 0x0000ff00;
-	    amask = 0x000000ff;
-	#else
-	    rmask = 0x000000ff;
-	    gmask = 0x0000ff00;
-	    bmask = 0x00ff0000;
-	    amask = 0xff000000;
-	#endif
-
-	vRAM_Surface = SDL_CreateRGBSurface(0, GT_WIDTH, GT_HEIGHT * 2, 32, rmask, gmask, bmask, amask);
-	gRAM_Surface = SDL_CreateRGBSurface(0, GT_WIDTH, GT_HEIGHT * 2, 32, rmask, gmask, bmask, amask);
-
-	SDL_SetColorKey(vRAM_Surface, SDL_FALSE, 0);
-	SDL_SetColorKey(gRAM_Surface, SDL_FALSE, 0);
-
-	SDL_FillRect(screenSurface, NULL, SDL_MapRGB(screenSurface->format, 0x00, 0x00, 0x00));
-
-	for(int i = 0; i < FRAME_BUFFER_SIZE*2; i ++) {
-		vram_buffer[i] = rand() % 256;
-		put_pixel32(vRAM_Surface, i & 127, i >> 7, convert_color(vRAM_Surface, vram_buffer[i]));
-	}
-	for(int i = 0; i < FRAME_BUFFER_SIZE*2; i ++) {
-		gram_buffer[i] = rand() % 256;
-		put_pixel32(gRAM_Surface, i & 127, i >> 7, convert_color(gRAM_Surface, gram_buffer[i]));
-	}
-
-	uint64_t system_clock = 315000000/88;
-	uint64_t actual_cycles = 0;
-	uint64_t cycles_since_vsync = 0;
-	uint64_t cycles_per_vsync = system_clock / 60;
-	double time_scaling = 1000;
-	double scaling_increment = 100;
-	uint32_t lastTicks = 0, currentTicks;
-	uint8_t frameCount = 0;
-	bool prev_overlong = false;
-	int zeroConsec = 0;
-	while(running) {
-		if(!paused) {
+void mainloop() {
+	if(!paused) {
 			actual_cycles = 0;
 			cpu_core->Run(cycles_per_vsync, actual_cycles);
 			if(cpu_core->illegalOpcode) {
@@ -598,9 +513,11 @@ int main(int argC, char* argV[]) {
 								paused = false;
 	            				cpu_core->Reset();
 							} else {
+#ifdef TINYFILEDIALOGS_H
 								tinyfd_notifyPopup("Alert",
 								"No ROM was loaded",
 								"warning");
+#endif
 							}
 	            		}
             			break;
@@ -611,9 +528,120 @@ int main(int argC, char* argV[]) {
             }
         }
 		
+	if(!running) {
+#ifdef WASM_BUILD
+		emscripten_cancel_main_loop();
+#endif
+		printf("Finished running\n");
+		SDL_DestroyWindow(window);
+		SDL_Quit();
 	}
-	printf("Finished running\n");
-	SDL_DestroyWindow(window);
-	SDL_Quit();
+}
+
+int main(int argC, char* argV[]) {
+
+	srand(time(NULL));
+	for(int i = 0; i < RAMSIZE; i++) {
+		ram_buffer[i] = rand() % 256;
+		ram_inited[i] = false;
+	}
+
+	palette = (RGB_Color*) gt_palette_vals;
+
+	if(argC > 1) {
+		lTheOpenFileName = argV[1];
+	} else {
+		lTheOpenFileName = open_rom_dialog();
+	}
+
+	if(lTheOpenFileName) {
+		FILE* romFileP = fopen(lTheOpenFileName, "rb");
+		if(romFileP) {
+			fseek(romFileP, 0L, SEEK_END);
+			ROMSIZE = ftell(romFileP);
+			rom_buffer = new uint8_t [ROMSIZE];
+			rewind(romFileP);
+			switch(ROMSIZE) {
+				case 8192:
+				loadedRomType = RomType::EEPROM8K;
+				printf("Detected 8K (EEPROM)\n");
+				break;
+				case 32768:
+				loadedRomType = RomType::EEPROM32K;
+				printf("Detected 32K (EEPROM)\n");
+				break;
+				case 2097152:
+				loadedRomType = RomType::FLASH2M;
+				printf("Detected 2M (Flash)\n");
+				break;
+				default:
+				loadedRomType = RomType::UNKNOWN;
+				printf("Unknown ROM type: Size is %d bytes\n");
+				break;
+			}
+			fread(rom_buffer, sizeof(uint8_t), ROMSIZE, romFileP);
+			fclose(romFileP);
+		}
+	} else {
+		paused = true;
+#ifdef TINYFILEDIALOGS_H
+		tinyfd_notifyPopup("Alert",
+		"No ROM was loaded",
+		"warning");
+#endif
+		rom_buffer = new uint8_t [ROMSIZE];
+		for(int i = 0; i < ROMSIZE; i++) {
+			rom_buffer[i] = 0;
+		}
+	}
+
+	joysticks = new JoystickAdapter();
+	soundcard = new AudioCoprocessor();
+	cpu_core = new mos6502(MemoryRead, MemoryWrite, CPUStopped);
+	cpu_core->Reset();
+
+	
+	SDL_Init(SDL_INIT_VIDEO);
+	atexit(SDL_Quit);
+	window = SDL_CreateWindow( "GameTank Emulator", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN );
+	screenSurface = SDL_GetWindowSurface(window);
+	SDL_SetColorKey(screenSurface, SDL_FALSE, 0);
+
+	#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+	    rmask = 0xff000000;
+	    gmask = 0x00ff0000;
+	    bmask = 0x0000ff00;
+	    amask = 0x000000ff;
+	#else
+	    rmask = 0x000000ff;
+	    gmask = 0x0000ff00;
+	    bmask = 0x00ff0000;
+	    amask = 0xff000000;
+	#endif
+
+	vRAM_Surface = SDL_CreateRGBSurface(0, GT_WIDTH, GT_HEIGHT * 2, 32, rmask, gmask, bmask, amask);
+	gRAM_Surface = SDL_CreateRGBSurface(0, GT_WIDTH, GT_HEIGHT * 2, 32, rmask, gmask, bmask, amask);
+
+	SDL_SetColorKey(vRAM_Surface, SDL_FALSE, 0);
+	SDL_SetColorKey(gRAM_Surface, SDL_FALSE, 0);
+
+	SDL_FillRect(screenSurface, NULL, SDL_MapRGB(screenSurface->format, 0x00, 0x00, 0x00));
+
+	for(int i = 0; i < FRAME_BUFFER_SIZE*2; i ++) {
+		vram_buffer[i] = rand() % 256;
+		put_pixel32(vRAM_Surface, i & 127, i >> 7, convert_color(vRAM_Surface, vram_buffer[i]));
+	}
+	for(int i = 0; i < FRAME_BUFFER_SIZE*2; i ++) {
+		gram_buffer[i] = rand() % 256;
+		put_pixel32(gRAM_Surface, i & 127, i >> 7, convert_color(gRAM_Surface, gram_buffer[i]));
+	}
+
+#ifdef WASM_BUILD
+	emscripten_set_main_loop(mainloop, 0, 1);
+#else
+	while(running) {
+		mainloop();
+	}
+#endif
 	return 0;
 }

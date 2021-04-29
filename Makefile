@@ -48,21 +48,32 @@ ifeq ($(OS), Windows_NT)
 else
 	COMPILER_FLAGS = -w
 	LINKER_FLAGS = -lSDL2
+	ifeq ($(OS), wasm)
+		CC = emcc
+		CPPC = emcc
+		COMPILER_FLAGS += -s USE_SDL=2 -D WASM_BUILD -D EMBED_ROM_FILE='"$(ROMFILE)"'
+		OBJ_NAME = bin/$(OS)/index.html
+		LINKER_FLAGS += --embed-file $(ROMFILE)
+	endif
 endif
 
 DEFINES += -D CPU_6502_STATIC -D CPU_6502_USE_LOCAL_HEADER -D CMOS_INDIRECT_JMP_FIX
 
 #This is the target that compiles our executable
-all : $(C_OBJS) $(OBJS)
+all : $(OBJS)
 	mkdir -p bin/$(OS)
+ifneq ($(OS), wasm)
 	$(CC) -c $(C_OBJS) $(INCLUDE_PATHS) $(COMPILER_FLAGS) $(DEFINES)
+endif
 	$(CPPC) -c $(OBJS) $(INCLUDE_PATHS) $(COMPILER_FLAGS) $(DEFINES)
 	$(CPPC) $(INCLUDE_PATHS) $(COMPILER_FLAGS) -o $(OBJ_NAME) *.o $(LIBRARY_PATHS) $(LINKER_FLAGS)
 	git rev-parse HEAD > bin/$(OS)/commit_hash.txt
 ifeq ($(OS), Windows_NT)
 	cp $(SDL_ROOT)/bin/SDL2.dll bin/$(OS)/SDL2.dll
 endif
+ifneq ($(OS), wasm)
 	cd bin/$(OS); zip -9 -y -r -q ../../$(ZIP_NAME) ./*
+endif
 
 clean:
 	rm -f *.o
