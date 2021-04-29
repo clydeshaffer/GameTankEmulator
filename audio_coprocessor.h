@@ -1,6 +1,7 @@
 using namespace std;
 
 #include "mos6502/mos6502.h"
+#include "SDL_inc.h"
 
 #define ACP_RESET 0
 #define ACP_NMI 1
@@ -17,6 +18,7 @@ typedef struct ACPState {
     uint16_t clksPerHostSample;
     uint64_t cycles_per_sample;
 	uint8_t clkMult;
+	SDL_AudioFormat format;
 } ACPState;
 
 class AudioCoprocessor {

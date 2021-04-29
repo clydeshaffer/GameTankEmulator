@@ -5,6 +5,7 @@
 
 #ifdef WASM_BUILD
 #include "emscripten.h"
+#include <emscripten/html5.h>
 #else
 #include "tinyfd/tinyfiledialogs.h"
 #endif
@@ -452,7 +453,11 @@ uint8_t frameCount = 0;
 bool prev_overlong = false;
 int zeroConsec = 0;
 
-void mainloop() {
+#ifndef EM_BOOL
+#define EM_BOOL int
+#endif
+
+EM_BOOL mainloop(double time, void* userdata) {
 	if(!paused) {
 			actual_cycles = 0;
 			cpu_core->Run(cycles_per_vsync, actual_cycles);
@@ -469,6 +474,7 @@ void mainloop() {
 				zeroConsec = 0;
 			}
 
+#ifndef WASM_BUILD
 			if(!gofast) {
 				SDL_Delay(time_scaling * actual_cycles/system_clock);
 			} else {
@@ -503,7 +509,7 @@ void mainloop() {
 			lastTicks = currentTicks;
 
 			frameCount++;
-
+#endif
 			cycles_since_vsync += actual_cycles;
 			if(cycles_since_vsync >= cycles_per_vsync) {
 				cycles_since_vsync -= cycles_per_vsync;
@@ -565,6 +571,7 @@ void mainloop() {
 		SDL_DestroyWindow(window);
 		SDL_Quit();
 	}
+	return running;
 }
 
 int main(int argC, char* argV[]) {
@@ -666,10 +673,10 @@ int main(int argC, char* argV[]) {
 	}
 
 #ifdef WASM_BUILD
-	emscripten_set_main_loop(mainloop, 0, 1);
+	emscripten_request_animation_frame_loop(mainloop, 0);
 #else
 	while(running) {
-		mainloop();
+		mainloop(0, NULL);
 	}
 #endif
 	return 0;

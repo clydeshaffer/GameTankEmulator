@@ -33,10 +33,10 @@ void AudioCoprocessor::register_write(uint16_t address, uint8_t value) {
 }
 
 void fill_audio(void *udata, uint8_t *stream, int len) {
-    uint16_t *stream16 = (uint16_t*) stream;
-	ACPState *state = (ACPState*) udata;
+    ACPState *state = (ACPState*) udata;
     uint64_t actual_cycles;
-	for(int i = 0; i < len/2; i++) {
+    uint16_t *stream16 = (uint16_t*) stream;
+    for(int i = 0; i < len/sizeof(uint16_t); i++) {
         stream16[i] = state->dacReg;
         stream16[i] -= 128;
         stream16[i] *= 32;
@@ -53,8 +53,7 @@ void fill_audio(void *udata, uint8_t *stream, int len) {
                 state->cpu->Run(state->cycles_per_sample, actual_cycles);
             }
         }
-        	
-	}
+    }
 }
 
 ACPState *singleton_acp_state;
@@ -70,11 +69,31 @@ void ACP_MemoryWrite(uint16_t address, uint8_t value) {
     }
 }
 
+const char* AudioFormatString(SDL_AudioFormat f) {
+    switch(f) {
+        case AUDIO_S8: return "AUDIO_S8";
+        case AUDIO_U8: return "AUDIO_U8";
+        case AUDIO_S16LSB: return "AUDIO_S16LSB";
+        case AUDIO_S16MSB: return "AUDIO_S16MSB";
+        //case AUDIO_S16SYS: return "AUDIO_S16SYS";
+        case AUDIO_U16LSB: return "AUDIO_U16LSB";
+        case AUDIO_U16MSB: return "AUDIO_U16MSB";
+        //case AUDIO_U16SYS: return "AUDIO_U16SYS";
+        case AUDIO_S32LSB: return "AUDIO_S32LSB";
+        case AUDIO_S32MSB: return "AUDIO_S32MSB";
+        //case AUDIO_S32SYS: return "AUDIO_S32SYS";
+        case AUDIO_F32LSB: return "AUDIO_F32LSB";
+        case AUDIO_F32MSB: return "AUDIO_F32MSB";
+        //case AUDIO_F32SYS: return "AUDIO_F32SYS";
+        default: return "UNKNOWN";
+    }
+}
+
 void ACP_CPUStopped() {
 }
 
 AudioCoprocessor::AudioCoprocessor() {
-	SDL_AudioSpec wanted;
+	SDL_AudioSpec wanted, obtained;
 
     singleton_acp_state = &state;
 
@@ -87,7 +106,11 @@ AudioCoprocessor::AudioCoprocessor() {
     state.dacReg;
     state.clksPerHostSample = 315000000 / (88 * 44100);
     state.cycles_per_sample = 1024;
+#ifdef WASM_BUILD
+    state.clkMult = 2;
+#else
     state.clkMult = 4;
+#endif
 
 	for(int i = 0; i < 4096; i ++) {
 		state.ram[i] = rand() % 256;
@@ -101,11 +124,18 @@ AudioCoprocessor::AudioCoprocessor() {
     wanted.callback = fill_audio;
     wanted.userdata = &state;
 
+    SDL_InitSubSystem(SDL_INIT_AUDIO);
+
+    SDL_AudioDeviceID openedDevice = SDL_OpenAudioDevice(NULL, 0, &wanted, &obtained, 0);
+
     /* Open the audio device, forcing the desired format */
-    if ( SDL_OpenAudio(&wanted, NULL) < 0 ) {
-        fprintf(stderr, "Couldn't open audio: %s\n", SDL_GetError());
+    if (openedDevice  == 0 ) {
+        fprintf(stdout, "Couldn't open audio: %s\n", SDL_GetError());
     } else {
-    	SDL_PauseAudio(0);
+        printf("Opened audio device:\n\tFreq: %d\n\tFormat %s\n\tChannels: %d\n\tSamples: %d\n",
+            obtained.freq, AudioFormatString(obtained.format), obtained.channels, obtained.samples);
+        state.format = obtained.format;
+        SDL_PauseAudioDevice(openedDevice, 0);
     }
 
 
