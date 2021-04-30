@@ -55,8 +55,8 @@
     </div>
     <div class="emscripten_border" style="position:relative;">
       <div style="position: absolute;" >
-        Double click to select a demo:<br>
-        <select id="RomSelectList" size="4" ondblclick="loadRomFromList(this);">  
+        Select a demo:<br>
+        <select id="RomSelectList" onchange="loadRomFromList(this);">  
           <option value="ctest.gtr"> Hello World </option>
           <option value="tetris.gtr"> Tetris </option>
           <option value="badapple.gtr"> Bad Apple </option>
