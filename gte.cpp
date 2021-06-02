@@ -570,7 +570,9 @@ EM_BOOL mainloop(double time, void* userdata) {
             			joysticks->update(&e);
             			break;
             	}
-            }
+            } else {
+				joysticks->update(&e);
+			}
         }
 		
 	if(!running) {

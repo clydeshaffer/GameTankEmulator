@@ -1,25 +1,40 @@
 #include "joystick_adapter.h"
 
 JoystickAdapter::JoystickAdapter() {
+	SDL_InitSubSystem(SDL_INIT_JOYSTICK);
+	if(SDL_NumJoysticks() > 0) {
+		printf("Joystick found\n");
+		gGameController = SDL_JoystickOpen(0);
+	} else {
+		printf("Joystick NOT found\n");
+	}
+}
 
+JoystickAdapter::~JoystickAdapter() {
+	SDL_JoystickClose(gGameController);
+	gGameController = NULL;
 }
 
 uint8_t JoystickAdapter::read(uint8_t portNum) {
+	uint8_t outbyte = 0xFF;
 	if(portNum % 2) {
 		pad1State = false;
+		if(pad2State) {
+			outbyte = (uint8_t) (pad2Mask >> 8);
+		} else {
+			outbyte = (uint8_t) pad2Mask;
+		}
 		pad2State = !pad2State;
-		return 0xFF;
 	} else {
 		pad2State = false;
-		uint8_t outbyte = 0xFF;
 		if(pad1State) {
 			outbyte = (uint8_t) (pad1Mask >> 8);
 		} else {
 			outbyte = (uint8_t) pad1Mask;
 		}
 		pad1State = !pad1State;
-		return ~outbyte;
 	}
+	return ~outbyte;
 }
 
 void JoystickAdapter::update(SDL_Event *e) {
@@ -35,37 +50,78 @@ void JoystickAdapter::update(SDL_Event *e) {
 		select status - bit 7
 	*/
 	uint16_t buttonMask = 0;
-	switch(e->key.keysym.sym) {
-		case SDLK_UP:
-			buttonMask = 0b0000100000001000;
-			break;
-		case SDLK_DOWN:
-			buttonMask = 0b0000010000000100;
-			break;
-		case SDLK_LEFT:
-			buttonMask = 0b0000001000000000;
-			break;
-		case SDLK_RIGHT:
-			buttonMask = 0b0000000100000000;
-			break;
-		case SDLK_z:
-			buttonMask = 0b0000000000010000;
-			break;
-		case SDLK_x:
-			buttonMask = 0b0001000000000000;
-			break;
-		case SDLK_c:
-			buttonMask = 0b0010000000000000;
-			break;
-		case SDLK_RETURN:
-			buttonMask = 0b0000000000100000;
-			break;
-		default:
-			break;
-	}
-	if(e->type == SDL_KEYDOWN) {
-		pad1Mask |= buttonMask;
+	if(e->type == SDL_KEYDOWN || e->type == SDL_KEYUP) {
+		switch(e->key.keysym.sym) {
+			case SDLK_UP:
+				buttonMask = GAMEPAD_MASK_UP;
+				break;
+			case SDLK_DOWN:
+				buttonMask = GAMEPAD_MASK_DOWN;
+				break;
+			case SDLK_LEFT:
+				buttonMask = GAMEPAD_MASK_LEFT;
+				break;
+			case SDLK_RIGHT:
+				buttonMask = GAMEPAD_MASK_RIGHT;
+				break;
+			case SDLK_z:
+				buttonMask = GAMEPAD_MASK_A;
+				break;
+			case SDLK_x:
+				buttonMask = GAMEPAD_MASK_B;
+				break;
+			case SDLK_c:
+				buttonMask = GAMEPAD_MASK_C;
+				break;
+			case SDLK_RETURN:
+				buttonMask = GAMEPAD_MASK_START;
+				break;
+			default:
+				break;
+		}
+		if(e->type == SDL_KEYDOWN) {
+			pad1Mask |= buttonMask;
+		} else {
+			pad1Mask &= ~buttonMask;
+		}
 	} else {
-		pad1Mask &= ~buttonMask;
+		if(e->type == SDL_JOYHATMOTION) {
+			//clockwise from the top, cardinal directions go 1, 2, 4, 8
+			pad2Mask &= ~GAMEPAD_MASK_ALLDIRS;
+			if(e->jhat.value & 1) {
+				pad2Mask |= GAMEPAD_MASK_UP;
+			}
+			if(e->jhat.value & 2) {
+				pad2Mask |= GAMEPAD_MASK_RIGHT;
+			}
+			if(e->jhat.value & 4) {
+				pad2Mask |= GAMEPAD_MASK_DOWN;
+			}
+			if(e->jhat.value & 8) {
+				pad2Mask |= GAMEPAD_MASK_LEFT;
+			}
+		} else if(e->type == SDL_JOYAXISMOTION) {
+			printf("Joystick axis %x %x\n", e->jaxis.axis, e->jaxis.value);
+		} else if(e->type == SDL_JOYBUTTONDOWN || e->type == SDL_JOYBUTTONUP) {
+			switch(e->jbutton.button) {
+				case 0:
+					buttonMask = GAMEPAD_MASK_A;
+					break;
+				case 1:
+					buttonMask = GAMEPAD_MASK_B;
+					break;
+				case 2:
+					buttonMask = GAMEPAD_MASK_C;
+					break;
+				case 6:
+					buttonMask = GAMEPAD_MASK_START;
+					break;
+			}
+			if(e->jbutton.state) {
+				pad2Mask |= buttonMask;
+			} else {
+				pad2Mask &= ~buttonMask;
+			}
+		}
 	}
 }
