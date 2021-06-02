@@ -215,15 +215,24 @@ void VDMA_Write(uint16_t address, uint8_t value) {
 			}
 			int yShift = 0;
 			int vy = dma_params[DMA_PARAM_VY] & 0x7F,
-				gy = dma_params[DMA_PARAM_GY] & 0x7F;
+				gy = dma_params[DMA_PARAM_GY] & 0x7F,
+				gy2;
 			if(dma_control_reg & DMA_V_PAGE_SELECT_BIT) {
 				yShift = GT_HEIGHT;
 			}
-			for(uint16_t y = 0; y < dma_params[DMA_PARAM_HEIGHT]; y++) {
+			for(uint16_t y = 0; y < (dma_params[DMA_PARAM_HEIGHT] & 0x7F); y++) {
 				int vx = dma_params[DMA_PARAM_VX] & 0x7F,
-					gx = dma_params[DMA_PARAM_GX] & 0x7F;
-				for(uint16_t x = 0; x < dma_params[DMA_PARAM_WIDTH]; x++) {
-					outColor[0] = gram_buffer[(gy << 7) | gx | gOffset];
+					gx = dma_params[DMA_PARAM_GX] & 0x7F,
+					gx2;
+				for(uint16_t x = 0; x < (dma_params[DMA_PARAM_WIDTH] & 0x7F); x++) {
+					gx2 = gx; gy2 = gy;
+					if(dma_params[DMA_PARAM_WIDTH] & 0x80) {
+						gx2 = (~gx2) & 0x7F;
+					}
+					if(dma_params[DMA_PARAM_HEIGHT] & 0x80) {
+						gy2 = (~gy2) & 0x7F;
+					}
+					outColor[0] = gram_buffer[(gy2 << 7) | gx2 | gOffset];
 					if((dma_control_reg & DMA_TRANSPARENCY_BIT) || (outColor[colorSel] != 0)) {
 						vram_buffer[(vy << 7) | vx | vOffset] = outColor[colorSel];
 						put_pixel32(vRAM_Surface, vx, vy + yShift, convert_color(vRAM_Surface, outColor[colorSel]));
@@ -237,7 +246,7 @@ void VDMA_Write(uint16_t address, uint8_t value) {
 
 			if(dma_control_reg & DMA_COPY_IRQ_BIT) {
 				cpu_core->ClearIRQ();
-				cpu_core->ScheduleIRQ((dma_params[DMA_PARAM_HEIGHT] * dma_params[DMA_PARAM_WIDTH]));
+				cpu_core->ScheduleIRQ(((dma_params[DMA_PARAM_HEIGHT] & 0x7F) * (dma_params[DMA_PARAM_WIDTH] & 0x7F)));
 			}
 		} else {
 #ifdef VIDDEBUG
