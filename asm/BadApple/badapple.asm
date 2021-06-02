@@ -76,7 +76,7 @@ DMA_Status = $4006
 DMA_Color = $4007
 
 MusicVRAMBank = %01000100
-DrawingVRAMBank = %0100101
+DrawingVRAMBank = %01000101
 
 startColor = %10011111
 
@@ -84,6 +84,8 @@ startColor = %10011111
 Inflate:
 	.incbin "inflate_e000_0200.obx"
 RESET:
+	SEI
+	
 	LDA #%00000010
 	STA DoubleBufMask
 
@@ -433,6 +435,7 @@ NextRun:
 	STA DMA_Color
 	LDA #1
 	STA DMA_Status
+	WAI
 
 	JMP EndDoubleShot
 DoubleShot:
@@ -446,18 +449,7 @@ DoubleShot:
 	STA DMA_Color
 	LDA #1
 	STA DMA_Status
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
+	WAI
 	LDA #$40
 	STA DMA_VX
 	LDA #1
@@ -516,41 +508,7 @@ FrameDone:
 	LDA #1
 	STA DMA_Status
 	
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
+	WAI
 	
 	
 
