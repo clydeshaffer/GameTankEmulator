@@ -1,4 +1,6 @@
 #include "joystick_adapter.h"
+#include <stdio.h>
+#include <stdlib.h>
 
 JoystickAdapter::JoystickAdapter() {
 	SDL_InitSubSystem(SDL_INIT_JOYSTICK);
