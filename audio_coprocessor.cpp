@@ -50,6 +50,7 @@ void fill_audio(void *udata, uint8_t *stream, int len) {
             actual_cycles = 0;
             if(state->running) {
                 state->cpu->IRQ();
+                state->cpu->ClearIRQ();
                 state->cpu->Run(state->cycles_per_sample, actual_cycles);
             }
         }
