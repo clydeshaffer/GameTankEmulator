@@ -217,9 +217,13 @@
           return decodeURIComponent(results[2].replace(/\+/g, ' '));
       }
 
-      var urlRomName = getParameterByName('rom');
-      if(urlRomName != null) {
-        loadRomByName(urlRomName);
+      Module.onRuntimeInitialized = function() {
+
+        var urlRomName = getParameterByName('rom');
+        if(urlRomName != null) {
+          loadRomByName(urlRomName);
+        }
+
       }
 
     </script>
