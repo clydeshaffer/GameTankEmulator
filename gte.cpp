@@ -186,8 +186,8 @@ void VDMA_Write(uint16_t address, uint8_t value) {
 	if(dma_control_reg & DMA_COPY_ENABLE_BIT) {
 		if(((address & 0xF) == DMA_PARAM_TRIGGER) && (value & 1)) {
 			SDL_Rect gRect, vRect;
-			vRect.x = dma_params[DMA_PARAM_VX] & 0x7F;
-			vRect.y = dma_params[DMA_PARAM_VY] & 0x7F;
+			vRect.x = dma_params[DMA_PARAM_VX];
+			vRect.y = dma_params[DMA_PARAM_VY];
 			vRect.w = dma_params[DMA_PARAM_WIDTH];
 			vRect.h = dma_params[DMA_PARAM_HEIGHT];
 			gRect.x = dma_params[DMA_PARAM_GX] & 0x7F;
@@ -235,9 +235,11 @@ void VDMA_Write(uint16_t address, uint8_t value) {
 						gy2 = (~gy2) & 0x7F;
 					}
 					outColor[0] = gram_buffer[(gy2 << 7) | gx2 | gOffset];
-					if((dma_control_reg & DMA_TRANSPARENCY_BIT) || (outColor[colorSel] != 0)) {
-						vram_buffer[(vy << 7) | vx | vOffset] = outColor[colorSel];
-						put_pixel32(vRAM_Surface, vx, vy + yShift, convert_color(vRAM_Surface, outColor[colorSel]));
+					if(((dma_control_reg & DMA_TRANSPARENCY_BIT) || (outColor[colorSel] != 0))
+						&& !((vx & 0x80) && (dma_params[DMA_PARAM_VX] & 0x80))
+						&& !((vy & 0x80) && (dma_params[DMA_PARAM_VY] & 0x80))) {
+						vram_buffer[((vy & 0x7F) << 7) | (vx & 0x7F) | vOffset] = outColor[colorSel];
+						put_pixel32(vRAM_Surface, vx & 0x7F, (vy & 0x7F) + yShift, convert_color(vRAM_Surface, outColor[colorSel]));
 					}
 					vx++;
 					gx++;
