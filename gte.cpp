@@ -115,6 +115,8 @@ mos6502 *cpu_core;
 AudioCoprocessor *soundcard;
 JoystickAdapter *joysticks;
 
+uint8_t bufferFlipCount = 0;
+
 uint8_t open_bus() {
 	return rand() % 256;
 }
@@ -370,6 +372,9 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 			printf("VIA %x set to %x\n", address & 0xF, value);
 		} else {
 			if((address & 0x000F) == 0x0007) {
+				if((value & DMA_VID_OUT_PAGE_BIT) != (dma_control_reg & DMA_VID_OUT_PAGE_BIT)) {
+					bufferFlipCount++;
+				}
 				dma_control_reg = value;
 				if(dma_control_reg & DMA_TRANSPARENCY_BIT) {
 					SDL_SetColorKey(gRAM_Surface, SDL_TRUE, SDL_MapRGB(gRAM_Surface->format, 0, 0, 0));
@@ -496,8 +501,12 @@ EM_BOOL mainloop(double time, void* userdata) {
 			currentTicks = SDL_GetTicks();
 			if(lastTicks != 0) {
 				int time_error = (currentTicks - lastTicks) - (1000 * actual_cycles/system_clock);
-				if(frameCount % 64 == 0)
+				if(frameCount == 100) {
 					printf("scaling: %f\tincrement: %f\terror: %d\n", time_scaling, scaling_increment, time_error);
+					printf("%d buffer flips in the last 100 VSYNCs\n", bufferFlipCount);
+					frameCount = 0;
+					bufferFlipCount = 0;
+				}
 				bool overlong = time_error > 0;
 				if(overlong == prev_overlong) {
 					//scaling_increment = 1;
