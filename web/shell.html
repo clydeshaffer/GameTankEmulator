@@ -187,8 +187,7 @@
 
       var loadedFiles = {};
 
-      function loadRomFromList(listBox) {
-        var romName = listBox.value;
+      function loadRomByName(romName) {
         var romUrl = "../roms/" + romName;
         if(!loadedFiles[romName]) {
           fetch(romUrl)
@@ -203,7 +202,24 @@
         } else {
           Module.ccall('LoadRomFile', null, ["string"], [romName]);
         }
-        
+      }
+
+      function loadRomFromList(listBox) {
+        loadRomByName(listBox.value);
+      }
+
+      function getParameterByName(name, url = window.location.href) {
+          name = name.replace(/[\[\]]/g, '\\$&');
+          var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'),
+              results = regex.exec(url);
+          if (!results) return null;
+          if (!results[2]) return '';
+          return decodeURIComponent(results[2].replace(/\+/g, ' '));
+      }
+
+      var urlRomName = getParameterByName('rom');
+      if(urlRomName != null) {
+        loadRomByName(urlRomName);
       }
 
     </script>
