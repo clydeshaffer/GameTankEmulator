@@ -53,7 +53,7 @@ else
 		CPPC = emcc
 		COMPILER_FLAGS += -s USE_SDL=2 -D WASM_BUILD -D EMBED_ROM_FILE='"$(ROMFILE)"'
 		OBJ_NAME = bin/$(OS)/index.html
-		LINKER_FLAGS += --embed-file $(ROMFILE) --shell-file web/shell.html -s EXPORTED_FUNCTIONS='["_LoadRomFile", "_main"]' -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]'
+		LINKER_FLAGS += --embed-file $(ROMFILE) --shell-file web/shell.html -s EXPORTED_FUNCTIONS='["_LoadRomFile", "_main", "_SetButtons"]' -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]'
 	endif
 endif
 
