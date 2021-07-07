@@ -19,10 +19,12 @@ private:
 	bool pad2State = false;
 	uint16_t pad1Mask = 0;
 	uint16_t pad2Mask = 0;
+	uint16_t held1Mask = 0;
 	SDL_Joystick* gGameController = NULL;
 public:
 	JoystickAdapter();
 	~JoystickAdapter();
 	uint8_t read(uint8_t portNum);
 	void update(SDL_Event *e);
+	void SetHeldButtons(uint16_t heldMask);
 };

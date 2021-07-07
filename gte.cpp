@@ -457,6 +457,12 @@ extern "C" {
 		paused = false;
 		cpu_core->Reset();
 	}
+
+	void SetInputs(int buttonMask) {
+		if(joysticks != NULL) {
+			joysticks->SetHeldButtons(buttonMask);
+		}
+	}
 }
 
 char const * lTheOpenFileName = NULL;

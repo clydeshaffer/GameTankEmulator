@@ -30,9 +30,9 @@ uint8_t JoystickAdapter::read(uint8_t portNum) {
 	} else {
 		pad2State = false;
 		if(pad1State) {
-			outbyte = (uint8_t) (pad1Mask >> 8);
+			outbyte = (uint8_t) ((pad1Mask | held1Mask) >> 8);
 		} else {
-			outbyte = (uint8_t) pad1Mask;
+			outbyte = (uint8_t) (pad1Mask | held1Mask);
 		}
 		pad1State = !pad1State;
 	}
@@ -126,4 +126,8 @@ void JoystickAdapter::update(SDL_Event *e) {
 			}
 		}
 	}
+}
+
+void JoystickAdapter::SetHeldButtons(uint16_t heldMask) {
+	held1Mask = heldMask;
 }
