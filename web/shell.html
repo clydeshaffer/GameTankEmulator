@@ -290,7 +290,7 @@
           ev.preventDefault();
           var inputscale = 4 / ev.targetTouches[0].target.clientHeight;
           for(var i = 0; i < ev.targetTouches.length; i++) {
-            var top = 2 - Math.floor(inputscale * (document.body.clientHeight - ev.targetTouches[i].clientY));
+            var top = 3 - Math.floor(inputscale * (document.body.clientHeight - ev.targetTouches[i].clientY));
             var lef = Math.floor(inputscale * ev.targetTouches[i].clientX);
             touchIds[ev.targetTouches[i].identifier] = buttonGrid[top][lef];
             touchedMask |= buttonGrid[top][lef];
