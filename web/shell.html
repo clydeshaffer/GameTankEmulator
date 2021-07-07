@@ -56,9 +56,17 @@
         width: 100%;
       }
 
+      select {
+          font-size: 50px;
+        }
+
       @media only screen and (orientation:landscape) {
         .mobileinputcontainer {
             display: none;
+        }
+
+        select {
+          font-size: 16pt;
         }
       }
 
@@ -70,9 +78,32 @@
         min-height: 100%;
       }
 
+      @media only screen and (orientation:portrait) {
+        #canvas {
+            position: absolute;
+            top: 0px;
+            left: 0px;
+            margin: 0px;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            display: block;
+        }
+      }
+
     </style>
   </head>
   <body>
+    <div style="text-align: center;">
+      <select id="RomSelectList" onchange="loadRomFromList(this);">
+        <option> Select a cartridge </option>
+        <option value="ctest.gtr"> Hello World </option>
+        <option value="tetris.gtr"> Tetris </option>
+        <option value="badapple.gtr"> Bad Apple </option>
+        <option value="cubicle.gtr"> Cubicle Knight </option>
+        <option value="fiend.gtr">Accursed Fiend</option>
+      </select>
+    </div>
     <hr/>
     <figure style="overflow:visible;" id="spinner"><div class="spinner"></div><center style="margin-top:0.5em"><strong>emscripten</strong></center></figure>
     <div class="emscripten" id="status">Downloading...</div>
@@ -80,16 +111,7 @@
       <progress value="0" max="100" id="progress" hidden=1></progress>  
     </div>
     <div class="emscripten_border" style="position:relative;">
-      <div style="position: absolute;" >
-        Select a demo:<br>
-        <select id="RomSelectList" onchange="loadRomFromList(this);">  
-          <option value="ctest.gtr"> Hello World </option>
-          <option value="tetris.gtr"> Tetris </option>
-          <option value="badapple.gtr"> Bad Apple </option>
-          <option value="cubicle.gtr"> Cubicle Knight </option>
-          <option value="fiend.gtr">Accursed Fiend</option>
-        </select>
-      </div>
+      
       <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1 width="512" height="512"></canvas>
     </div>
     <hr/>
