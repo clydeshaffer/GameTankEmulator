@@ -262,6 +262,7 @@
         var touchIds = [];
         var touchedMask = 0;
         inputScreen.ontouchstart = function(ev) {
+          ev.preventDefault();
           var inputscale = 3 / ev.targetTouches[0].target.clientHeight;
           for(var i = 0; i < ev.targetTouches.length; i++) {
             var top = 2 - Math.floor(inputscale * (document.body.clientHeight - ev.targetTouches[i].clientY));
@@ -273,6 +274,7 @@
         }
 
         inputScreen.ontouchend = function(ev) {
+          ev.preventDefault();
           for(var i = 0; i < ev.changedTouches.length; i++) {
             touchedMask &= ~touchIds[ev.changedTouches[i].identifier];
           }
