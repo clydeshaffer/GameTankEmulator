@@ -76,7 +76,7 @@ ifneq ($(OS), wasm)
 endif
 
 ifeq ($(OS), wasm)
-	cp web/gamepad.png bin/$(OS)/wasm
+	cp web/gamepad.png bin/$(OS)
 endif
 
 clean:
