@@ -75,6 +75,10 @@ ifneq ($(OS), wasm)
 	cd bin/$(OS); zip -9 -y -r -q ../../$(ZIP_NAME) ./*
 endif
 
+ifeq ($(OS), wasm)
+	cp web/gamepad.png bin/$(OS)/wasm
+endif
+
 clean:
 	rm -f *.o
 	rm -rf bin
