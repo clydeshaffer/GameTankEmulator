@@ -268,7 +268,7 @@
             var lef = Math.floor(inputscale * ev.targetTouches[i].clientX);
             touchIds[ev.targetTouches[i].identifier] = buttonGrid[top][lef];
             touchedMask |= buttonGrid[top][lef];
-            Module.ccall('SetInputs', null, ["int"], [touchedMask]);
+            Module.ccall('SetButtons', null, ["int"], [touchedMask]);
           }
         }
 
@@ -276,7 +276,7 @@
           for(var i = 0; i < ev.changedTouches.length; i++) {
             touchedMask &= ~touchIds[ev.changedTouches[i].identifier];
           }
-          Module.ccall('SetInputs', null, ["int"], [touchedMask]);
+          Module.ccall('SetButtons', null, ["int"], [touchedMask]);
         }
       }
 

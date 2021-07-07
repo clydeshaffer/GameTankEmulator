@@ -458,7 +458,7 @@ extern "C" {
 		cpu_core->Reset();
 	}
 
-	void SetInputs(int buttonMask) {
+	void SetButtons(int buttonMask) {
 		if(joysticks != NULL) {
 			joysticks->SetHeldButtons(buttonMask);
 		}
