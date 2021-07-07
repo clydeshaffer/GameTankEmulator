@@ -82,6 +82,14 @@
         #canvas {
             width: 100%;
         }
+
+        html {
+          background-color: #DF7F1F;
+        }
+
+        .landscapeOnly {
+          display:none;
+        }
       }
 
     </style>
@@ -108,13 +116,13 @@
       <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1 width="512" height="512"></canvas>
     </div>
     <hr/>
-    <div class="emscripten">
+    <div class="emscripten landscapeOnly">
       <input id="RomFileInput" type="file" onchange="useFileInput(this);" style="display: none"/>
       <input type="button" id="loadimg" value="Load ROM" onclick="document.getElementById('RomFileInput').click();" />
     </div>
     
     <hr/>
-    <div>
+    <div class="landscapeOnly">
       <h2>Controls:</h2>
       <ul>
         <li>Arrow Keys = Directional Buttons</li>
@@ -268,6 +276,7 @@
         var urlRomName = getParameterByName('rom');
         if(urlRomName != null) {
           loadRomByName(urlRomName);
+          document.getElementById("RomSelectList").value = urlRomName;
         }
 
         var buttonGrid = [[0, 0b0000100000001000, 0, 0b0000000000100000, 0, 0b0010000000000000, 0],
