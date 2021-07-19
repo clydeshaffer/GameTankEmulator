@@ -1,6 +1,8 @@
 #include "SDL_inc.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <cmath>
 #include <time.h>
 
 #ifdef WASM_BUILD
@@ -46,6 +48,8 @@ RomType loadedRomType;
 
 const int SCREEN_WIDTH = 512;
 const int SCREEN_HEIGHT = 512;
+const int PROFILER_WIDTH = 256;
+const int PROFILER_HEIGHT = 512;
 RGB_Color *palette;
 uint8_t *rom_buffer;
 uint8_t ram_buffer[RAMSIZE];
@@ -107,7 +111,9 @@ const uint8_t DMA_PARAM_TRIGGER = 6;
 const uint8_t DMA_PARAM_COLOR   = 7;
 uint8_t dma_params[8];
 
+SDL_Surface* bmpFont = NULL;
 SDL_Surface* screenSurface = NULL;
+SDL_Surface* profilerSurface = NULL;
 SDL_Surface* gRAM_Surface = NULL;
 SDL_Surface* vRAM_Surface = NULL;
 
@@ -115,7 +121,99 @@ mos6502 *cpu_core;
 AudioCoprocessor *soundcard;
 JoystickAdapter *joysticks;
 
+#define PROFILER_ENTRIES 64
 uint8_t bufferFlipCount = 0;
+uint64_t totalCyclesCount = 0;
+uint64_t profilingTimeStamps[PROFILER_ENTRIES];
+uint64_t profilingTimes[PROFILER_ENTRIES];
+int fps = 60;
+
+#define BMP_CHAR_SIZE 8
+
+void drawText(SDL_Surface* surface, SDL_Rect* area, char* text) {
+	SDL_Rect cursor_rect, char_rect;
+	cursor_rect.x = area->x;
+	cursor_rect.y = area->y;
+	cursor_rect.w = BMP_CHAR_SIZE;
+	cursor_rect.h = BMP_CHAR_SIZE;
+
+	char_rect.w = BMP_CHAR_SIZE;
+	char_rect.h = BMP_CHAR_SIZE;
+
+	while((*text != 0) && (cursor_rect.y < (area->y + area->h))) {
+		if(*text == '\n' || ((cursor_rect.x + cursor_rect.w) > area->w)) {
+			cursor_rect.x = area->x;
+			cursor_rect.y += BMP_CHAR_SIZE;
+		} else {
+			char_rect.x = ((*text) & 0x0F) << 3;
+			char_rect.y = ((*text) & 0xF0) >> 1;
+			SDL_BlitSurface(bmpFont, &char_rect, profilerSurface, &cursor_rect);
+			cursor_rect.x += BMP_CHAR_SIZE;
+		}
+		++text;
+	}
+}
+
+bool profiler_open = false;
+int profiler_x_axis = 0;
+
+uint8_t prof_R[8] = {255, 255, 255, 0, 0, 128, 128, 255};
+uint8_t prof_G[8] = {0, 128, 255, 255, 0, 0, 128, 255};
+uint8_t prof_B[8] = {0, 0, 0, 0, 255, 128, 128, 255};
+
+
+void drawProfilingWindow() {
+	SDL_Rect profilerArea, graphRect;
+	profilerArea.x = 0;
+	profilerArea.y = 0;
+	profilerArea.w = PROFILER_WIDTH;
+	profilerArea.h = BMP_CHAR_SIZE;
+
+	graphRect.x = profiler_x_axis;
+	graphRect.y = 0;
+	graphRect.w = 1;
+	graphRect.h = PROFILER_HEIGHT;
+
+	char buf[64];
+
+	SDL_FillRect(profilerSurface, &graphRect, SDL_MapRGB(profilerSurface->format, 0, 0, 0));
+	graphRect.h = 1;
+	graphRect.y = PROFILER_HEIGHT - 128;
+	SDL_FillRect(profilerSurface, &graphRect, SDL_MapRGB(profilerSurface->format, 32, 32, 32));
+	
+	sprintf(buf,"FPS: %d\n", fps);
+	SDL_FillRect(profilerSurface, &profilerArea, SDL_MapRGB(profilerSurface->format, 0, 0, 0));
+	drawText(profilerSurface, &profilerArea, buf);
+	profilerArea.y += BMP_CHAR_SIZE;
+
+	for(int i = 0; i < PROFILER_ENTRIES; ++i) {
+		Uint32 id_col = SDL_MapRGB(profilerSurface->format, prof_R[i % 8], prof_G[i % 8], prof_B[i % 8]);
+		if(profilingTimes[i] != 0) {
+			sprintf(buf,"Timer %d: %llu\n", i, profilingTimes[i]);
+			profilerArea.x = 0;
+			profilerArea.w = 2;
+			SDL_FillRect(profilerSurface, &profilerArea, id_col);
+			profilerArea.x = 4;
+			profilerArea.w = PROFILER_WIDTH-4;
+			SDL_FillRect(profilerSurface, &profilerArea, SDL_MapRGB(profilerSurface->format, 0, 0, 0));
+			drawText(profilerSurface, &profilerArea, buf);
+
+			if(profilingTimes[i] < 100000) {
+				graphRect.y = PROFILER_HEIGHT - (profilingTimes[i] >> 9);
+			} else {
+				graphRect.y = 128;
+			}
+			SDL_FillRect(profilerSurface, &graphRect, id_col);
+		}
+		profilerArea.y += BMP_CHAR_SIZE;
+	}
+	
+	profiler_x_axis = (profiler_x_axis + 1) % PROFILER_WIDTH;
+}
+
+void reportProfileTime(uint8_t index) {
+	profilingTimes[index] =  totalCyclesCount - profilingTimeStamps[index];
+}
 
 uint8_t open_bus() {
 	return rand() % 256;
@@ -159,6 +257,9 @@ void refreshScreen() {
 	dest.w = SCREEN_WIDTH;
 	dest.h = SCREEN_HEIGHT;
 	SDL_BlitScaled(vRAM_Surface, &src, screenSurface, &dest);
+	if(profiler_open) {
+		drawProfilingWindow();
+	}
 }
 
 uint8_t VDMA_Read(uint16_t address) {
@@ -370,8 +471,19 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 					UpdateFlashShiftRegister(value);
 				}
 			}
+			if((address & 0xF) == VIA_ORB) {
+				if((VIA_regs[VIA_ORB] & 0x80) && !(value & 0x80)) {
+					//falling edge of high bit of ORB
+					if(value & 0x40) {
+						//report duration
+						reportProfileTime(value & 0x3F);
+					} else {
+						//store timestamp
+						profilingTimeStamps[value & 0x3F] = totalCyclesCount;
+					}
+				}
+			}
 			VIA_regs[address & 0xF] = value;
-			printf("VIA %x set to %x\n", address & 0xF, value);
 		} else {
 			if((address & 0x000F) == 0x0007) {
 				if((value & DMA_VID_OUT_PAGE_BIT) != (dma_control_reg & DMA_VID_OUT_PAGE_BIT)) {
@@ -424,8 +536,27 @@ char * open_rom_dialog() {
 #endif
 }
 
+char* lTheOpenFileName = NULL;
+char filenameNoPath[256];
+
 extern "C" {
 	void LoadRomFile(const char* filename) {
+		const char* cur = filename;
+		const char* cur2 = NULL;
+		char* cur3;
+		while(*cur != 0) {
+			if((*cur == '/') ||(*cur == '\\')) {
+				cur2 = cur + 1;
+			}
+			cur++;
+		}
+		if(cur2 != NULL) {
+			cur3 = filenameNoPath;
+			while(*cur2 != 0) {
+				*cur3++ = *cur2++;
+			}
+			*cur3 = 0;
+		}
 		printf("loading %s\n", filename);
 		FILE* romFileP = fopen(filename, "rb");
 		if(romFileP) {
@@ -454,8 +585,10 @@ extern "C" {
 			fread(rom_buffer, sizeof(uint8_t), ROMSIZE, romFileP);
 			fclose(romFileP);
 		}
-		paused = false;
-		cpu_core->Reset();
+		if(cpu_core) {
+			paused = false;
+			cpu_core->Reset();
+		}
 	}
 
 	void SetButtons(int buttonMask) {
@@ -465,8 +598,8 @@ extern "C" {
 	}
 }
 
-char const * lTheOpenFileName = NULL;
 SDL_Window* window = NULL;
+SDL_Window* profiler_window = NULL;
 Uint32 rmask, gmask, bmask, amask;
 uint64_t system_clock = 315000000/88;
 uint64_t actual_cycles = 0;
@@ -479,14 +612,32 @@ uint8_t frameCount = 0;
 bool prev_overlong = false;
 int zeroConsec = 0;
 
+void openProfilerWindow() {
+	if(!profiler_open) {
+		profiler_window = SDL_CreateWindow( "GameTank Profiler", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, PROFILER_WIDTH, PROFILER_HEIGHT, SDL_WINDOW_SHOWN );
+		profilerSurface = SDL_GetWindowSurface(profiler_window);
+		SDL_SetColorKey(profilerSurface, SDL_FALSE, 0);
+		profiler_open = true;
+	}
+}
+
+void closeProfilerWindow() {
+	if(profiler_open) {
+
+	}
+}
+
 #ifndef EM_BOOL
 #define EM_BOOL int
 #endif
 
+char titlebuf[256];
+
 EM_BOOL mainloop(double time, void* userdata) {
 	if(!paused) {
-			actual_cycles = 0;
-			cpu_core->Run(cycles_per_vsync, actual_cycles);
+			actual_cycles = totalCyclesCount;
+			cpu_core->Run(cycles_per_vsync, totalCyclesCount);
+			actual_cycles = totalCyclesCount - actual_cycles;
 			if(cpu_core->illegalOpcode) {
 				printf("Hit illegal opcode %x\npc = %x\n", cpu_core->illegalOpcodeSrc, cpu_core->pc);
 				paused = true;
@@ -510,8 +661,9 @@ EM_BOOL mainloop(double time, void* userdata) {
 			if(lastTicks != 0) {
 				int time_error = (currentTicks - lastTicks) - (1000 * actual_cycles/system_clock);
 				if(frameCount == 100) {
-					printf("scaling: %f\tincrement: %f\terror: %d\n", time_scaling, scaling_increment, time_error);
-					printf("%d buffer flips in the last 100 VSYNCs\n", bufferFlipCount);
+					sprintf(titlebuf, "GameTank Emulator | %s | s: %.1f inc: %.1f err: %d\n", filenameNoPath, time_scaling, scaling_increment, time_error);
+					SDL_SetWindowTitle(window, titlebuf);
+					fps = bufferFlipCount * 60 / 100;
 					frameCount = 0;
 					bufferFlipCount = 0;
 				}
@@ -553,6 +705,9 @@ EM_BOOL mainloop(double time, void* userdata) {
 		}
 		refreshScreen();
 		SDL_UpdateWindowSurface(window);
+		if(profiler_open) {
+			SDL_UpdateWindowSurface(profiler_window);
+		}
 
 		while( SDL_PollEvent( &e ) != 0 )
         {
@@ -586,6 +741,10 @@ EM_BOOL mainloop(double time, void* userdata) {
 							}
 	            		}
             			break;
+					case SDLK_F9:
+						if(e.type == SDL_KEYDOWN) {
+							openProfilerWindow();
+						}
             		default:
             			joysticks->update(&e);
             			break;
@@ -623,7 +782,7 @@ int main(int argC, char* argV[]) {
 	}
 
 	if(lTheOpenFileName) {
-		FILE* romFileP = fopen(lTheOpenFileName, "rb");
+		/*FILE* romFileP = fopen(lTheOpenFileName, "rb");
 		if(romFileP) {
 			fseek(romFileP, 0L, SEEK_END);
 			ROMSIZE = ftell(romFileP);
@@ -649,7 +808,8 @@ int main(int argC, char* argV[]) {
 			}
 			fread(rom_buffer, sizeof(uint8_t), ROMSIZE, romFileP);
 			fclose(romFileP);
-		}
+		}*/
+		LoadRomFile(lTheOpenFileName);
 	} else {
 		paused = true;
 #ifdef TINYFILEDIALOGS_H
@@ -671,6 +831,12 @@ int main(int argC, char* argV[]) {
 	
 	SDL_Init(SDL_INIT_VIDEO);
 	atexit(SDL_Quit);
+
+	bmpFont = SDL_LoadBMP("img/font.bmp");
+	if(bmpFont == NULL) {
+		printf("Couldn't load font.bmp!!!\n");
+	}
+
 	window = SDL_CreateWindow( "GameTank Emulator", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN );
 	screenSurface = SDL_GetWindowSurface(window);
 	SDL_SetColorKey(screenSurface, SDL_FALSE, 0);
