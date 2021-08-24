@@ -206,13 +206,14 @@ void drawProfilingWindow() {
 			SDL_FillRect(profilerSurface, &graphRect, id_col);
 		}
 		profilerArea.y += BMP_CHAR_SIZE;
+		profilingTimes[i] = 0;
 	}
 	
 	profiler_x_axis = (profiler_x_axis + 1) % PROFILER_WIDTH;
 }
 
 void reportProfileTime(uint8_t index) {
-	profilingTimes[index] =  totalCyclesCount - profilingTimeStamps[index];
+	profilingTimes[index] +=  totalCyclesCount - profilingTimeStamps[index];
 }
 
 uint8_t open_bus() {
