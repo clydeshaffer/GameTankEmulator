@@ -10,6 +10,7 @@ musicDelay = $27
 FrameFlag = $30
 DMA_Flags_buf = $31
 DoubleBufMask = $32
+DoubleBufMask2 = $33
 
 OctaveBuf      = $50
 MusicPtr_Ch1   = $51 ; 52
@@ -45,6 +46,7 @@ Audio_NMI = $2001
 Audio_Rate = $2006
 
 DMA_Flags = $2007
+RAM_Bank = $2005
 
 GamePad1 = $2008
 GamePad2 = $2009
@@ -75,8 +77,10 @@ DMA_HEIGHT = $4005
 DMA_Status = $4006
 DMA_Color = $4007
 
-MusicVRAMBank = %01000100
-DrawingVRAMBank = %01000101
+	; VNMI | IRQ | COLORFILL
+MusicVRAMBank = %01001100
+	; VNMI | IRQ | DMA | COLORFILL
+DrawingVRAMBank = %01001101
 
 startColor = %10011111
 
@@ -88,6 +92,8 @@ RESET:
 	
 	LDA #%00000010
 	STA DoubleBufMask
+	STZ DoubleBufMask2
+	STZ RAM_Bank
 
 	LDA #114
 	STA musicDelay
@@ -138,12 +144,20 @@ RESET:
 	JSR ClearScreen
 
 	LDA DoubleBufMask
-	EOR #%00010010
+	EOR #%00000010
 	STA DoubleBufMask
+
+	LDA DoubleBufMask2
+	EOR #%00001000
+	STA DoubleBufMask2
 
 	LDA #DrawingVRAMBank
 	ORA DoubleBufMask
 	STA DMA_Flags
+
+	LDA DoubleBufMask2
+	STA RAM_Bank
+
 	JSR ClearScreen
 
 	JSR RestartAnimation
@@ -409,8 +423,7 @@ MusicDone:
 	LDA #DrawingVRAMBank
 	ORA DoubleBufMask
 	STA DMA_Flags
-	LDA #$80
-	STA DMA_GX
+	STZ DMA_GX
 	STZ DMA_GY
 	LDA #1
 	STA DMA_HEIGHT
@@ -500,8 +513,7 @@ FrameDone:
 	STA DMA_VX
 	LDA #10
 	STA DMA_VY
-	LDA #$80
-	STA DMA_GX
+	STZ DMA_GX
 	STZ DMA_GY
 	LDA #$FE
 	STA DMA_Color
@@ -513,12 +525,19 @@ FrameDone:
 	
 
 	LDA DoubleBufMask
-	EOR #%00010010
+	EOR #%00000010
 	STA DoubleBufMask
+
+	LDA DoubleBufMask2
+	EOR #%00001000
+	STA DoubleBufMask2
 
 	LDA #DrawingVRAMBank
 	ORA DoubleBufMask
 	STA DMA_Flags
+
+	LDA DoubleBufMask2
+	STA RAM_Bank
 NoFrame:
 
 	
@@ -738,8 +757,7 @@ ClearScreen:
 	STA DMA_HEIGHT
 	STZ DMA_VX
 	STZ DMA_VY
-	LDA #$80
-	STA DMA_GX
+	STZ DMA_GX
 	STZ DMA_GY
 	LDA #$FE
 	STA DMA_Color

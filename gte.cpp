@@ -29,7 +29,7 @@ typedef struct RGBA_Color {
 } RGBA_Color;
 
 int ROMSIZE = 8192;
-const int RAMSIZE = 8192;
+const int RAMSIZE = 32768;
 const int FRAME_BUFFER_SIZE = 16384;
 
 const int GT_WIDTH = 128;
@@ -55,7 +55,7 @@ uint8_t *rom_buffer;
 uint8_t ram_buffer[RAMSIZE];
 bool ram_inited[RAMSIZE];
 uint8_t vram_buffer[FRAME_BUFFER_SIZE*2];
-uint8_t gram_buffer[FRAME_BUFFER_SIZE*2];
+uint8_t gram_buffer[FRAME_BUFFER_SIZE*32];
 
 uint8_t VIA_regs[16];
 const uint8_t VIA_ORB    = 0x0;
@@ -91,15 +91,27 @@ const uint8_t VIA_SPI_BIT_MISO = 0b10000000;
  *  64 - Enable IRQ signal when copy op completes
  * 128 - Enable transparency keying on 0x00 pixels
  */
-const uint8_t DMA_COPY_ENABLE_BIT = 1;
-const uint8_t DMA_VID_OUT_PAGE_BIT = 2;
-const uint8_t DMA_VSYNC_NMI_BIT = 4;
-const uint8_t DMA_G_PAGE_SELECT_BIT = 8;
-const uint8_t DMA_V_PAGE_SELECT_BIT = 16;
-const uint8_t DMA_BANK_SELECT_BIT = 32;
-const uint8_t DMA_COPY_IRQ_BIT = 64;
-const uint8_t DMA_TRANSPARENCY_BIT = 128;
+#define DMA_COPY_ENABLE_BIT 1
+#define DMA_VID_OUT_PAGE_BIT 2
+#define DMA_VSYNC_NMI_BIT 4
+#define DMA_COLORFILL_ENABLE_BIT 8
+#define DMA_AUTOTILE_BIT 16
+#define DMA_BANK_SELECT_BIT 32
+#define DMA_COPY_IRQ_BIT 64
+#define DMA_TRANSPARENCY_BIT 128
 uint8_t dma_control_reg = 0;
+
+#define BANK_GRAM_MASK 0b00000111
+#define BANK_VRAM_MASK 0b00001000
+#define BANK_WRAPX_MASK 0b00010000
+#define BANK_WRAPY_MASK 0b00100000
+#define BANK_RAM_MASK 0b11000000
+#define RAM_HIGHBITS_SHIFT 10
+
+uint8_t banking_reg = 0;
+uint8_t gram_mid_bits = 0;
+
+#define FULL_RAM_ADDRESS(x) (((banking_reg & BANK_RAM_MASK) << banking_reg) | x)
 
 const uint8_t DMA_PARAM_VX      = 0;
 const uint8_t DMA_PARAM_VY      = 1;
@@ -271,14 +283,12 @@ uint8_t VDMA_Read(uint16_t address) {
 		uint16_t offset = 0;
 		if(dma_control_reg & DMA_BANK_SELECT_BIT) {
 			bufPtr = vram_buffer;
-			if(dma_control_reg & DMA_V_PAGE_SELECT_BIT) {
+			if(banking_reg & BANK_VRAM_MASK) {
 				offset = 0x4000;
 			}
 		} else {
 			bufPtr = gram_buffer;
-			if(dma_control_reg & DMA_G_PAGE_SELECT_BIT) {
-				offset = 0x4000;
-			}
+			offset = (((banking_reg & BANK_GRAM_MASK) << 2) | (gram_mid_bits)) * 0x4000;
 		}
 		return bufPtr[(address & 0x3FFF) | offset];
 	}
@@ -292,54 +302,55 @@ void VDMA_Write(uint16_t address, uint8_t value) {
 			vRect.y = dma_params[DMA_PARAM_VY];
 			vRect.w = dma_params[DMA_PARAM_WIDTH];
 			vRect.h = dma_params[DMA_PARAM_HEIGHT];
-			gRect.x = dma_params[DMA_PARAM_GX] & 0x7F;
-			gRect.y = dma_params[DMA_PARAM_GY] & 0x7F;
+			gRect.x = dma_params[DMA_PARAM_GX];
+			gRect.y = dma_params[DMA_PARAM_GY];
 			gRect.w = dma_params[DMA_PARAM_WIDTH];
 			gRect.h = dma_params[DMA_PARAM_HEIGHT];
 			uint8_t outColor[2];
 			uint8_t colorSel = 0;
-			if(dma_params[DMA_PARAM_GX] & 0x80) {
+			if(dma_control_reg & DMA_COLORFILL_ENABLE_BIT) {
 				colorSel = 1;
 			}
 			outColor[1] = ~(dma_params[DMA_PARAM_COLOR]);
 #ifdef VIDDEBUG
 			printf("Copying from (%d, %d) to (%d, %d) at (%d x %d)\n",
-				gRect.x, gRect.y,
+				gRect.x & 0x7F, gRect.y & 0x7F,
 				vRect.x, vRect.y,
 				gRect.w, gRect.h);
 #endif
 			uint16_t vOffset = 0, gOffset = 0;
-			if(dma_control_reg & DMA_V_PAGE_SELECT_BIT) {
+			if(banking_reg & BANK_VRAM_MASK) {
 				vOffset = 0x4000;
-				vRect.y += GT_HEIGHT;
-			}
-			if(dma_control_reg & DMA_G_PAGE_SELECT_BIT) {
-				gOffset = 0x4000;
-				gRect.y += GT_HEIGHT;
 			}
 			int yShift = 0;
 			int vy = dma_params[DMA_PARAM_VY] & 0x7F,
-				gy = dma_params[DMA_PARAM_GY] & 0x7F,
+				gy = dma_params[DMA_PARAM_GY],
 				gy2;
-			if(dma_control_reg & DMA_V_PAGE_SELECT_BIT) {
+			if(banking_reg & BANK_VRAM_MASK) {
 				yShift = GT_HEIGHT;
 			}
 			for(uint16_t y = 0; y < (dma_params[DMA_PARAM_HEIGHT] & 0x7F); y++) {
 				int vx = dma_params[DMA_PARAM_VX] & 0x7F,
-					gx = dma_params[DMA_PARAM_GX] & 0x7F,
+					gx = dma_params[DMA_PARAM_GX],
 					gx2;
 				for(uint16_t x = 0; x < (dma_params[DMA_PARAM_WIDTH] & 0x7F); x++) {
 					gx2 = gx; gy2 = gy;
 					if(dma_params[DMA_PARAM_WIDTH] & 0x80) {
-						gx2 = (~gx2) & 0x7F;
+						gx2 = ~gx2;
 					}
 					if(dma_params[DMA_PARAM_HEIGHT] & 0x80) {
-						gy2 = (~gy2) & 0x7F;
+						gy2 = ~gy2;
 					}
-					outColor[0] = gram_buffer[(gy2 << 7) | gx2 | gOffset];
+
+					gOffset = ((banking_reg & BANK_GRAM_MASK) * 0x10000) + 
+						(!!(gy2 & 0x80) * 0x8000) +
+						(!!(gx2 & 0x80) * 0x4000);
+					gram_mid_bits = (!!(gy2 & 0x80) * 2) +
+						(!!(gx2 & 0x80) * 1);
+					outColor[0] = gram_buffer[((gy2 & 0x7F) << 7) | (gx2 & 0x7F) | gOffset];
 					if(((dma_control_reg & DMA_TRANSPARENCY_BIT) || (outColor[colorSel] != 0))
-						&& !((vx & 0x80) && (dma_params[DMA_PARAM_VX] & 0x80))
-						&& !((vy & 0x80) && (dma_params[DMA_PARAM_VY] & 0x80))) {
+						&& !((vx & 0x80) && (banking_reg & BANK_WRAPX_MASK))
+						&& !((vy & 0x80) && banking_reg & BANK_WRAPY_MASK)) {
 						vram_buffer[((vy & 0x7F) << 7) | (vx & 0x7F) | vOffset] = outColor[colorSel];
 						put_pixel32(vRAM_Surface, vx & 0x7F, (vy & 0x7F) + yShift, convert_color(vRAM_Surface, outColor[colorSel]));
 					}
@@ -370,17 +381,15 @@ void VDMA_Write(uint16_t address, uint8_t value) {
 		if(dma_control_reg & DMA_BANK_SELECT_BIT) {
 			bufPtr = vram_buffer;
 			targetSurface = vRAM_Surface;
-			if(dma_control_reg & DMA_V_PAGE_SELECT_BIT) {
+			if(banking_reg & BANK_VRAM_MASK) {
 				offset = 0x4000;
 				yShift = GT_HEIGHT;
 			}
 		} else {
 			bufPtr = gram_buffer;
 			targetSurface = gRAM_Surface;
-			if(dma_control_reg & DMA_G_PAGE_SELECT_BIT) {
-				offset = 0x4000;
-				yShift = GT_HEIGHT;
-			}
+			yShift = (((banking_reg & BANK_GRAM_MASK) << 2) | (gram_mid_bits)) * GT_HEIGHT;
+			offset = (((banking_reg & BANK_GRAM_MASK) << 2) | (gram_mid_bits)) * 0x4000;
 		}
 		bufPtr[(address & 0x3FFF) | offset] = value;
 
@@ -449,7 +458,7 @@ uint8_t MemoryRead(uint16_t address) {
 		if(!ram_inited[address & 0x1FFF]) {
 			printf("WARNING! Uninitialized RAM read at %x\n", address);
 		}
-		return ram_buffer[address & 0x1FFF];
+		return ram_buffer[FULL_RAM_ADDRESS(address & 0x1FFF)];
 	} else if(address == 0x2008 || address == 0x2009) {
 		return joysticks->read((uint8_t) address);
 	}
@@ -496,14 +505,16 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 				} else {
 					SDL_SetColorKey(gRAM_Surface, SDL_FALSE, 0);
 				}
+			} else if((address & 0x000F) == 0x0005) {
+				banking_reg = value;
 			} else {
 				soundcard->register_write(address, value);
 			}
 		}
 	}
 	else if(address < 0x2000) {
-		ram_inited[address & 0x1FFF] = true;
-		ram_buffer[address & 0x1FFF] = value;
+		ram_inited[FULL_RAM_ADDRESS(address & 0x1FFF)] = true;
+		ram_buffer[FULL_RAM_ADDRESS(address & 0x1FFF)] = value;
 	}
 }
 

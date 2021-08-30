@@ -28,7 +28,7 @@ ifeq ($(OS), Windows_NT)
 	endif
 
 	ZIP_NAME = bin/GTE_Win32$(TAG).zip
-	SDL_ROOT = ../SDL2-2.0.12/i686-w64-mingw32
+	SDL_ROOT = ../SDL2-2.0.12/x86_64-w64-mingw32
 
 	#INCLUDE_PATHS specifies the additional include paths we'll need
 	INCLUDE_PATHS = -I$(SDL_ROOT)/include/SDL2
