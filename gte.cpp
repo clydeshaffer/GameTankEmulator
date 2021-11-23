@@ -142,6 +142,24 @@ int fps = 60;
 
 #define BMP_CHAR_SIZE 8
 
+#define INITIAL_TIME_SCALING 1000
+#define INITIAL_SCALING_INCREMENT 100
+
+SDL_Window* window = NULL;
+SDL_Window* profiler_window = NULL;
+Uint32 rmask, gmask, bmask, amask;
+uint64_t system_clock = 315000000/88;
+uint64_t actual_cycles = 0;
+uint64_t cycles_since_vsync = 0;
+uint64_t cycles_per_vsync = system_clock / 60;
+double time_scaling = INITIAL_TIME_SCALING;
+double scaling_increment = INITIAL_SCALING_INCREMENT;
+uint32_t lastTicks = 0, currentTicks;
+uint8_t frameCount = 0;
+bool prev_overlong = false;
+int zeroConsec = 0;
+bool isFullScreen = false;
+
 void drawText(SDL_Surface* surface, SDL_Rect* area, char* text) {
 	SDL_Rect cursor_rect, char_rect;
 	cursor_rect.x = area->x;
@@ -261,14 +279,16 @@ void put_pixel32( SDL_Surface *surface, int x, int y, Uint32 pixel )
 
 void refreshScreen() {
 	SDL_Rect src, dest;
+	int scr_w, scr_h;
 	src.x = 0;
 	src.y = (dma_control_reg & DMA_VID_OUT_PAGE_BIT) ? GT_HEIGHT : 0;
 	src.w = GT_WIDTH;
 	src.h = GT_HEIGHT;
-	dest.x = 0;
-	dest.y = 0;
-	dest.w = SCREEN_WIDTH;
-	dest.h = SCREEN_HEIGHT;
+	SDL_GetWindowSize(window, &scr_w, &scr_h);
+	dest.w = min(scr_w, scr_h);
+	dest.h = dest.w;
+	dest.x = (scr_w - dest.w) / 2;
+	dest.y = (scr_h - dest.h) / 2;
 	SDL_BlitScaled(vRAM_Surface, &src, screenSurface, &dest);
 	if(profiler_open) {
 		drawProfilingWindow();
@@ -610,20 +630,6 @@ extern "C" {
 	}
 }
 
-SDL_Window* window = NULL;
-SDL_Window* profiler_window = NULL;
-Uint32 rmask, gmask, bmask, amask;
-uint64_t system_clock = 315000000/88;
-uint64_t actual_cycles = 0;
-uint64_t cycles_since_vsync = 0;
-uint64_t cycles_per_vsync = system_clock / 60;
-double time_scaling = 1000;
-double scaling_increment = 100;
-uint32_t lastTicks = 0, currentTicks;
-uint8_t frameCount = 0;
-bool prev_overlong = false;
-int zeroConsec = 0;
-
 void openProfilerWindow() {
 	if(!profiler_open) {
 		profiler_window = SDL_CreateWindow( "GameTank Profiler", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, PROFILER_WIDTH, PROFILER_HEIGHT, SDL_WINDOW_SHOWN );
@@ -757,6 +763,23 @@ EM_BOOL mainloop(double time, void* userdata) {
 						if(e.type == SDL_KEYDOWN) {
 							openProfilerWindow();
 						}
+						break;
+					case SDLK_F11:
+						if(e.type == SDL_KEYDOWN) {
+							if(isFullScreen) {
+								SDL_SetWindowFullscreen(window, 0);
+								isFullScreen = false;
+								screenSurface = SDL_GetWindowSurface(window);
+								SDL_SetColorKey(screenSurface, SDL_FALSE, 0);
+							} else {
+								SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+								isFullScreen = true;
+								screenSurface = SDL_GetWindowSurface(window);
+								SDL_SetColorKey(screenSurface, SDL_FALSE, 0);
+							}
+							scaling_increment = INITIAL_SCALING_INCREMENT;
+						}
+						break;
             		default:
             			joysticks->update(&e);
             			break;
@@ -849,7 +872,7 @@ int main(int argC, char* argV[]) {
 		printf("Couldn't load font.bmp!!!\n");
 	}
 
-	window = SDL_CreateWindow( "GameTank Emulator", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN );
+	window = SDL_CreateWindow( "GameTank Emulator", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 	screenSurface = SDL_GetWindowSurface(window);
 	SDL_SetColorKey(screenSurface, SDL_FALSE, 0);
 
