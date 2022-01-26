@@ -24,6 +24,8 @@ Other utility keys are:
 
 * Press R for soft Reset (set registers to zero, jump execution to the RESET vector, but otherwise memory is left intact)
 
+* Shift+R for HARD reset that randomizes memory and registers, to simulate a cold boot
+
 * Press Esc to exit the program
 
 * Press O to load a rom file at runtime. The dialog also appears if the emulator is launched without specifying a rom file.

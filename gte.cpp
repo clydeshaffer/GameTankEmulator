@@ -54,8 +54,12 @@ RGB_Color *palette;
 uint8_t *rom_buffer;
 uint8_t ram_buffer[RAMSIZE];
 bool ram_inited[RAMSIZE];
-uint8_t vram_buffer[FRAME_BUFFER_SIZE*2];
-uint8_t gram_buffer[FRAME_BUFFER_SIZE*32];
+
+#define VRAM_BUFFER_SIZE (FRAME_BUFFER_SIZE*2)
+#define GRAM_BUFFER_SIZE (FRAME_BUFFER_SIZE*32)
+
+uint8_t vram_buffer[VRAM_BUFFER_SIZE];
+uint8_t gram_buffer[GRAM_BUFFER_SIZE];
 
 uint8_t VIA_regs[16];
 const uint8_t VIA_ORB    = 0x0;
@@ -106,13 +110,14 @@ uint8_t dma_control_reg = 0;
 #define BANK_WRAPX_MASK 0b00010000
 #define BANK_WRAPY_MASK 0b00100000
 #define BANK_RAM_MASK 0b11000000
-#define RAM_HIGHBITS_SHIFT 10
+#define RAM_HIGHBITS_SHIFT 7
 
 uint8_t banking_reg = 0;
 uint8_t gram_mid_bits = 0;
 
-#define FULL_RAM_ADDRESS(x) (((banking_reg & BANK_RAM_MASK) << banking_reg) | x)
+#define FULL_RAM_ADDRESS(x) (((banking_reg & BANK_RAM_MASK) << RAM_HIGHBITS_SHIFT) | (x))
 
+#define DMA_PARAMS_COUNT 8
 const uint8_t DMA_PARAM_VX      = 0;
 const uint8_t DMA_PARAM_VY      = 1;
 const uint8_t DMA_PARAM_GX      = 2;
@@ -121,7 +126,7 @@ const uint8_t DMA_PARAM_WIDTH   = 4;
 const uint8_t DMA_PARAM_HEIGHT  = 5;
 const uint8_t DMA_PARAM_TRIGGER = 6;
 const uint8_t DMA_PARAM_COLOR   = 7;
-uint8_t dma_params[8];
+uint8_t dma_params[DMA_PARAMS_COUNT];
 
 SDL_Surface* bmpFont = NULL;
 SDL_Surface* screenSurface = NULL;
@@ -542,6 +547,41 @@ SDL_Event e;
 bool running = true;
 bool gofast = false;
 bool paused = false;
+bool lshift = false;
+bool rshift = false;
+
+void vram_to_surface() {
+	for(int i = 0; i < FRAME_BUFFER_SIZE*2; i ++) {
+		vram_buffer[i] = rand() % 256;
+		put_pixel32(vRAM_Surface, i & 127, i >> 7, convert_color(vRAM_Surface, vram_buffer[i]));
+	}
+	for(int i = 0; i < FRAME_BUFFER_SIZE*2; i ++) {
+		gram_buffer[i] = rand() % 256;
+		put_pixel32(gRAM_Surface, i & 127, i >> 7, convert_color(gRAM_Surface, gram_buffer[i]));
+	}
+}
+
+void randomize_memory() {
+	for(int i = 0; i < RAMSIZE; i++) {
+		ram_buffer[i] = rand() % 256;
+		ram_inited[i] = false;
+	}
+
+	for(int i = 0; i < VRAM_BUFFER_SIZE; i++) {
+		vram_buffer[i] = rand() % 256;	
+	}
+
+	for(int i = 0; i < GRAM_BUFFER_SIZE; i++) {
+		gram_buffer[i] = rand() % 256;	
+	}
+	
+	dma_control_reg = rand() % 256;
+	banking_reg = rand() % 256;
+	gram_mid_bits = rand() % 4;
+	for(int i = 0; i < DMA_PARAMS_COUNT; i++) {
+		dma_params[i] = rand() % 256;
+	}
+}
 
 void CPUStopped() {
 	paused = true;
@@ -735,6 +775,12 @@ EM_BOOL mainloop(double time, void* userdata) {
                running = false;
             } else if(e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) {
             	switch(e.key.keysym.sym) {
+					case SDLK_LSHIFT:
+						lshift = (e.type == SDL_KEYDOWN);
+						break;
+					case SDLK_RSHIFT:
+						rshift = (e.type == SDL_KEYDOWN);
+						break;
             		case SDLK_ESCAPE:
             			running = false;
             			break;
@@ -743,6 +789,10 @@ EM_BOOL mainloop(double time, void* userdata) {
             			break;
             		case SDLK_r:
             			paused = false;
+						if(lshift || rshift) {
+							randomize_memory();
+							vram_to_surface();
+						}
             			cpu_core->Reset();
             			break;
             		case SDLK_o:
@@ -803,10 +853,7 @@ EM_BOOL mainloop(double time, void* userdata) {
 int main(int argC, char* argV[]) {
 
 	srand(time(NULL));
-	for(int i = 0; i < RAMSIZE; i++) {
-		ram_buffer[i] = rand() % 256;
-		ram_inited[i] = false;
-	}
+	randomize_memory();
 
 	palette = (RGB_Color*) gt_palette_vals;
 
@@ -889,21 +936,14 @@ int main(int argC, char* argV[]) {
 	#endif
 
 	vRAM_Surface = SDL_CreateRGBSurface(0, GT_WIDTH, GT_HEIGHT * 2, 32, rmask, gmask, bmask, amask);
-	gRAM_Surface = SDL_CreateRGBSurface(0, GT_WIDTH, GT_HEIGHT * 2, 32, rmask, gmask, bmask, amask);
+	gRAM_Surface = SDL_CreateRGBSurface(0, GT_WIDTH, GT_HEIGHT * 32, 32, rmask, gmask, bmask, amask);
 
 	SDL_SetColorKey(vRAM_Surface, SDL_FALSE, 0);
 	SDL_SetColorKey(gRAM_Surface, SDL_FALSE, 0);
 
 	SDL_FillRect(screenSurface, NULL, SDL_MapRGB(screenSurface->format, 0x00, 0x00, 0x00));
 
-	for(int i = 0; i < FRAME_BUFFER_SIZE*2; i ++) {
-		vram_buffer[i] = rand() % 256;
-		put_pixel32(vRAM_Surface, i & 127, i >> 7, convert_color(vRAM_Surface, vram_buffer[i]));
-	}
-	for(int i = 0; i < FRAME_BUFFER_SIZE*2; i ++) {
-		gram_buffer[i] = rand() % 256;
-		put_pixel32(gRAM_Surface, i & 127, i >> 7, convert_color(gRAM_Surface, gram_buffer[i]));
-	}
+	vram_to_surface();
 
 #ifdef WASM_BUILD
 	emscripten_request_animation_frame_loop(mainloop, 0);
