@@ -90,10 +90,26 @@ Inflate:
 RESET:
 	SEI
 	
+	;This section initializes the banking and sets the GRAM "middle bits" to zero
+	STZ RAM_Bank
+	LDA #%11111101
+	STA DMA_Flags
+	LDA #$7F
+	STA DMA_WIDTH
+	STA DMA_HEIGHT
+	STZ DMA_VX
+	STZ DMA_VY
+	STZ DMA_GX
+	STZ DMA_GY
+	LDA #$FF
+	STA DMA_Color
+	LDA #1
+	STA DMA_Status
+	WAI
+
 	LDA #%00000010
 	STA DoubleBufMask
 	STZ DoubleBufMask2
-	STZ RAM_Bank
 
 	LDA #114
 	STA musicDelay
