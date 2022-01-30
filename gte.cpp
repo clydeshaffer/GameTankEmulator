@@ -311,7 +311,7 @@ uint8_t VDMA_Read(uint16_t address) {
 
 void VDMA_Write(uint16_t address, uint8_t value) {
 	if(dma_control_reg & DMA_COPY_ENABLE_BIT) {
-		if(((address & 0xF) == DMA_PARAM_TRIGGER) && (value & 1)) {
+		if(((address & 0x7) == DMA_PARAM_TRIGGER) && (value & 1)) {
 			SDL_Rect gRect, vRect;
 			vRect.x = dma_params[DMA_PARAM_VX];
 			vRect.y = dma_params[DMA_PARAM_VY];
@@ -388,13 +388,13 @@ void VDMA_Write(uint16_t address, uint8_t value) {
 				cpu_core->ClearIRQ();
 				cpu_core->ScheduleIRQ(((dma_params[DMA_PARAM_HEIGHT] & 0x7F) * (dma_params[DMA_PARAM_WIDTH] & 0x7F)));
 			}
-		} else if(((address & 0xF) == DMA_PARAM_TRIGGER) && !(value & 1)) {
+		} else if(((address & 0x7) == DMA_PARAM_TRIGGER) && !(value & 1)) {
 			cpu_core->ClearIRQ();
 		} else {
 #ifdef VIDDEBUG
-			printf("Setting DMA param %d to %d\n", address & 0xF, value);
+			printf("Setting DMA param %d to %d\n", address & 0x7, value);
 #endif
-			dma_params[address & 0xF] = value;
+			dma_params[address & 0x7] = value;
 		}
 	} else {
 		uint8_t* bufPtr;
