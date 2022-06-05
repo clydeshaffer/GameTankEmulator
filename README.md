@@ -14,7 +14,18 @@ For setting up the build enviroment I uzed LazyFoo's directions: http://lazyfoo.
 The emulator is meant to test the same ROM files that I'd normally flash to an EEPROM cartridge. You can start the emulator with a ROM file
 either from the command line eg. `./GameTankEmulator.exe conway.gtr` or by dragging the ROM to the executable in Windows Explorer.
 
-ROM files can be produced using the [VASM assembler](http://sun.hasenbraten.de/vasm/) for WDC65C02 code, and should be output as headerless binaries. Currently the ROM files are assumed to be 8192 bytes in length, and are mapped to the memory range from 0xE000 through 0xFFFF.
+ROM files can be produced using the [VASM assembler](http://sun.hasenbraten.de/vasm/) for WDC65C02 code, and should be output as headerless binaries.
+
+ROM files should ideally be either 8192 bytes, 32768 bytes, or 2097152 bytes.
+
+| **Type** | **Length**     | **Mapping**                                                                   |
+|----------|----------------|-------------------------------------------------------------------------------|
+| 8K       | 8192           | 0xE000-0xFFFF                                                                 |
+| 32K      | 32768          | 0x8000-0xFFFF                                                                 |
+| 2M       | 2097152        | 0x8000-0xBFFF (movable)<br/> 0xC000-0xFFFF (fixed)                            |
+| UNKNOWN  | Anything else  | End of file aligned with 0xFFFF<br/> Access up to 32K at the end of the file. |
+
+
 
 Gamepad input is emulated (only on port A right now) with the arrow keys, Z, X, C, and Enter.
 
@@ -29,6 +40,8 @@ Other utility keys are:
 * Press Esc to exit the program
 
 * Press O to load a rom file at runtime. The dialog also appears if the emulator is launched without specifying a rom file.
+
+* Press F9 to load the profiling window. (Only does anything if the ROM uses the debug hooks)
 
 For Windows users, I've set up an automated [nightly build](https://clydeshaffer.com/builds/GameTankEmulator/latest.php) that contains the latest features... and of course the latest bugs.
 
@@ -75,4 +88,6 @@ You can think of the Z, X, C, and Enter as A, B, C, Start on a Sega Genesis cont
 
 In the real system, this is mostly used for setting up IRQ timer interrupts. But it also is wired to a header for a sort of parallel port, as well as another header that could maybe be used for I2C interface to special cartridges.
 
-In the emulated system... yeah none of this is implemented quite yet. The timers will come soon, and maybe the parallel port and I2C stuff if I don't decide to axe those features in the hardware.
+The VIA timer is not yet implemented, but for 2MB cartridges the SPI pins are emulated to set the position of the movable ROM window. These are on the ORA register.
+
+The ORB register is used to interact with the profiling window in the emulator. (Currently has no physical equivalent)
