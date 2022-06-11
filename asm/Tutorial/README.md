@@ -18,3 +18,17 @@ The information within will be cumulative, meaning that higher-numbered examples
 6. Using a 2MB cartridge
 
 7. Accessing extended RAM and VRAM
+
+
+
+This code was written for vasm by Dr. Volker Barthelmann availble at http://www.compilers.de/vasm.html
+
+The examples that use sprites refer to a sprite sheet in the assets folder, compressed with zopfli.
+
+zlib6502 by Pitor Fusik is used to extract the data. It is included here as a precompiled blob with the following assumptions:
+
+| **Use**            | **Mapping**     |
+|--------------------|-----------------|
+| INFLATE code       | 0xE000 - 0xE1FC |
+| reserved RAM       | 0x200 - 0x04FD  |
+| reserved Zero Page | 0xF0 - 0xF3     |
