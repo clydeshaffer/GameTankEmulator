@@ -1,15 +1,16 @@
 	.org $E000
 
+Bank_Flags = $2005
 DMA_Flags = $2007
 ;DMA flags are as follows
 ; 1   ->   DMA enabled
 ; 2   ->   Video out page
 ; 4   ->   NMI enabled
-; 8   ->   G.RAM frame select
-; 16  ->   V.RAM frame select
+; 8   ->   Colorfill mode enable
+; 16  ->   Tile mode disable
 ; 32  ->   CPU access bank select
 ; 64  ->   Enable copy completion IRQ
-; 128 ->   Transparency copy enabled (skips zeroes)
+; 128 ->   Transparency copy disable (skips zeroes)
 
 ;This program will draw a black stripe across the screen
 ;I was going to start with drawing a single pixel, but video RAM contents
@@ -26,7 +27,9 @@ RESET:
 	;# deotes that a number is a constant, instead of a memory address
 	LDA #%01100000 ;load this hardcoded value into the A register
 	STA DMA_Flags ;store the value from the A register into DMA_Flags
-	;The C version of this would be DMA_Flags=0b01100000
+	
+	;For now we just initizlize the Bank_Flags register to zero.
+	STZ  Bank_Flags
 
 
 	;In the main loop of this program, register A determines the color of the stripe
