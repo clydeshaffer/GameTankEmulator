@@ -61,6 +61,9 @@ bool ram_inited[RAMSIZE];
 uint8_t vram_buffer[VRAM_BUFFER_SIZE];
 uint8_t gram_buffer[GRAM_BUFFER_SIZE];
 
+#define BUFFERS_PREVIEW_WIDTH 1152
+#define BUFFERS_PREVIEW_HEIGHT 512
+
 uint8_t VIA_regs[16];
 const uint8_t VIA_ORB    = 0x0;
 const uint8_t VIA_ORA    = 0x1;
@@ -121,6 +124,7 @@ uint8_t dma_params[DMA_PARAMS_COUNT];
 SDL_Surface* bmpFont = NULL;
 SDL_Surface* screenSurface = NULL;
 SDL_Surface* profilerSurface = NULL;
+SDL_Surface* buffersWindowSurface = NULL;
 SDL_Surface* gRAM_Surface = NULL;
 SDL_Surface* vRAM_Surface = NULL;
 
@@ -142,6 +146,7 @@ int fps = 60;
 
 SDL_Window* window = NULL;
 SDL_Window* profiler_window = NULL;
+SDL_Window* buffers_window = NULL;
 Uint32 rmask, gmask, bmask, amask;
 uint64_t system_clock = 315000000/88;
 uint64_t actual_cycles = 0;
@@ -172,7 +177,7 @@ void drawText(SDL_Surface* surface, SDL_Rect* area, char* text) {
 		} else {
 			char_rect.x = ((*text) & 0x0F) << 3;
 			char_rect.y = ((*text) & 0xF0) >> 1;
-			SDL_BlitSurface(bmpFont, &char_rect, profilerSurface, &cursor_rect);
+			SDL_BlitSurface(bmpFont, &char_rect, surface, &cursor_rect);
 			cursor_rect.x += BMP_CHAR_SIZE;
 		}
 		++text;
@@ -180,6 +185,7 @@ void drawText(SDL_Surface* surface, SDL_Rect* area, char* text) {
 }
 
 bool profiler_open = false;
+bool buffers_open = false;
 int profiler_x_axis = 0;
 
 uint8_t prof_R[8] = {255, 255, 255, 0, 0, 128, 128, 255};
@@ -241,6 +247,34 @@ void reportProfileTime(uint8_t index) {
 	profilingTimes[index] +=  totalCyclesCount - profilingTimeStamps[index];
 }
 
+void drawBuffersWindow() {
+	SDL_Rect src, dest;
+	dest.x = 0;
+	dest.y = 0;
+	dest.w = 128;
+	dest.h = 256;
+	src.x = 0;
+	src.y = 0;
+	src.w = 128;
+	src.h = 256;
+	SDL_BlitSurface(vRAM_Surface, &src, buffersWindowSurface, &dest);
+	src.h = 512;
+	dest.h = 512;
+	for(int i = 0; i < 8; i++) {
+		dest.x = (i+1) * 128;
+		src.y = i * 512;
+		SDL_BlitSurface(gRAM_Surface, &src, buffersWindowSurface, &dest);
+	}
+
+	char buf[64];
+	sprintf(buf, "DMA:\n%x\nBANK:\n%x", dma_control_reg, banking_reg);
+	dest.x = 0;
+	dest.y = 256;
+	dest.w = 128;
+	dest.h = 512-128;
+	drawText(buffersWindowSurface, &dest, buf);
+}
+
 uint8_t open_bus() {
 	return rand() % 256;
 }
@@ -287,6 +321,9 @@ void refreshScreen() {
 	SDL_BlitScaled(vRAM_Surface, &src, screenSurface, &dest);
 	if(profiler_open) {
 		drawProfilingWindow();
+	}
+	if(buffers_open) {
+		drawBuffersWindow();
 	}
 }
 
@@ -549,11 +586,11 @@ bool lshift = false;
 bool rshift = false;
 
 void vram_to_surface() {
-	for(int i = 0; i < FRAME_BUFFER_SIZE*2; i ++) {
+	for(int i = 0; i < VRAM_BUFFER_SIZE; i ++) {
 		vram_buffer[i] = rand() % 256;
 		put_pixel32(vRAM_Surface, i & 127, i >> 7, convert_color(vRAM_Surface, vram_buffer[i]));
 	}
-	for(int i = 0; i < FRAME_BUFFER_SIZE*2; i ++) {
+	for(int i = 0; i < GRAM_BUFFER_SIZE; i ++) {
 		gram_buffer[i] = rand() % 256;
 		put_pixel32(gRAM_Surface, i & 127, i >> 7, convert_color(gRAM_Surface, gram_buffer[i]));
 	}
@@ -677,8 +714,23 @@ void openProfilerWindow() {
 	}
 }
 
+void openBuffersWindow() {
+	if(!buffers_open) {
+		buffers_window = SDL_CreateWindow("GameTank VRAM/GRAM",  SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, BUFFERS_PREVIEW_WIDTH, BUFFERS_PREVIEW_HEIGHT, SDL_WINDOW_SHOWN );
+		buffersWindowSurface = SDL_GetWindowSurface(buffers_window);
+		SDL_SetColorKey(buffersWindowSurface, SDL_FALSE, 0);
+		buffers_open = true;
+	}
+}
+
 void closeProfilerWindow() {
 	if(profiler_open) {
+
+	}
+}
+
+void closeBuffersWindow() {
+	if(buffers_open) {
 
 	}
 }
@@ -764,6 +816,9 @@ EM_BOOL mainloop(double time, void* userdata) {
 		if(profiler_open) {
 			SDL_UpdateWindowSurface(profiler_window);
 		}
+		if(buffers_open) {
+			SDL_UpdateWindowSurface(buffers_window);
+		}
 
 		while( SDL_PollEvent( &e ) != 0 )
         {
@@ -810,6 +865,11 @@ EM_BOOL mainloop(double time, void* userdata) {
 					case SDLK_F9:
 						if(e.type == SDL_KEYDOWN) {
 							openProfilerWindow();
+						}
+						break;
+					case SDLK_F10:
+						if(e.type == SDL_KEYDOWN) {
+							openBuffersWindow();
 						}
 						break;
 					case SDLK_F11:

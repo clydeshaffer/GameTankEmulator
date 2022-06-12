@@ -61,7 +61,8 @@ DEFINES += -D CPU_6502_STATIC -D CPU_6502_USE_LOCAL_HEADER -D CMOS_INDIRECT_JMP_
 
 #This is the target that compiles our executable
 all : $(OBJS)
-	mkdir -p bin/$(OS)
+	mkdir -p bin/$(OS)/img
+	cp img/font.bmp bin/$(OS)/img/font.bmp
 ifneq ($(OS), wasm)
 	$(CC) -c $(C_OBJS) $(INCLUDE_PATHS) $(COMPILER_FLAGS) $(DEFINES)
 endif
