@@ -7,6 +7,8 @@ PROGS = $(patsubst %.asm,%.gtr,$(SRCS))
 
 all: $(PROGS)
 
+05_audio.gtr: 05_audio.asm assets/square.o
+
 %.gtr: %.asm
 
 	$(ASM) $(AFLAGS) -o $@ $<
