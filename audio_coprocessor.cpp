@@ -1,6 +1,7 @@
 #include "SDL_inc.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <fstream>
 
 #include "audio_coprocessor.h"
 
@@ -141,4 +142,10 @@ AudioCoprocessor::AudioCoprocessor() {
 
 
 	return;
+}
+
+void AudioCoprocessor::dump_ram(char* filename) {
+    ofstream dumpfile (filename, ios::out | ios::binary);
+    dumpfile.write((char*) state.ram, 4096);
+    dumpfile.close();
 }

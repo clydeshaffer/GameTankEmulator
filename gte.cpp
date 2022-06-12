@@ -910,6 +910,11 @@ EM_BOOL mainloop(double time, void* userdata) {
 							scaling_increment = INITIAL_SCALING_INCREMENT;
 						}
 						break;
+					case SDLK_F12:
+						if(e.type == SDL_KEYDOWN) {
+							soundcard->dump_ram("audio_debug.dat");
+						}
+						break;
             		default:
             			joysticks->update(&e);
             			break;

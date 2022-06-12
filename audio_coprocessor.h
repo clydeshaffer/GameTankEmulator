@@ -30,4 +30,5 @@ public:
 	void ram_write(uint16_t address, uint8_t value);
 	uint8_t ram_read(uint16_t address);
 	void register_write(uint16_t address, uint8_t value);
+	void dump_ram(char* filename);
 };
