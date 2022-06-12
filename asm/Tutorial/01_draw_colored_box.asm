@@ -1,5 +1,3 @@
-	.org $E000
-
 Bank_Flags = $2005
 DMA_Flags = $2007
 ;DMA flags are as follows
@@ -40,6 +38,8 @@ SAT_NONE = 0
 SAT_SOME = 8
 SAT_MORE = 16
 SAT_FULL = 24
+
+	.org $E000
 
 RESET:
 	;code here will get run once when the system boots

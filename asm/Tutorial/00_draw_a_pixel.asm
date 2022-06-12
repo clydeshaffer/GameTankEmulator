@@ -1,5 +1,3 @@
-	.org $E000
-
 Bank_Flags = $2005
 DMA_Flags = $2007
 ;DMA flags are as follows
@@ -16,6 +14,8 @@ DMA_Flags = $2007
 ;I was going to start with drawing a single pixel, but video RAM contents
 ;are random on boot so a black stripe would be more obvious.
 
+;Making an 8K romfile so we start at $E000
+	.org $E000
 
 RESET:
 	;code here will get run once when the system boots

@@ -1,13 +1,3 @@
-;The binary for INFLATE included in the tutorials must be placed at $E000
-	.org $E000
-Inflate:
-	.incbin "assets/inflate_e000_0200.obx"
-;We'll also include the compressed sprite data into the ROM
-;See assets/Makefile for how to produce this file
-SpriteSheet:
-	.incbin "assets/gametank.gtg.deflate"
-	
-
 Bank_Flags = $2005
 DMA_Flags = $2007
 
@@ -24,6 +14,15 @@ DMA_Color = $4007
 
 inflate_zp = $F0 ; F1, F2, F3
 
+;The binary for INFLATE included in the tutorials must be placed at $E000
+	.org $E000
+Inflate:
+	.incbin "assets/inflate_e000_0200.obx"
+;We'll also include the compressed sprite data into the ROM
+;See assets/Makefile for how to produce this file
+SpriteSheet:
+	.incbin "assets/gametank.gtg.deflate"
+
 RESET:
 	
 	;Init system control registers
@@ -31,8 +30,18 @@ RESET:
 	;When bit 5 (counting from 0) of DMA_Flags is zero, the VRAM memory range maps to an offscreen
 	;sprite buffer instead of a framebuffer.
 	;This contains the soure data used by the blitter in drawing operations.
-	STZ DMA_Flags
+	LDA #1
+	STA DMA_Flags
 	STZ Bank_Flags
+
+	STZ DMA_GX
+	STZ DMA_GY
+	STA DMA_WIDTH
+	STA DMA_HEIGHT
+	STA DMA_Status
+	STZ DMA_Status
+	STZ DMA_Flags
+
 
 	;In this example we're loading compressed graphics into GRAM with INFLATE
 	;To set this up we put the address of the compressed data at inflate_zp and inflate_zp+1
