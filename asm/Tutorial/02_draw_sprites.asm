@@ -34,6 +34,9 @@ RESET:
 	STA DMA_Flags
 	STZ Bank_Flags
 
+	;GX and GY counters affect the GRAM mapping so we zero
+	;them and activate a 1x1 blit to transfer values from
+	;registers to counters
 	STZ DMA_GX
 	STZ DMA_GY
 	STA DMA_WIDTH
