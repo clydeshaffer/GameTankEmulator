@@ -725,13 +725,17 @@ void openBuffersWindow() {
 
 void closeProfilerWindow() {
 	if(profiler_open) {
-
+		profiler_open = false;
+		SDL_DestroyWindow(profiler_window);
+		profilerSurface = NULL;
 	}
 }
 
 void closeBuffersWindow() {
 	if(buffers_open) {
-
+		buffers_open = false;
+		SDL_DestroyWindow(buffers_window);
+		buffersWindowSurface = NULL;
 	}
 }
 
@@ -826,7 +830,19 @@ EM_BOOL mainloop(double time, void* userdata) {
             if( e.type == SDL_QUIT )
             {
                running = false;
-            } else if(e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) {
+            } else if(e.type == SDL_WINDOWEVENT)
+			{
+				if(e.window.event == SDL_WINDOWEVENT_CLOSE) {
+					SDL_Window* closedWindow = SDL_GetWindowFromID(e.window.windowID);
+					if(closedWindow == window) {
+						running = false;
+					} else if(closedWindow == profiler_window) {
+						closeProfilerWindow();
+					} else if(closedWindow == buffers_window) {
+						closeBuffersWindow();
+					}
+				}
+			} else if(e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) {
             	switch(e.key.keysym.sym) {
 					case SDLK_LSHIFT:
 						lshift = (e.type == SDL_KEYDOWN);
@@ -864,12 +880,18 @@ EM_BOOL mainloop(double time, void* userdata) {
             			break;
 					case SDLK_F9:
 						if(e.type == SDL_KEYDOWN) {
-							openProfilerWindow();
+							if(profiler_open)
+								closeProfilerWindow();
+							else
+								openProfilerWindow();
 						}
 						break;
 					case SDLK_F10:
 						if(e.type == SDL_KEYDOWN) {
-							openBuffersWindow();
+							if(buffers_open)
+								closeBuffersWindow();
+							else
+								openBuffersWindow();
 						}
 						break;
 					case SDLK_F11:
