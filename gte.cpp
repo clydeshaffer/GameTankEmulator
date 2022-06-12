@@ -266,8 +266,8 @@ void drawBuffersWindow() {
 		SDL_BlitSurface(gRAM_Surface, &src, buffersWindowSurface, &dest);
 	}
 
-	char buf[64];
-	sprintf(buf, "DMA:\n%x\nBANK:\n%x", dma_control_reg, banking_reg);
+	char buf[128];
+	sprintf(buf, "DMA:\n%x\nBANK:\n%x\nPC:\n%x\nSTATUS:\n%x\nWAIT:%d", dma_control_reg, banking_reg, cpu_core->pc, cpu_core->status, cpu_core->waiting);
 	dest.x = 0;
 	dest.y = 256;
 	dest.w = 128;
