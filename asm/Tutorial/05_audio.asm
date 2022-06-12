@@ -78,10 +78,11 @@ Forever:
     STA square_rate+1
     STZ Audio_Reset
 
+;Wait for 60 frames 
     LDX #60
 WaitLoop:
     DEX
-    WAI
+    WAI ;We've started no blits so this will wait for NMI that happens on VSync
     BNE WaitLoop
 
 	JMP Forever
