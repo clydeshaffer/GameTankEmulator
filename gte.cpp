@@ -716,7 +716,7 @@ void openProfilerWindow() {
 
 void openBuffersWindow() {
 	if(!buffers_open) {
-		buffers_window = SDL_CreateWindow("GameTank VRAM/GRAM",  SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, BUFFERS_PREVIEW_WIDTH, BUFFERS_PREVIEW_HEIGHT, SDL_WINDOW_SHOWN );
+		buffers_window = SDL_CreateWindow("System state info",  SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, BUFFERS_PREVIEW_WIDTH, BUFFERS_PREVIEW_HEIGHT, SDL_WINDOW_SHOWN );
 		buffersWindowSurface = SDL_GetWindowSurface(buffers_window);
 		SDL_SetColorKey(buffersWindowSurface, SDL_FALSE, 0);
 		buffers_open = true;
