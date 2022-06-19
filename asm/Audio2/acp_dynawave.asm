@@ -14,7 +14,7 @@ WaveStatesL = $60
 	.org $0050
 	.db $FF, $FF, $FF, $FF
 
-	.org $0200
+	.org $0300
 RESET:
 	CLI
 Forever:
