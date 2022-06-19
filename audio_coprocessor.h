@@ -19,6 +19,8 @@ typedef struct ACPState {
     uint64_t cycles_per_sample;
 	uint8_t clkMult;
 	SDL_AudioFormat format;
+	uint16_t last_irq_cycles;
+	uint64_t cycle_counter;
 } ACPState;
 
 class AudioCoprocessor {
@@ -31,4 +33,5 @@ public:
 	uint8_t ram_read(uint16_t address);
 	void register_write(uint16_t address, uint8_t value);
 	void dump_ram(char* filename);
+	uint16_t get_irq_cycle_count();
 };

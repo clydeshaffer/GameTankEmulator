@@ -35,7 +35,6 @@ void AudioCoprocessor::register_write(uint16_t address, uint8_t value) {
 
 void fill_audio(void *udata, uint8_t *stream, int len) {
     ACPState *state = (ACPState*) udata;
-    uint64_t actual_cycles;
     uint16_t *stream16 = (uint16_t*) stream;
     for(int i = 0; i < len/sizeof(uint16_t); i++) {
         stream16[i] = state->dacReg;
@@ -48,11 +47,11 @@ void fill_audio(void *udata, uint8_t *stream, int len) {
                 state->cpu->Reset();
             }
             state->irqCounter += state->irqRate;
-            actual_cycles = 0;
+            state->cycle_counter = 0;
             if(state->running) {
                 state->cpu->IRQ();
                 state->cpu->ClearIRQ();
-                state->cpu->Run(state->cycles_per_sample, actual_cycles);
+                state->cpu->Run(state->cycles_per_sample, state->cycle_counter);
             }
         }
     }
@@ -62,6 +61,15 @@ ACPState *singleton_acp_state;
 
 uint8_t ACP_MemoryRead(uint16_t address) {
     return singleton_acp_state->ram[address & 0xFFF];
+}
+
+uint8_t ACP_CPUSync(uint16_t address) {
+    uint8_t opcode = ACP_MemoryRead(address);
+    if(opcode == 0x40) {
+        //If opcode is ReTurn from Interrupt
+        singleton_acp_state->last_irq_cycles = singleton_acp_state->cycle_counter;
+    }
+    return opcode;
 }
 
 void ACP_MemoryWrite(uint16_t address, uint8_t value) {
@@ -99,7 +107,7 @@ AudioCoprocessor::AudioCoprocessor() {
 
     singleton_acp_state = &state;
 
-    state.cpu = new mos6502(ACP_MemoryRead, ACP_MemoryWrite, ACP_CPUStopped);
+    state.cpu = new mos6502(ACP_MemoryRead, ACP_MemoryWrite, ACP_CPUStopped, ACP_CPUSync);
 
     state.irqCounter = 0;
     state.irqRate = 0;
@@ -108,6 +116,7 @@ AudioCoprocessor::AudioCoprocessor() {
     state.dacReg;
     state.clksPerHostSample = 315000000 / (88 * 44100);
     state.cycles_per_sample = 1024;
+    state.last_irq_cycles = 0;
 #ifdef WASM_BUILD
     state.clkMult = 2;
 #else
@@ -148,4 +157,8 @@ void AudioCoprocessor::dump_ram(char* filename) {
     ofstream dumpfile (filename, ios::out | ios::binary);
     dumpfile.write((char*) state.ram, 4096);
     dumpfile.close();
+}
+
+uint16_t AudioCoprocessor::get_irq_cycle_count() {
+    return state.last_irq_cycles;
 }

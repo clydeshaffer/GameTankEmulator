@@ -217,6 +217,11 @@ void drawProfilingWindow() {
 	drawText(profilerSurface, &profilerArea, buf);
 	profilerArea.y += BMP_CHAR_SIZE;
 
+	sprintf(buf,"ACP: %4d / 1024\n", soundcard->get_irq_cycle_count());
+	SDL_FillRect(profilerSurface, &profilerArea, SDL_MapRGB(profilerSurface->format, 0, 0, 0));
+	drawText(profilerSurface, &profilerArea, buf);
+	profilerArea.y += BMP_CHAR_SIZE;
+
 	for(int i = 0; i < PROFILER_ENTRIES; ++i) {
 		Uint32 id_col = SDL_MapRGB(profilerSurface->format, prof_R[i % 8], prof_G[i % 8], prof_B[i % 8]);
 		if(profilingTimes[i] != 0) {
