@@ -21,6 +21,7 @@ typedef struct ACPState {
 	SDL_AudioFormat format;
 	uint16_t last_irq_cycles;
 	uint64_t cycle_counter;
+	bool pendingNMI;
 } ACPState;
 
 class AudioCoprocessor {

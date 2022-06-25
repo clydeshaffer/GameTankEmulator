@@ -21,7 +21,7 @@ void AudioCoprocessor::register_write(uint16_t address, uint8_t value) {
             state.irqCounter = 255;
             break;
 		case ACP_NMI:
-			state.cpu->NMI();
+			state.pendingNMI = true;
 			break;
 		case ACP_RATE:
 			state.irqRate = (((value << 1) & 0xFE) | (value & 1));
@@ -49,6 +49,10 @@ void fill_audio(void *udata, uint8_t *stream, int len) {
             state->irqCounter += state->irqRate;
             state->cycle_counter = 0;
             if(state->running) {
+                if(state->pendingNMI) {
+                    state->cpu->NMI();
+                    state->pendingNMI = false;
+                }
                 state->cpu->IRQ();
                 state->cpu->ClearIRQ();
                 state->cpu->Run(state->cycles_per_sample, state->cycle_counter);
@@ -117,6 +121,7 @@ AudioCoprocessor::AudioCoprocessor() {
     state.clksPerHostSample = 315000000 / (88 * 44100);
     state.cycles_per_sample = 1024;
     state.last_irq_cycles = 0;
+    state.pendingNMI = false;
 #ifdef WASM_BUILD
     state.clkMult = 2;
 #else
