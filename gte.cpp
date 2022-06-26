@@ -380,14 +380,14 @@ void VDMA_Write(uint16_t address, uint8_t value) {
 				vOffset = 0x4000;
 			}
 			int yShift = 0;
-			int vy = dma_params[DMA_PARAM_VY] & 0x7F,
+			int vy = dma_params[DMA_PARAM_VY],
 				gy = dma_params[DMA_PARAM_GY],
 				gy2;
 			if(banking_reg & BANK_VRAM_MASK) {
 				yShift = GT_HEIGHT;
 			}
 			for(uint16_t y = 0; y < (dma_params[DMA_PARAM_HEIGHT] & 0x7F); y++) {
-				int vx = dma_params[DMA_PARAM_VX] & 0x7F,
+				int vx = dma_params[DMA_PARAM_VX],
 					gx = dma_params[DMA_PARAM_GX],
 					gx2;
 				for(uint16_t x = 0; x < (dma_params[DMA_PARAM_WIDTH] & 0x7F); x++) {
