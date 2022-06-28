@@ -272,7 +272,7 @@ void drawBuffersWindow() {
 	}
 
 	char buf[128];
-	sprintf(buf, "DMA:\n%x\nBANK:\n%x\nPC:\n%x\nSTATUS:\n%x\nWAIT:%d", dma_control_reg, banking_reg, cpu_core->pc, cpu_core->status, cpu_core->waiting);
+	sprintf(buf, "DMA:\n%x\nBANK:\n%x\nPC:\n%x\nSTATUS:\n%x\nWAIT:%d\nHIBITS:%d", dma_control_reg, banking_reg, cpu_core->pc, cpu_core->status, cpu_core->waiting, flash2M_highbits);
 	dest.x = 0;
 	dest.y = 256;
 	dest.w = 128;
