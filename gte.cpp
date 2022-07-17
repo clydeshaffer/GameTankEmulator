@@ -883,6 +883,11 @@ EM_BOOL mainloop(double time, void* userdata) {
 							}
 	            		}
             			break;
+					case SDLK_F8:
+						if(e.type == SDL_KEYDOWN) {
+							SDL_SaveBMP(screenSurface, "screenshot.bmp");
+						}
+						break;
 					case SDLK_F9:
 						if(e.type == SDL_KEYDOWN) {
 							if(profiler_open)
