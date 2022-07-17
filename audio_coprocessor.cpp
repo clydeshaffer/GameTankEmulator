@@ -21,7 +21,10 @@ void AudioCoprocessor::register_write(uint16_t address, uint8_t value) {
             state.irqCounter = 255;
             break;
 		case ACP_NMI:
-			state.pendingNMI = true;
+            SDL_LockAudioDevice(state.device);
+            state.cpu->NMI();
+            state.cpu->Run(state.cycles_per_sample, state.cycle_counter);
+            SDL_UnlockAudioDevice(state.device);
 			break;
 		case ACP_RATE:
 			state.irqRate = (((value << 1) & 0xFE) | (value & 1));
@@ -49,10 +52,6 @@ void fill_audio(void *udata, uint8_t *stream, int len) {
             state->irqCounter += state->irqRate;
             state->cycle_counter = 0;
             if(state->running) {
-                if(state->pendingNMI) {
-                    state->cpu->NMI();
-                    state->pendingNMI = false;
-                }
                 state->cpu->IRQ();
                 state->cpu->ClearIRQ();
                 state->cpu->Run(state->cycles_per_sample, state->cycle_counter);
@@ -121,14 +120,13 @@ AudioCoprocessor::AudioCoprocessor() {
     state.clksPerHostSample = 315000000 / (88 * 44100);
     state.cycles_per_sample = 1024;
     state.last_irq_cycles = 0;
-    state.pendingNMI = false;
 #ifdef WASM_BUILD
     state.clkMult = 2;
 #else
     state.clkMult = 4;
 #endif
 
-	for(int i = 0; i < 4096; i ++) {
+	for(int i = 0; i < AUDIO_RAM_SIZE; i ++) {
 		state.ram[i] = rand() % 256;
 	}
 
@@ -142,16 +140,16 @@ AudioCoprocessor::AudioCoprocessor() {
 
     SDL_InitSubSystem(SDL_INIT_AUDIO);
 
-    SDL_AudioDeviceID openedDevice = SDL_OpenAudioDevice(NULL, 0, &wanted, &obtained, 0);
+    state.device = SDL_OpenAudioDevice(NULL, 0, &wanted, &obtained, 0);
 
     /* Open the audio device, forcing the desired format */
-    if (openedDevice  == 0 ) {
+    if (state.device  == 0 ) {
         fprintf(stdout, "Couldn't open audio: %s\n", SDL_GetError());
     } else {
         printf("Opened audio device:\n\tFreq: %d\n\tFormat %s\n\tChannels: %d\n\tSamples: %d\n",
             obtained.freq, AudioFormatString(obtained.format), obtained.channels, obtained.samples);
         state.format = obtained.format;
-        SDL_PauseAudioDevice(openedDevice, 0);
+        SDL_PauseAudioDevice(state.device, 0);
     }
 
 

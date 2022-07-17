@@ -7,8 +7,10 @@ using namespace std;
 #define ACP_NMI 1
 #define ACP_RATE 6
 
+#define AUDIO_RAM_SIZE 4096
+
 typedef struct ACPState {
-	uint8_t ram[4096];
+	uint8_t ram[AUDIO_RAM_SIZE];
 	mos6502 *cpu;
     int16_t irqCounter;
     uint8_t irqRate;
@@ -21,13 +23,14 @@ typedef struct ACPState {
 	SDL_AudioFormat format;
 	uint16_t last_irq_cycles;
 	uint64_t cycle_counter;
-	bool pendingNMI;
+	SDL_AudioDeviceID device;
 } ACPState;
 
 class AudioCoprocessor {
 private:
 	//emulated registers/memory
 	ACPState state;
+	void capture_snapshot();
 public:
 	AudioCoprocessor();
 	void ram_write(uint16_t address, uint8_t value);
