@@ -652,7 +652,10 @@ char* lTheOpenFileName = NULL;
 char filenameNoPath[256];
 
 extern "C" {
-	void LoadRomFile(const char* filename) {
+	// Attempts to load a rom by filename into a buffer
+	// 0 on success
+	// -1 on failure (e.g. file by name doesn't exist)
+	int LoadRomFile(const char* filename) {
 		const char* cur = filename;
 		const char* cur2 = NULL;
 		char* cur3;
@@ -671,36 +674,41 @@ extern "C" {
 		}
 		printf("loading %s\n", filename);
 		FILE* romFileP = fopen(filename, "rb");
-		if(romFileP) {
-			fseek(romFileP, 0L, SEEK_END);
-			ROMSIZE = ftell(romFileP);
-			rom_buffer = new uint8_t [ROMSIZE];
-			rewind(romFileP);
-			switch(ROMSIZE) {
-				case 8192:
-				loadedRomType = RomType::EEPROM8K;
-				printf("Detected 8K (EEPROM)\n");
-				break;
-				case 32768:
-				loadedRomType = RomType::EEPROM32K;
-				printf("Detected 32K (EEPROM)\n");
-				break;
-				case 2097152:
-				loadedRomType = RomType::FLASH2M;
-				printf("Detected 2M (Flash)\n");
-				break;
-				default:
-				loadedRomType = RomType::UNKNOWN;
-				printf("Unknown ROM type: Size is %d bytes\n");
-				break;
-			}
-			fread(rom_buffer, sizeof(uint8_t), ROMSIZE, romFileP);
-			fclose(romFileP);
+		if(!romFileP) {
+			printf("Unable to open file: %s\n", filename);
+			return -1;
 		}
+
+		fseek(romFileP, 0L, SEEK_END);
+		ROMSIZE = ftell(romFileP);
+		rom_buffer = new uint8_t [ROMSIZE];
+		rewind(romFileP);
+		switch(ROMSIZE) {
+			case 8192:
+			loadedRomType = RomType::EEPROM8K;
+			printf("Detected 8K (EEPROM)\n");
+			break;
+			case 32768:
+			loadedRomType = RomType::EEPROM32K;
+			printf("Detected 32K (EEPROM)\n");
+			break;
+			case 2097152:
+			loadedRomType = RomType::FLASH2M;
+			printf("Detected 2M (Flash)\n");
+			break;
+			default:
+			loadedRomType = RomType::UNKNOWN;
+			printf("Unknown ROM type: Size is %d bytes\n");
+			break;
+		}
+		fread(rom_buffer, sizeof(uint8_t), ROMSIZE, romFileP);
+		fclose(romFileP);
 		if(cpu_core) {
 			paused = false;
 			cpu_core->Reset();
 		}
+
+		return 0;
 	}
 
 	void SetButtons(int buttonMask) {
@@ -958,36 +966,7 @@ int main(int argC, char* argV[]) {
 		lTheOpenFileName = open_rom_dialog();
 	}
 
-	if(lTheOpenFileName) {
-		/*FILE* romFileP = fopen(lTheOpenFileName, "rb");
-		if(romFileP) {
-			fseek(romFileP, 0L, SEEK_END);
-			ROMSIZE = ftell(romFileP);
-			rom_buffer = new uint8_t [ROMSIZE];
-			rewind(romFileP);
-			switch(ROMSIZE) {
-				case 8192:
-				loadedRomType = RomType::EEPROM8K;
-				printf("Detected 8K (EEPROM)\n");
-				break;
-				case 32768:
-				loadedRomType = RomType::EEPROM32K;
-				printf("Detected 32K (EEPROM)\n");
-				break;
-				case 2097152:
-				loadedRomType = RomType::FLASH2M;
-				printf("Detected 2M (Flash)\n");
-				break;
-				default:
-				loadedRomType = RomType::UNKNOWN;
-				printf("Unknown ROM type: Size is %d bytes\n");
-				break;
-			}
-			fread(rom_buffer, sizeof(uint8_t), ROMSIZE, romFileP);
-			fclose(romFileP);
-		}*/
-		LoadRomFile(lTheOpenFileName);
-	} else {
+	if(!lTheOpenFileName || LoadRomFile(lTheOpenFileName) == -1) {
 		paused = true;
 #ifdef TINYFILEDIALOGS_H
 		tinyfd_notifyPopup("Alert",
