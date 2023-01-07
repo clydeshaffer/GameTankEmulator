@@ -16,6 +16,10 @@ ifeq ($(NIGHTLY), yes)
 	TAG = _$(shell date '+%Y%m%d')
 endif
 
+ifeq ($(OS),)
+	OS=$(shell uname)
+endif
+
 #OBJ_NAME specifies the name of our exectuable
 OBJ_NAME = bin/$(OS)/GameTankEmulator
 ZIP_NAME = bin/GTE_$(OS).zip
