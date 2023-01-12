@@ -4,6 +4,7 @@
 #include <string.h>
 #include <cmath>
 #include <time.h>
+#include <fstream>
 
 #ifdef WASM_BUILD
 #include "emscripten.h"
@@ -137,6 +138,7 @@ uint8_t bufferFlipCount = 0;
 uint64_t totalCyclesCount = 0;
 uint64_t profilingTimeStamps[PROFILER_ENTRIES];
 uint64_t profilingTimes[PROFILER_ENTRIES];
+uint64_t profilingCounts[PROFILER_ENTRIES];
 int fps = 60;
 
 #define BMP_CHAR_SIZE 8
@@ -225,7 +227,7 @@ void drawProfilingWindow() {
 	for(int i = 0; i < PROFILER_ENTRIES; ++i) {
 		Uint32 id_col = SDL_MapRGB(profilerSurface->format, prof_R[i % 8], prof_G[i % 8], prof_B[i % 8]);
 		if(profilingTimes[i] != 0) {
-			sprintf(buf,"Timer %d: %llu\n", i, profilingTimes[i]);
+			sprintf(buf,"Timer %d: %04llu - %llu\n", i, profilingCounts[i], profilingTimes[i]);
 			profilerArea.x = 0;
 			profilerArea.w = 2;
 			SDL_FillRect(profilerSurface, &profilerArea, id_col);
@@ -243,13 +245,19 @@ void drawProfilingWindow() {
 		}
 		profilerArea.y += BMP_CHAR_SIZE;
 		profilingTimes[i] = 0;
+		profilingCounts[i] = 0;
 	}
 	
 	profiler_x_axis = (profiler_x_axis + 1) % PROFILER_WIDTH;
 }
 
 void reportProfileTime(uint8_t index) {
-	profilingTimes[index] +=  totalCyclesCount - profilingTimeStamps[index];
+	uint64_t delta = totalCyclesCount - profilingTimeStamps[index];
+	if(delta > system_clock) {
+		printf("Timer %d took longer than one second: %llu cycles.\n", index, delta);
+	}
+	profilingTimes[index] += delta;
+	profilingCounts[index]++;
 }
 
 void drawBuffersWindow() {
@@ -477,7 +485,7 @@ void UpdateFlashShiftRegister(uint8_t nextVal) {
 	} else if(risingBits & VIA_SPI_BIT_CS) {
 		//flash cart CS is connected to latch clock
 		flash2M_highbits = flash2M_highbits_shifter & 0xFF;
-		printf("Flash highbits set to %x\n", flash2M_highbits & 0x7F);
+		printf("Flash highbits set to %x\n", flash2M_highbits);
 	}
 }
 
@@ -520,8 +528,8 @@ uint8_t MemoryRead(uint16_t address) {
 	} else if(address & 0x2800 == address) {
 		return VIA_regs[address & 0xF];
 	} else if(address < 0x2000) {
-		if(!ram_inited[address & 0x1FFF]) {
-			printf("WARNING! Uninitialized RAM read at %x\n", address);
+		if(!ram_inited[FULL_RAM_ADDRESS(address & 0x1FFF)]) {
+			printf("WARNING! Uninitialized RAM read at %x (Bank %x)\n", address, banking_reg >> 5);
 		}
 		return ram_buffer[FULL_RAM_ADDRESS(address & 0x1FFF)];
 	} else if(address == 0x2008 || address == 0x2009) {
@@ -572,12 +580,16 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 				}
 			} else if((address & 0x000F) == 0x0005) {
 				banking_reg = value;
+				printf("banking reg set to %x\n", value);
 			} else {
 				soundcard->register_write(address, value);
 			}
 		}
 	}
 	else if(address < 0x2000) {
+		/*if(!ram_inited[FULL_RAM_ADDRESS(address & 0x1FFF)]) {
+			printf("First RAM write at %x (Bank %x) (Value %x)\n", address, banking_reg >> 6, value);
+		}*/
 		ram_inited[FULL_RAM_ADDRESS(address & 0x1FFF)] = true;
 		ram_buffer[FULL_RAM_ADDRESS(address & 0x1FFF)] = value;
 	}
@@ -931,6 +943,9 @@ EM_BOOL mainloop(double time, void* userdata) {
 					case SDLK_F12:
 						if(e.type == SDL_KEYDOWN) {
 							soundcard->dump_ram("audio_debug.dat");
+							ofstream dumpfile ("ram_debug.dat", ios::out | ios::binary);
+							dumpfile.write((char*) ram_buffer, RAMSIZE);
+							dumpfile.close();
 						}
 						break;
             		default:
