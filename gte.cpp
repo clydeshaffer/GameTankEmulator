@@ -31,6 +31,7 @@ typedef struct RGBA_Color {
 
 int ROMSIZE = 8192;
 const int RAMSIZE = 32768;
+const int CARTRAMSIZE = 32768;
 const int FRAME_BUFFER_SIZE = 16384;
 
 const int GT_WIDTH = 128;
@@ -54,6 +55,9 @@ const int PROFILER_HEIGHT = 512;
 RGB_Color *palette;
 uint8_t *rom_buffer;
 uint8_t ram_buffer[RAMSIZE];
+
+uint8_t cart_ram_buffer[CARTRAMSIZE];
+
 bool ram_inited[RAMSIZE];
 
 #define VRAM_BUFFER_SIZE (FRAME_BUFFER_SIZE*2)
@@ -493,7 +497,9 @@ uint8_t MemoryRead_Flash2M(uint16_t address) {
 	if(address & 0x4000) {
 		return rom_buffer[0b111111100000000000000 | (address & 0x3FFF)];
 	} else {
-		return rom_buffer[((flash2M_highbits & 0x7F) << 14) | (address & 0x3FFF)];
+		if(!(flash2M_highbits & 0x80))
+			return cart_ram_buffer[(address & 0x3FFF) | ((flash2M_highbits & 0x40) << 8)];
+		else return rom_buffer[((flash2M_highbits & 0x7F) << 14) | (address & 0x3FFF)];
 	}
 }
 
@@ -541,7 +547,12 @@ uint8_t MemoryRead(uint16_t address) {
 
 void MemoryWrite(uint16_t address, uint8_t value) {
 	if(address & 0x8000) {
-		//ROM -> don't write
+		//Assuming for now that it's a 2M Flash + 32K RAM
+		if(!(address & 0x4000)) {
+			if(!(flash2M_highbits & 0x80)) {
+				cart_ram_buffer[(address & 0x3FFF) | ((flash2M_highbits & 0x40) << 8)] = value;
+			}
+		}
 	}
 	else if(address & 0x4000) {
 		VDMA_Write(address, value);
