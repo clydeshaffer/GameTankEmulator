@@ -44,13 +44,13 @@ ifeq ($(OS), Windows_NT)
 	# -w suppresses all warnings
 	# -Wl,-subsystem,windows gets rid of the console window
 	# change subsystem,windows to subsystem,console to get printfs on command line
-	COMPILER_FLAGS = -w -Wl,-subsystem,windows
+	COMPILER_FLAGS = -w -Wl,-subsystem,windows -std=c++17
 	DEFINES = -D _WIN32
 
 	#LINKER_FLAGS specifies the libraries we're linking against
 	LINKER_FLAGS = -lmingw32 -lSDL2main -lSDL2 -Wl,-Bstatic -mwindows -lm -ldinput8 -ldxguid -ldxerr8 -luser32 -lgdi32 -lwinmm -limm32 -lcomdlg32 -lole32 -loleaut32 -lshell32 -lversion -luuid -static-libgcc -lsetupapi
 else
-	COMPILER_FLAGS = -w
+	COMPILER_FLAGS = -w -std=c++17
 	LINKER_FLAGS = -lSDL2
 	ifeq ($(OS), wasm)
 		CC = emcc

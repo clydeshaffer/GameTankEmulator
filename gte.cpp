@@ -5,6 +5,8 @@
 #include <cmath>
 #include <time.h>
 #include <fstream>
+#include <cstring>
+#include <filesystem>
 
 #ifdef WASM_BUILD
 #include "emscripten.h"
@@ -57,6 +59,25 @@ uint8_t *rom_buffer;
 uint8_t ram_buffer[RAMSIZE];
 
 uint8_t cart_ram_buffer[CARTRAMSIZE];
+
+char* lTheOpenFileName = NULL;
+char filenameNoPath[256];
+char nvramFileFullPath[256];
+
+void SaveNVRAM() {
+	fstream file;
+	printf("SAVING %s\n", nvramFileFullPath);
+	file.open(nvramFileFullPath, ios_base::out | ios_base::binary | ios_base::trunc);
+	file.write((char*) cart_ram_buffer, CARTRAMSIZE);
+}
+
+void LoadNVRAM() {
+	fstream file;
+	printf("LOADING %s\n", nvramFileFullPath);
+	file.open(nvramFileFullPath, ios_base::in | ios_base::binary);
+	file.read((char*) cart_ram_buffer, CARTRAMSIZE);
+}
+
 
 bool ram_inited[RAMSIZE];
 
@@ -488,7 +509,10 @@ void UpdateFlashShiftRegister(uint8_t nextVal) {
 		flash2M_highbits_shifter |= !!(oldVal & VIA_SPI_BIT_MOSI);
 	} else if(risingBits & VIA_SPI_BIT_CS) {
 		//flash cart CS is connected to latch clock
-		flash2M_highbits = flash2M_highbits_shifter & 0xFF;
+		if((flash2M_highbits ^ flash2M_highbits_shifter) & 0x80) {
+			SaveNVRAM();
+		}
+		flash2M_highbits = flash2M_highbits_shifter;
 		printf("Flash highbits set to %x\n", flash2M_highbits);
 	}
 }
@@ -671,30 +695,18 @@ char * open_rom_dialog() {
 #endif
 }
 
-char* lTheOpenFileName = NULL;
-char filenameNoPath[256];
-
 extern "C" {
 	// Attempts to load a rom by filename into a buffer
 	// 0 on success
 	// -1 on failure (e.g. file by name doesn't exist)
 	int LoadRomFile(const char* filename) {
-		const char* cur = filename;
-		const char* cur2 = NULL;
-		char* cur3;
-		while(*cur != 0) {
-			if((*cur == '/') ||(*cur == '\\')) {
-				cur2 = cur + 1;
-			}
-			cur++;
-		}
-		if(cur2 != NULL) {
-			cur3 = filenameNoPath;
-			while(*cur2 != 0) {
-				*cur3++ = *cur2++;
-			}
-			*cur3 = 0;
-		}
+		std::filesystem::path filepath(filename);
+		strcpy(filenameNoPath, filepath.filename().c_str());
+		
+		std::filesystem::path nvramPath(filename);
+		nvramPath.replace_extension("sav");
+		strcpy(nvramFileFullPath, nvramPath.c_str());
+
 		printf("loading %s\n", filename);
 		FILE* romFileP = fopen(filename, "rb");
 		if(!romFileP) {
@@ -729,6 +741,10 @@ extern "C" {
 		if(cpu_core) {
 			paused = false;
 			cpu_core->Reset();
+		}
+
+		if(std::filesystem::exists(nvramFileFullPath)) {
+			LoadNVRAM();
 		}
 
 		return 0;
