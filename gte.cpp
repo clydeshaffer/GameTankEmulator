@@ -59,6 +59,7 @@ uint8_t *rom_buffer;
 uint8_t ram_buffer[RAMSIZE];
 
 uint8_t cart_ram_buffer[CARTRAMSIZE];
+bool using_battery_cart;
 
 char* lTheOpenFileName = NULL;
 char filenameNoPath[256];
@@ -513,6 +514,9 @@ void UpdateFlashShiftRegister(uint8_t nextVal) {
 			SaveNVRAM();
 		}
 		flash2M_highbits = flash2M_highbits_shifter;
+		if(!using_battery_cart) {
+			flash2M_highbits |= 0x80;
+		}
 		printf("Flash highbits set to %x\n", flash2M_highbits);
 	}
 }
@@ -701,11 +705,11 @@ extern "C" {
 	// -1 on failure (e.g. file by name doesn't exist)
 	int LoadRomFile(const char* filename) {
 		std::filesystem::path filepath(filename);
-		strcpy(filenameNoPath, filepath.filename().c_str());
+		strcpy(filenameNoPath, filepath.filename().string().c_str());
 		
 		std::filesystem::path nvramPath(filename);
 		nvramPath.replace_extension("sav");
-		strcpy(nvramFileFullPath, nvramPath.c_str());
+		strcpy(nvramFileFullPath, nvramPath.string().c_str());
 
 		printf("loading %s\n", filename);
 		FILE* romFileP = fopen(filename, "rb");
@@ -743,9 +747,16 @@ extern "C" {
 			cpu_core->Reset();
 		}
 
+
 		if(std::filesystem::exists(nvramFileFullPath)) {
 			LoadNVRAM();
 		}
+
+		using_battery_cart =
+			(rom_buffer[0x1FFFF0] == 'S') &&
+			(rom_buffer[0x1FFFF1] == 'A') &&
+			(rom_buffer[0x1FFFF2] == 'V') &&
+			(rom_buffer[0x1FFFF3] == 'E');
 
 		return 0;
 	}
