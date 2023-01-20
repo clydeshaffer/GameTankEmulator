@@ -62,20 +62,22 @@ uint8_t cart_ram_buffer[CARTRAMSIZE];
 bool using_battery_cart;
 
 char* lTheOpenFileName = NULL;
-char filenameNoPath[256];
-char nvramFileFullPath[256];
+std::string filenameNoPath;
+std::string nvramFileFullPath;
 
 void SaveNVRAM() {
 	fstream file;
-	printf("SAVING %s\n", nvramFileFullPath);
-	file.open(nvramFileFullPath, ios_base::out | ios_base::binary | ios_base::trunc);
+	if(loadedRomType != RomType::FLASH2M) return;
+	printf("SAVING %s\n", nvramFileFullPath.c_str());
+	file.open(nvramFileFullPath.c_str(), ios_base::out | ios_base::binary | ios_base::trunc);
 	file.write((char*) cart_ram_buffer, CARTRAMSIZE);
 }
 
 void LoadNVRAM() {
 	fstream file;
-	printf("LOADING %s\n", nvramFileFullPath);
-	file.open(nvramFileFullPath, ios_base::in | ios_base::binary);
+	if(loadedRomType != RomType::FLASH2M) return;
+	printf("LOADING %s\n", nvramFileFullPath.c_str());
+	file.open(nvramFileFullPath.c_str(), ios_base::in | ios_base::binary);
 	file.read((char*) cart_ram_buffer, CARTRAMSIZE);
 }
 
@@ -705,11 +707,11 @@ extern "C" {
 	// -1 on failure (e.g. file by name doesn't exist)
 	int LoadRomFile(const char* filename) {
 		std::filesystem::path filepath(filename);
-		strcpy(filenameNoPath, filepath.filename().string().c_str());
+		filenameNoPath = filepath.string();
 		
 		std::filesystem::path nvramPath(filename);
 		nvramPath.replace_extension("sav");
-		strcpy(nvramFileFullPath, nvramPath.string().c_str());
+		nvramFileFullPath = nvramPath.string();
 
 		printf("loading %s\n", filename);
 		FILE* romFileP = fopen(filename, "rb");
@@ -747,17 +749,17 @@ extern "C" {
 			cpu_core->Reset();
 		}
 
+		if(loadedRomType == RomType::FLASH2M) {
+			if(std::filesystem::exists(nvramFileFullPath.c_str())) {
+				LoadNVRAM();
+			}
 
-		if(std::filesystem::exists(nvramFileFullPath)) {
-			LoadNVRAM();
+			using_battery_cart =
+				(rom_buffer[0x1FFFF0] == 'S') &&
+				(rom_buffer[0x1FFFF1] == 'A') &&
+				(rom_buffer[0x1FFFF2] == 'V') &&
+				(rom_buffer[0x1FFFF3] == 'E');
 		}
-
-		using_battery_cart =
-			(rom_buffer[0x1FFFF0] == 'S') &&
-			(rom_buffer[0x1FFFF1] == 'A') &&
-			(rom_buffer[0x1FFFF2] == 'V') &&
-			(rom_buffer[0x1FFFF3] == 'E');
-
 		return 0;
 	}
 
@@ -836,7 +838,7 @@ EM_BOOL mainloop(double time, void* userdata) {
 			if(lastTicks != 0) {
 				int time_error = (currentTicks - lastTicks) - (1000 * actual_cycles/system_clock);
 				if(frameCount == 100) {
-					sprintf(titlebuf, "GameTank Emulator | %s | s: %.1f inc: %.1f err: %d\n", filenameNoPath, time_scaling, scaling_increment, time_error);
+					sprintf(titlebuf, "GameTank Emulator | %s | s: %.1f inc: %.1f err: %d\n", filenameNoPath.c_str(), time_scaling, scaling_increment, time_error);
 					SDL_SetWindowTitle(window, titlebuf);
 					fps = bufferFlipCount * 60 / 100;
 					frameCount = 0;
