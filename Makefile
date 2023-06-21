@@ -1,5 +1,5 @@
 #OBJS specifies which files to compile as part of the project
-OBJS = mos6502/mos6502.cpp joystick_adapter.cpp audio_coprocessor.cpp gte.cpp
+OBJS = mos6502/mos6502.cpp joystick_adapter.cpp audio_coprocessor.cpp gte.cpp font.cpp
 C_OBJS = tinyfd/tinyfiledialogs.c
 
 #CC specifies which C compiler we're using
@@ -32,7 +32,7 @@ ifeq ($(OS), Windows_NT)
 	endif
 
 	ZIP_NAME = bin/GTE_Win32$(TAG).zip
-	SDL_ROOT = ../SDL2-2.0.12/i686-w64-mingw32
+	SDL_ROOT = ../SDL2-2.26.2/x86_64-w64-mingw32
 
 	#INCLUDE_PATHS specifies the additional include paths we'll need
 	INCLUDE_PATHS = -I$(SDL_ROOT)/include/SDL2
@@ -66,7 +66,6 @@ DEFINES += -D CPU_6502_STATIC -D CPU_6502_USE_LOCAL_HEADER -D CMOS_INDIRECT_JMP_
 #This is the target that compiles our executable
 all : $(OBJS)
 	mkdir -p bin/$(OS)/img
-	cp img/font.bmp bin/$(OS)/img/font.bmp
 ifneq ($(OS), wasm)
 	$(CC) -c $(C_OBJS) $(INCLUDE_PATHS) $(COMPILER_FLAGS) $(DEFINES)
 endif

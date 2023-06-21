@@ -7,7 +7,6 @@
 #include <fstream>
 #include <cstring>
 #include <filesystem>
-
 #ifdef WASM_BUILD
 #include "emscripten.h"
 #include <emscripten/html5.h>
@@ -149,6 +148,8 @@ const uint8_t DMA_PARAM_HEIGHT  = 5;
 const uint8_t DMA_PARAM_TRIGGER = 6;
 const uint8_t DMA_PARAM_COLOR   = 7;
 uint8_t dma_params[DMA_PARAMS_COUNT];
+
+extern unsigned char font_map[];
 
 SDL_Surface* bmpFont = NULL;
 SDL_Surface* screenSurface = NULL;
@@ -1043,11 +1044,6 @@ int main(int argC, char* argV[]) {
 	SDL_Init(SDL_INIT_VIDEO);
 	atexit(SDL_Quit);
 
-	bmpFont = SDL_LoadBMP("img/font.bmp");
-	if(bmpFont == NULL) {
-		printf("Couldn't load font.bmp!!!\n");
-	}
-
 	window = SDL_CreateWindow( "GameTank Emulator", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 	screenSurface = SDL_GetWindowSurface(window);
 	SDL_SetColorKey(screenSurface, SDL_FALSE, 0);
@@ -1063,6 +1059,8 @@ int main(int argC, char* argV[]) {
 	    bmask = 0x00ff0000;
 	    amask = 0xff000000;
 	#endif
+
+	bmpFont = SDL_CreateRGBSurfaceFrom(font_map, 128, 128, 32, 4 * 128, rmask, gmask, bmask, amask);
 
 	vRAM_Surface = SDL_CreateRGBSurface(0, GT_WIDTH, GT_HEIGHT * 2, 32, rmask, gmask, bmask, amask);
 	gRAM_Surface = SDL_CreateRGBSurface(0, GT_WIDTH, GT_HEIGHT * 32, 32, rmask, gmask, bmask, amask);
