@@ -908,7 +908,7 @@ EM_BOOL mainloop(double time, void* userdata) {
 						closeBuffersWindow();
 					}
 				}
-			} else if(e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) {
+			} else if((e.key.repeat == 0) && (e.type == SDL_KEYDOWN || e.type == SDL_KEYUP)) {  
             	switch(e.key.keysym.sym) {
 					case SDLK_LSHIFT:
 						lshift = (e.type == SDL_KEYDOWN);
@@ -919,7 +919,7 @@ EM_BOOL mainloop(double time, void* userdata) {
             		case SDLK_ESCAPE:
             			running = false;
             			break;
-            		case SDLK_f:
+            		case SDLK_BACKQUOTE:
             			gofast = (e.type == SDL_KEYDOWN);
             			break;
             		case SDLK_r:
@@ -993,7 +993,7 @@ EM_BOOL mainloop(double time, void* userdata) {
             			joysticks->update(&e);
             			break;
             	}
-            } else {
+            } else if(e.key.repeat == 0) {
 				joysticks->update(&e);
 			}
         }

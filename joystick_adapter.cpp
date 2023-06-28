@@ -39,6 +39,29 @@ uint8_t JoystickAdapter::read(uint8_t portNum) {
 	return ~outbyte;
 }
 
+#define BUTTON_COUNT 8
+uint8_t button_press_counts[BUTTON_COUNT*2] = {
+	0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0,
+};
+uint16_t button_masks[BUTTON_COUNT] = {
+	GAMEPAD_MASK_UP,
+	GAMEPAD_MASK_DOWN,
+	GAMEPAD_MASK_LEFT,
+	GAMEPAD_MASK_RIGHT,
+	GAMEPAD_MASK_A,
+	GAMEPAD_MASK_B,
+	GAMEPAD_MASK_C,
+	GAMEPAD_MASK_START
+};
+
+enum ButtonId {
+	P1_UP = 0, P1_DOWN = 1, P1_LEFT = 2, P1_RIGHT = 3,
+	P1_A = 4, P1_B = 5, P1_C = 6, P1_START = 7,
+	P2_UP = 8, P2_DOWN = 9, P2_LEFT = 10, P2_RIGHT = 11,
+	P2_A = 12, P2_B = 13, P2_C = 14, P2_START = 15, NO_BUTTON = 16
+};
+
 void JoystickAdapter::update(SDL_Event *e) {
 	/*
 		Up - DB9 pin 1 - bit 3
@@ -52,39 +75,90 @@ void JoystickAdapter::update(SDL_Event *e) {
 		select status - bit 7
 	*/
 	uint16_t buttonMask = 0;
+	ButtonId buttonId = NO_BUTTON;
 	if(e->type == SDL_KEYDOWN || e->type == SDL_KEYUP) {
 		switch(e->key.keysym.sym) {
 			case SDLK_UP:
-				buttonMask = GAMEPAD_MASK_UP;
+				buttonId = P1_UP;
 				break;
 			case SDLK_DOWN:
-				buttonMask = GAMEPAD_MASK_DOWN;
+				buttonId = P1_DOWN;
 				break;
 			case SDLK_LEFT:
-				buttonMask = GAMEPAD_MASK_LEFT;
+				buttonId = P1_LEFT;
 				break;
 			case SDLK_RIGHT:
-				buttonMask = GAMEPAD_MASK_RIGHT;
+				buttonId = P1_RIGHT;
 				break;
 			case SDLK_z:
-				buttonMask = GAMEPAD_MASK_A;
+			case SDLK_b:
+			case SDLK_j:
+				buttonId = P1_A;
 				break;
 			case SDLK_x:
-				buttonMask = GAMEPAD_MASK_B;
+			case SDLK_n:
+			case SDLK_k:
+				buttonId = P1_B;
 				break;
 			case SDLK_c:
-				buttonMask = GAMEPAD_MASK_C;
+			case SDLK_m:
+			case SDLK_l:
+				buttonId = P1_C;
 				break;
 			case SDLK_RETURN:
-				buttonMask = GAMEPAD_MASK_START;
+				buttonId = P1_START;
+				break;
+			case SDLK_t:
+				buttonId = P2_UP;
+				break;
+			case SDLK_g:
+				buttonId = P2_DOWN;
+				break;
+			case SDLK_f:
+				buttonId = P2_LEFT;
+				break;
+			case SDLK_h:
+				buttonId = P2_RIGHT;
+				break;
+			case SDLK_LSHIFT:
+			case SDLK_TAB:
+				buttonId = P2_A;
+				break;
+			case SDLK_a:
+			case SDLK_q:
+				buttonId = P2_B;
+				break;
+			case SDLK_s:
+			case SDLK_w:
+				buttonId = P2_C;
+				break;
+			case SDLK_1:
+				buttonId = P2_START;
 				break;
 			default:
+				buttonId = NO_BUTTON;
 				break;
 		}
-		if(e->type == SDL_KEYDOWN) {
-			pad1Mask |= buttonMask;
-		} else {
-			pad1Mask &= ~buttonMask;
+		if(buttonId != NO_BUTTON) {
+			if(e->type == SDL_KEYDOWN) {
+				++button_press_counts[buttonId];
+			} else if(e->type == SDL_KEYUP) {
+				--button_press_counts[buttonId];
+			}
+
+			if(button_press_counts[buttonId] > 0) {
+				if(buttonId < BUTTON_COUNT) {
+					pad1Mask |= button_masks[buttonId];
+				} else {
+					pad2Mask |= button_masks[buttonId - BUTTON_COUNT];
+				}
+			} else {
+				if(buttonId < BUTTON_COUNT) {
+					pad1Mask &= ~button_masks[buttonId];
+				} else {
+					pad2Mask &= ~button_masks[buttonId - BUTTON_COUNT];
+				}
+			}
 		}
 	} else {
 		if(e->type == SDL_JOYHATMOTION) {
