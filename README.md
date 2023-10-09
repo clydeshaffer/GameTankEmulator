@@ -53,7 +53,7 @@ _For now I'm listing the differences between the emulator and the real hardware;
 
 ### Video:
 
-The graphics board of the GameTank has all its features emulated in a _mostly accurate_ fashion. The emulated graphics can do anything you probably intended to do on the real thing, minus the composite video artifacts. Also absent is at least one known bug in the hardware that I hope to fix later.
+The graphics board of the GameTank has all its features emulated in a _mostly accurate_ fashion. The emulated graphics can do anything you probably intended to do on the real thing, minus the composite video artifacts.
 
 On the graphics board is 32K of framebuffer memory, 32K of "asset" or "sprite" memory, and a handful of control registers for a blitting engine. The rendered image is 128x128 pixels, though a TV cuts off the first and last few rows for an effective resolution of 128x100. Also the column 0 color is used for the border on each row, stretching between the image area and the true edges of the screen.
 
@@ -61,23 +61,15 @@ The DMA controller can be configured for direct CPU access to either page of the
 
 The blitter can also be used to draw rectangles of solid color, or to skip copying pixels with value 0x00 to treat them as transparent.
 
-**Note:** The emulated blitting engine copies sprites relatively instantly, but the actual hardware copies at a rate closer to 4 pixels per CPU clock cycle.
+**Note:** The emulated blitting engine copies sprites relatively instantly, but the actual hardware copies at a rate closer to 1 pixel per CPU clock cycle.
 
 ### Audio:
 
-The soundcard, whimsically named "DynaWave", generates mono audio from a mix of four channels:
+Audio is produced by a second 6502 connected to an 8-bit DAC and 4K of dual-port RAM. The main processor can write programs to the Audio RAM from 0x3000 to 0x3FFF, and trigger interrupts on the Audio Processor by writing to certain registers.
 
-* Square Wave 1
+The Audio Processor uses a hardware timer to generate interrupts at a consistent rate. The same timing signal is also used to transfer from an intermediate buffer into the DAC. The Audio Processor writes to the intermediate buffer when writing to any address above 0x8000.
 
-* Square Wave 2
-
-* LFSR Noise
-
-* Wavetable playback (4096 bytes, 8-bit unsigned audio, variable sample rate)
-
-The two square waves have 8-bit pitch, 3-bit octave select, and 3-bit volume control. The LFSR and Wavetable lack the 8-bit pitch, but have the same octave select and volume control. Additionally the Wavetable has a register pointing to the start of sample data, which it returns to whenever it hits a 0xFF sample.
-
-Currently the timing of the audio playback is not synchronous with the cycle count on the CPU. It just kind of generates more audio from whatever the registers are set to, whenever the SDL audio callback feels like it.
+Since the intermediate buffer only copies to the DAC when the hardware timer activates, the intermediate buffer may be written to at any time without causing jitter on the DAC output.
 
 ### Input:
 
