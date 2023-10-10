@@ -1,6 +1,7 @@
-#OBJS specifies which files to compile as part of the project
-OBJS = mos6502/mos6502.cpp joystick_adapter.cpp audio_coprocessor.cpp gte.cpp font.cpp
-C_OBJS = tinyfd/tinyfiledialogs.c
+# specifes the directory to place the build files.
+O = build
+INSTALL_DIR = bin
+DIST_DIR = dist
 
 #CC specifies which C compiler we're using
 CC = gcc
@@ -12,23 +13,29 @@ XCOMP = no
 TAG = ""
 NIGHTLY = no
 
+#OBJS specifies which files to compile as part of the project
+SRCS = mos6502/mos6502.cpp joystick_adapter.cpp audio_coprocessor.cpp gte.cpp font.cpp
+OBJS = $(SRCS:%=$O/%.o)
+NATIVE_SRCS = tinyfd/tinyfiledialogs.c
+NATIVE_OBJS = $(NATIVE_SRCS:%=$O/%.o)
+
+#BIN_NAME specifies the name of our exectuable
+BIN_NAME = GameTankEmulator
+ZIP_NAME = GTE_$(OS).zip
+
 ifeq ($(NIGHTLY), yes)
 	TAG = _$(shell date '+%Y%m%d')
 endif
 
-ifeq ($(OS),)
+ifndef OS
 	OS=$(shell uname)
 endif
-
-#OBJ_NAME specifies the name of our exectuable
-OBJ_NAME = bin/$(OS)/GameTankEmulator
-ZIP_NAME = bin/GTE_$(OS).zip
 
 ifeq ($(OS), Windows_NT)
 	ifeq ($(XCOMP), yes)
 		CC = i686-w64-mingw32-gcc
 		CPPC = i686-w64-mingw32-g++
-		OBJ_NAME := $(OBJ_NAME).exe
+		BIN_NAME := $(BIN_NAME).exe
 	endif
 
 	ZIP_NAME = bin/GTE_Win32$(TAG).zip
@@ -52,37 +59,60 @@ ifeq ($(OS), Windows_NT)
 else
 	COMPILER_FLAGS = -w -std=c++17
 	LINKER_FLAGS = -lSDL2
-	ifeq ($(OS), wasm)
-		CC = emcc
-		CPPC = emcc
-		COMPILER_FLAGS += -s USE_SDL=2 -D WASM_BUILD -D EMBED_ROM_FILE='"$(ROMFILE)"'
-		OBJ_NAME = bin/$(OS)/index.html
-		LINKER_FLAGS += --embed-file $(ROMFILE) --shell-file web/shell.html -s EXPORTED_FUNCTIONS='["_LoadRomFile", "_main", "_SetButtons"]' -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]'
-	endif
 endif
+ifeq ($(OS), wasm)
+	CC = emcc
+	CPPC = emcc
+	COMPILER_FLAGS += -s USE_SDL=2 -D WASM_BUILD -D EMBED_ROM_FILE='"$(ROMFILE)"'
+	BIN_NAME = index.html
+	LINKER_FLAGS += --embed-file $(ROMFILE) --shell-file web/shell.html -s EXPORTED_FUNCTIONS='["_LoadRomFile", "_main", "_SetButtons"]' -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]'
+else
+	OBJS += $(NATIVE_OBJS)
+endif
+
 
 DEFINES += -D CPU_6502_STATIC -D CPU_6502_USE_LOCAL_HEADER -D CMOS_INDIRECT_JMP_FIX
 
 #This is the target that compiles our executable
-all : $(OBJS)
-	mkdir -p bin/$(OS)/img
-ifneq ($(OS), wasm)
-	$(CC) -c $(C_OBJS) $(INCLUDE_PATHS) $(COMPILER_FLAGS) $(DEFINES)
-endif
-	$(CPPC) -c $(OBJS) $(INCLUDE_PATHS) $(COMPILER_FLAGS) $(DEFINES)
-	$(CPPC) $(INCLUDE_PATHS) $(COMPILER_FLAGS) -o $(OBJ_NAME) *.o $(LIBRARY_PATHS) $(LINKER_FLAGS)
-	git rev-parse HEAD > bin/$(OS)/commit_hash.txt
+.PHONY: all bin dist install
+all : bin dist
+
+bin: $O/$(BIN_NAME)
+dist : $O/$(ZIP_NAME)
+	@mkdir -p $(DIST_DIR)
+	cp $^ $(DIST_DIR)
+
+install : bin
+	@mkdir -p $(INSTALL_DIR)/bin
+	install -t $(INSTALL_DIR)/bin $O/$(BIN_NAME)
 ifeq ($(OS), Windows_NT)
-	cp $(SDL_ROOT)/bin/SDL2.dll bin/$(OS)/SDL2.dll
+	install -t $(INSTALL_DIR)/bin $(SDL_ROOT)/bin/SDL2.dll
 endif
-ifneq ($(OS), wasm)
-	cd bin/$(OS); zip -9 -y -r -q ../../$(ZIP_NAME) ./*
+ifeq ($(OS), wasm)
+	install -t $(INSTALL_DIR)/bin web/gamepad.png
 endif
 
-ifeq ($(OS), wasm)
-	cp web/gamepad.png bin/$(OS)
-endif
+$O/$(ZIP_NAME) : bin commit_hash.txt
+	@mkdir -p $(@D)/img
+	cd $O; zip -9 -y -r -q $(ZIP_NAME) $(BIN_NAME) img commit_hash.txt
+
+commit_hash.txt :
+	git rev-parse HEAD > $O/commit_hash.txt
+
+$O/%.cpp.o : %.cpp
+	@mkdir -p $(@D)
+	$(CPPC) -c $< -o $@ $(INCLUDE_PATHS) $(COMPILER_FLAGS) $(DEFINES)
+
+$O/%.c.o : %.c
+	@mkdir -p $(@D)
+	$(CC) -c $< -o $@ $(INCLUDE_PATHS) $(COMPILER_FLAGS) $(DEFINES)
+
+$O/$(BIN_NAME) : $(OBJS)
+	$(CPPC) $(COMPILER_FLAGS) -o $@ $^ $(LIBRARY_PATHS) $(LINKER_FLAGS)
 
 clean:
-	rm -f *.o
-	rm -rf bin
+	rm -rf $O
+
+clean-all: clean
+	rm -rf $(INSTALL_DIR)
+	rm -rf $(DIST_DIR)
