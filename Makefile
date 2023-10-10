@@ -35,8 +35,8 @@ ifeq ($(OS), Windows_NT)
 	ifeq ($(XCOMP), yes)
 		CC = i686-w64-mingw32-gcc
 		CPPC = i686-w64-mingw32-g++
-		BIN_NAME := $(BIN_NAME).exe
 	endif
+	BIN_NAME := $(BIN_NAME).exe
 
 	ZIP_NAME = bin/GTE_Win32$(TAG).zip
 	SDL_ROOT = ../SDL2-2.26.2/x86_64-w64-mingw32
@@ -94,7 +94,10 @@ endif
 
 $O/$(ZIP_NAME) : bin commit_hash.txt
 	@mkdir -p $(@D)/img
-	cd $O; zip -9 -y -r -q $(ZIP_NAME) $(BIN_NAME) img commit_hash.txt
+ifeq ($(OS), Windows_NT)
+	cp $(SDL_ROOT)/bin/SDL2.dll $O
+endif
+	cd $O; zip -9 -y -r -q $(ZIP_NAME) $(BIN_NAME) SDL2.dll img commit_hash.txt
 
 commit_hash.txt :
 	git rev-parse HEAD > $O/commit_hash.txt
