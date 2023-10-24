@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>GameTank Emulator - WASM Edition</title>
+    <style>
+      .emscripten { padding-right: 0; margin-left: auto; margin-right: auto; display: block; }
+      textarea.emscripten { font-family: monospace; width: 80%; }
+      div.emscripten { text-align: center; }
+      div.emscripten_border {}
+      /* the canvas *must not* have any border or padding, or mouse coords will be wrong */
+      canvas.emscripten { border: 0px none; background-color: black; }
+
+      .spinner {
+        height: 50px;
+        width: 50px;
+        margin: 0px auto;
+        -webkit-animation: rotation .8s linear infinite;
+        -moz-animation: rotation .8s linear infinite;
+        -o-animation: rotation .8s linear infinite;
+        animation: rotation 0.8s linear infinite;
+        border-left: 10px solid rgb(0,150,240);
+        border-right: 10px solid rgb(0,150,240);
+        border-bottom: 10px solid rgb(0,150,240);
+        border-top: 10px solid rgb(100,0,200);
+        border-radius: 100%;
+        background-color: rgb(200,100,250);
+      }
+      @-webkit-keyframes rotation {
+        from {-webkit-transform: rotate(0deg);}
+        to {-webkit-transform: rotate(360deg);}
+      }
+      @-moz-keyframes rotation {
+        from {-moz-transform: rotate(0deg);}
+        to {-moz-transform: rotate(360deg);}
+      }
+      @-o-keyframes rotation {
+        from {-o-transform: rotate(0deg);}
+        to {-o-transform: rotate(360deg);}
+      }
+      @keyframes rotation {
+        from {transform: rotate(0deg);}
+        to {transform: rotate(360deg);}
+      }
+
+      .mobileinputcontainer {
+          position:absolute;
+          display: block;
+          bottom: 0;
+          left: 0;
+          right: 0;
+      }
+
+      .mobileinput {
+        width: 100%;
+      }
+
+      select {
+          font-size: 50px;
+        }
+
+      @media only screen and (orientation:landscape) {
+        .mobileinputcontainer {
+            display: none;
+        }
+
+        select {
+          font-size: 16pt;
+        }
+      }
+
+      html {
+        height: 100%;
+      }
+
+      body {
+        min-height: 100%;
+      }
+
+      @media only screen and (orientation:portrait) {
+        #canvas {
+            width: 100%;
+        }
+
+        html {
+          background-color: #000000;
+          color: white;
+        }
+
+        .landscapeOnly {
+          display:none;
+        }
+      }
+
+    </style>
+  </head>
+  <body>
+    <figure style="overflow:visible;" id="spinner"><div class="spinner"></div><center style="margin-top:0.5em"><strong>Loading...</strong></center></figure>
+    <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1 width="512" height="512"></canvas>
+    <script type='text/javascript'>
+      var statusElement = document.getElementById('status');
+      var progressElement = document.getElementById('progress');
+      var spinnerElement = document.getElementById('spinner');
+
+      var Module = {
+        preRun: [],
+        postRun: [],
+        print: (function() {
+          var element = document.getElementById('output');
+          if (element) element.value = ''; // clear browser cache
+          return function(text) {
+            if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+            // These replacements are necessary if you render to raw HTML
+            //text = text.replace(/&/g, "&amp;");
+            //text = text.replace(/</g, "&lt;");
+            //text = text.replace(/>/g, "&gt;");
+            //text = text.replace('\n', '<br>', 'g');
+            //console.log(text);
+            if (element) {
+              element.value += text + "\n";
+              element.scrollTop = element.scrollHeight; // focus on bottom
+            }
+          };
+        })(),
+        printErr: function(text) {
+          if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+          console.error(text);
+        },
+        canvas: (function() {
+          var canvas = document.getElementById('canvas');
+
+          // As a default initial behavior, pop up an alert when webgl context is lost. To make your
+          // application robust, you may want to override this behavior before shipping!
+          // See http://www.khronos.org/registry/webgl/specs/latest/1.0/#5.15.2
+          canvas.addEventListener("webglcontextlost", function(e) { alert('WebGL context lost. You will need to reload the page.'); e.preventDefault(); }, false);
+
+          return canvas;
+        })(),
+        setStatus: function(text) {
+          if (!Module.setStatus.last) Module.setStatus.last = { time: Date.now(), text: '' };
+          if (text === Module.setStatus.last.text) return;
+          var m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
+          var now = Date.now();
+          if (m && now - Module.setStatus.last.time < 30) return; // if this is a progress update, skip it if too soon
+          Module.setStatus.last.time = now;
+          Module.setStatus.last.text = text;
+          if (m)
+            text = m[1];
+          if(spinnerElement) {
+            if (m) {
+                spinnerElement.hidden = false;
+            } else {
+                if (!text) spinnerElement.hidden = true;
+            }
+          }
+          if(progressElement) {
+            if (m) {
+                progressElement.value = parseInt(m[2])*100;
+                progressElement.max = parseInt(m[4])*100;
+                progressElement.hidden = false;
+            } else {
+                progressElement.value = null;
+                progressElement.max = null;
+                progressElement.hidden = true;
+            }
+          }
+          if(statusElement)
+            statusElement.innerHTML = text;
+        },
+        totalDependencies: 0,
+        monitorRunDependencies: function(left) {
+          this.totalDependencies = Math.max(this.totalDependencies, left);
+          Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies-left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
+        }
+      };
+      Module.setStatus('Loading...');
+      window.onerror = function() {
+        Module.setStatus('Exception thrown, see JavaScript console');
+        spinnerElement.style.display = 'none';
+        Module.setStatus = function(text) {
+          if (text) Module.printErr('[post-exception status] ' + text);
+        };
+      };
+
+      function useFileInput(fileInput) {
+          console.log("useFileInput called");
+          if (fileInput.files.length == 0)
+              return;
+          var file = fileInput.files[0];
+          console.log("loading file " + file.name);
+          var fr = new FileReader();
+          fr.onload = function () {
+              var data = new Uint8Array(fr.result);
+              console.log("loaded file");
+              Module['FS_createDataFile']('/', file.name, data, true, true, true);
+              console.log("calling LoadRomFile");
+              Module.ccall('LoadRomFile', null, ["string"], [file.name]);
+
+              fileInput.value = '';
+          };
+          fr.readAsArrayBuffer(file);
+      }
+
+      function checkStatus(response) {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status} - ${response.statusText}`);
+        }
+        return response;
+      }
+
+      var loadedFiles = {};
+
+      function loadRomByName(romName) {
+        var romUrl = "../roms/" + romName;
+        if(!loadedFiles[romName]) {
+          fetch(romUrl)
+          .then(response => checkStatus(response) && response.arrayBuffer())
+          .then(buffer => {
+            var data = new Uint8Array(buffer);
+            Module['FS_createDataFile']('/', romName, data, true, true, true);
+            loadedFiles[romName] = 1;
+            Module.ccall('LoadRomFile', null, ["string"], [romName]);
+          })
+          .catch(err=>console.error(err));
+        } else {
+          Module.ccall('LoadRomFile', null, ["string"], [romName]);
+        }
+      }
+
+      function loadRomFromList(listBox) {
+        loadRomByName(listBox.value);
+      }
+
+      function getParameterByName(name, url = window.location.href) {
+          name = name.replace(/[\[\]]/g, '\\$&');
+          var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'),
+              results = regex.exec(url);
+          if (!results) return null;
+          if (!results[2]) return '';
+          return decodeURIComponent(results[2].replace(/\+/g, ' '));
+      }
+
+      Module.onRuntimeInitialized = function() {
+        body   = document.querySelector('body'),
+        canvas = document.getElementById('canvas');
+        var activateCanvas = function (event) {
+            lastTarget = event.target;
+            window.setFocus();
+            console.log("Set focus on window");
+        }
+        var preventScroll = function (event) {
+            var keyCodes = [ 32, 37, 38, 39, 40 ];
+            if (lastTarget != canvas) {
+            return false;
+            }
+            console.log('Key pressed: ' + event.keyCode);
+            if (keyCodes.includes(event.keyCode)) {
+            event.preventDefault();
+            }
+        }
+        var handleMouseDown = function (event) {
+            window.focus();
+            event.preventDefault();
+            event.stopPropagation();
+            event.target.style.cursor = 'default';
+        }
+        body.addEventListener('keydown', preventScroll, false);
+        body.addEventListener('click', activateCanvas, false);
+        canvas.addEventListener('mousedown', handleMouseDown, false);
+      }
+
+    </script>
+    {{{ SCRIPT }}}
+  </body>
+</html>

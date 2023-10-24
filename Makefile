@@ -23,6 +23,8 @@ NATIVE_OBJS = $(NATIVE_SRCS:%=$O/%.o)
 BIN_NAME = GameTankEmulator
 ZIP_NAME = GTE_$(OS).zip
 
+WEB_SHELL = shell.html
+
 ifeq ($(NIGHTLY), yes)
 	TAG = _$(shell date '+%Y%m%d')
 endif
@@ -65,7 +67,7 @@ ifeq ($(OS), wasm)
 	CPPC = emcc
 	COMPILER_FLAGS += -s USE_SDL=2 -D WASM_BUILD -D EMBED_ROM_FILE='"$(ROMFILE)"'
 	BIN_NAME = index.html
-	LINKER_FLAGS += --embed-file $(ROMFILE) --shell-file web/shell.html -s EXPORTED_FUNCTIONS='["_LoadRomFile", "_main", "_SetButtons"]' -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]'
+	LINKER_FLAGS += --embed-file $(ROMFILE) --shell-file web/$(WEB_SHELL) -s EXPORTED_FUNCTIONS='["_LoadRomFile", "_main", "_SetButtons"]' -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]'
 else
 	OBJS += $(NATIVE_OBJS)
 endif
@@ -90,6 +92,8 @@ ifeq ($(OS), Windows_NT)
 endif
 ifeq ($(OS), wasm)
 	install -t $(INSTALL_DIR)/bin web/gamepad.png
+	install -t $(INSTALL_DIR)/bin $O/index.js
+	install -t $(INSTALL_DIR)/bin $O/index.wasm
 endif
 
 $O/$(ZIP_NAME) : bin commit_hash.txt
@@ -97,7 +101,11 @@ $O/$(ZIP_NAME) : bin commit_hash.txt
 ifeq ($(OS), Windows_NT)
 	cp $(SDL_ROOT)/bin/SDL2.dll $O
 endif
+ifeq ($(OS), wasm)
+	cd $O; zip -9 -y -r -q $(ZIP_NAME) $(BIN_NAME) gamepad.png index.js index.wasm commit_hash.txt
+else
 	cd $O; zip -9 -y -r -q $(ZIP_NAME) $(BIN_NAME) SDL2.dll img commit_hash.txt
+endif
 
 commit_hash.txt :
 	git rev-parse HEAD > $O/commit_hash.txt
