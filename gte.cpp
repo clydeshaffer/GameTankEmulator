@@ -810,11 +810,17 @@ void closeBuffersWindow() {
 #endif
 
 char titlebuf[256];
-
+uint64_t total_frames_ever = 0;
 EM_BOOL mainloop(double time, void* userdata) {
 	if(!paused) {
 			actual_cycles = totalCyclesCount;
+#ifndef WASM_BUILD
 			cpu_core->Run(cycles_per_vsync, totalCyclesCount);
+#else
+			++total_frames_ever;
+			double average_per_frame = time / ((double) total_frames_ever);
+			cpu_core->Run(cycles_per_vsync * average_per_frame * 0.06, totalCyclesCount);
+#endif
 			actual_cycles = totalCyclesCount - actual_cycles;
 			if(cpu_core->illegalOpcode) {
 				printf("Hit illegal opcode %x\npc = %x\n", cpu_core->illegalOpcodeSrc, cpu_core->pc);
