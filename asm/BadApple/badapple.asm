@@ -82,6 +82,8 @@ MusicVRAMBank = %01001100
 	; VNMI | IRQ | DMA | COLORFILL
 DrawingVRAMBank = %01001101
 
+INITIAL_MUSIC_DELAY = 114
+
 startColor = %10011111
 
     .org $E000
@@ -110,9 +112,6 @@ RESET:
 	LDA #%00000010
 	STA DoubleBufMask
 	STZ DoubleBufMask2
-
-	LDA #114
-	STA musicDelay
 
 	LDA #%00000111
 	STA VIA+DDRA
@@ -175,7 +174,7 @@ RESET:
 	STA RAM_Bank
 
 	JSR ClearScreen
-
+	JSR RestartMusic
 	JSR RestartAnimation
 
 Forever:
@@ -196,45 +195,15 @@ DoMusic:
 	LDA MusicTicksLeft
 	BNE DontLoopMusic
 	LDA MusicTicksLeft+1
-	BEQ RestartMusic
+	BEQ DoLoopMusic
 	DEC MusicTicksLeft+1
 DontLoopMusic:
 	DEC MusicTicksLeft
 	JMP Music_SetCh1
 
-RestartMusic:
-	LDA MusicTicksTotal
-	STA MusicTicksLeft
-	LDA MusicTicksTotal+1
-	STA MusicTicksLeft+1
-
-	LDA MusicStart_Ch1
-	STA MusicPtr_Ch1
-	LDA MusicStart_Ch1+1
-	STA MusicPtr_Ch1+1
-	LDA #1
-	STA MusicNext_Ch1
-
-	LDA MusicStart_Ch2
-	STA MusicPtr_Ch2
-	LDA MusicStart_Ch2+1
-	STA MusicPtr_Ch2+1
-	LDA #1
-	STA MusicNext_Ch2
-
-	LDA MusicStart_Ch3
-	STA MusicPtr_Ch3
-	LDA MusicStart_Ch3+1
-	STA MusicPtr_Ch3+1
-	LDA #1
-	STA MusicNext_Ch3
-
-	LDA MusicStart_Ch4
-	STA MusicPtr_Ch4
-	LDA MusicStart_Ch4+1
-	STA MusicPtr_Ch4+1
-	LDA #1
-	STA MusicNext_Ch4
+DoLoopMusic:
+	JSR RestartMusic
+	JSR RestartAnimation
 
 Music_SetCh1:
 	LDY MusicEnvI_Ch1
@@ -648,6 +617,40 @@ MusicHeaderLength = 8
 	STZ MusicTicksLeft+1
 	RTS
 
+RestartMusic:
+	LDA MusicTicksTotal
+	STA MusicTicksLeft
+	LDA MusicTicksTotal+1
+	STA MusicTicksLeft+1
+
+	LDA MusicStart_Ch1
+	STA MusicPtr_Ch1
+	LDA MusicStart_Ch1+1
+	STA MusicPtr_Ch1+1
+	LDA #1
+	STA MusicNext_Ch1
+
+	LDA MusicStart_Ch2
+	STA MusicPtr_Ch2
+	LDA MusicStart_Ch2+1
+	STA MusicPtr_Ch2+1
+	LDA #1
+	STA MusicNext_Ch2
+
+	LDA MusicStart_Ch3
+	STA MusicPtr_Ch3
+	LDA MusicStart_Ch3+1
+	STA MusicPtr_Ch3+1
+	LDA #1
+	STA MusicNext_Ch3
+
+	LDA MusicStart_Ch4
+	STA MusicPtr_Ch4
+	LDA MusicStart_Ch4+1
+	STA MusicPtr_Ch4+1
+	LDA #1
+	STA MusicNext_Ch4
+
 SetFreqAndOctave:
 	;This routine takes the command byte from the Accumulator and sets
 	;the Accumulator to the pitch low byte and the OctaveBuf var to the corresponding pitch high byte
@@ -680,6 +683,8 @@ AwaitVSync:
 	RTS
 
 RestartAnimation:
+	LDA #INITIAL_MUSIC_DELAY
+	STA musicDelay
 	LDA #1
 	STA nextFrameCounter
 	STZ animPtr
