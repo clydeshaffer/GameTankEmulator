@@ -879,10 +879,9 @@ EM_BOOL mainloop(double time, void* userdata) {
 			cycles_since_vsync += actual_cycles;
 			if(cycles_since_vsync >= cycles_per_vsync) {
 				cycles_since_vsync -= cycles_per_vsync;
-
-			}
-			if(dma_control_reg & DMA_VSYNC_NMI_BIT) {
-				cpu_core->NMI();
+				if(dma_control_reg & DMA_VSYNC_NMI_BIT) {
+					cpu_core->NMI();
+				}
 			}
 		} else {
 			SDL_Delay(100);
