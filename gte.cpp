@@ -834,6 +834,7 @@ EM_BOOL mainloop(double time, void* userdata) {
 					printf("(Got stuck at 0x%x)\n", cpu_core->pc);
 					paused = true;
 				}
+				totalCyclesCount += intended_cycles;
 			} else {
 				zeroConsec = 0;
 			}
