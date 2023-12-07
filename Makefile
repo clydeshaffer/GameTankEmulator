@@ -45,7 +45,7 @@ ifeq ($(OS), Windows_NT)
 	SDL_ROOT = ../SDL2-2.26.2/x86_64-w64-mingw32
 
 	#INCLUDE_PATHS specifies the additional include paths we'll need
-	INCLUDE_PATHS = -I/usr/include
+	INCLUDE_PATHS = -I$(SDL_ROOT)/include/SDL2
 
 	#LIBRARY_PATHS specifies the additional library paths we'll need
 	LIBRARY_PATHS = -L$(SDL_ROOT)/lib
