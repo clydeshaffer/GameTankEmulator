@@ -726,7 +726,7 @@ extern "C" {
 
 		if(std::filesystem::exists(defaultMapFilePath)) {
 			printf("found default memory map file location %s\n", defaultMapFilePath.c_str());
-			loadedMemoryMap = new MemoryMap(defaultMapFilePath);
+			loadedMemoryMap = new MemoryMap(defaultMapFilePath.string());
 		} else {
 			printf("default memory map file %s not found\n", defaultMapFilePath.c_str());
 		}
