@@ -1,6 +1,8 @@
 *.o
 *.exe
 bin/*
+build
+build/*
 *.dll
 .vscode
 roms/*.sav
