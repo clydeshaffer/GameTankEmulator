@@ -811,15 +811,18 @@ void closeBuffersWindow() {
 
 char titlebuf[256];
 uint64_t total_frames_ever = 0;
+int32_t intended_cycles = 0;
 EM_BOOL mainloop(double time, void* userdata) {
 	if(!paused) {
 			actual_cycles = totalCyclesCount;
 #ifndef WASM_BUILD
+			intended_cycles = cycles_per_vsync;
 			cpu_core->Run(cycles_per_vsync, totalCyclesCount);
 #else
 			++total_frames_ever;
 			double average_per_frame = time / ((double) total_frames_ever);
-			cpu_core->Run(cycles_per_vsync * average_per_frame * 0.06, totalCyclesCount);
+			intended_cycles = cycles_per_vsync * average_per_frame * 0.06;
+			cpu_core->Run(intended_cycles, totalCyclesCount);
 #endif
 			actual_cycles = totalCyclesCount - actual_cycles;
 			if(cpu_core->illegalOpcode) {
@@ -876,7 +879,7 @@ EM_BOOL mainloop(double time, void* userdata) {
 
 			frameCount++;
 #endif
-			cycles_since_vsync += actual_cycles;
+			cycles_since_vsync += intended_cycles;
 			if(cycles_since_vsync >= cycles_per_vsync) {
 				cycles_since_vsync -= cycles_per_vsync;
 				if(dma_control_reg & DMA_VSYNC_NMI_BIT) {
@@ -1080,6 +1083,7 @@ int main(int argC, char* argV[]) {
 #ifdef WASM_BUILD
 	emscripten_request_animation_frame_loop(mainloop, 0);
 #else
+	SDL_RaiseWindow(window);
 	while(running) {
 		mainloop(0, NULL);
 	}
