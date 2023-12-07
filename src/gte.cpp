@@ -20,6 +20,8 @@
 
 #include "mos6502/mos6502.h"
 
+#include "devtools/memory_map.h"
+
 using namespace std;
 
 typedef struct RGB_Color {
@@ -61,6 +63,7 @@ uint8_t cart_ram_buffer[CARTRAMSIZE];
 bool using_battery_cart;
 
 char* lTheOpenFileName = NULL;
+MemoryMap* loadedMemoryMap;
 std::string filenameNoPath;
 std::string nvramFileFullPath;
 
@@ -545,8 +548,7 @@ uint8_t MemoryRead_Unknown(uint16_t address) {
 	}
 }
 
-uint8_t MemoryRead(uint16_t address) {
-
+uint8_t MemoryReadResolve(uint16_t address, bool stateful) {
 	if(address & 0x8000) {
 		switch(loadedRomType) {
 			case RomType::EEPROM8K:
@@ -565,15 +567,21 @@ uint8_t MemoryRead(uint16_t address) {
 	} else if(address & 0x2800 == address) {
 		return VIA_regs[address & 0xF];
 	} else if(address < 0x2000) {
-		if(!ram_inited[FULL_RAM_ADDRESS(address & 0x1FFF)]) {
-			printf("WARNING! Uninitialized RAM read at %x (Bank %x)\n", address, banking_reg >> 5);
+		if(stateful) {
+			if(!ram_inited[FULL_RAM_ADDRESS(address & 0x1FFF)]) {
+				printf("WARNING! Uninitialized RAM read at %x (Bank %x)\n", address, banking_reg >> 5);
+			}
 		}
 		return ram_buffer[FULL_RAM_ADDRESS(address & 0x1FFF)];
 	} else if(address == 0x2008 || address == 0x2009) {
-		return joysticks->read((uint8_t) address);
+		return joysticks->read((uint8_t) address, stateful);
 	}
 	printf("Attempted to read write-only device, may be unintended? %x\n", address);
 	return open_bus();
+}
+
+uint8_t MemoryRead(uint16_t address) {
+	MemoryReadResolve(address, true);
 }
 
 void MemoryWrite(uint16_t address, uint8_t value) {
@@ -622,7 +630,7 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 				}
 			} else if((address & 0x000F) == 0x0005) {
 				banking_reg = value;
-				printf("banking reg set to %x\n", value);
+				//printf("banking reg set to %x\n", value);
 			} else {
 				soundcard->register_write(address, value);
 			}
@@ -713,6 +721,15 @@ extern "C" {
 		std::filesystem::path nvramPath(filename);
 		nvramPath.replace_extension("sav");
 		nvramFileFullPath = nvramPath.string();
+
+		std::filesystem::path defaultMapFilePath = filepath.parent_path().append("../build/out.map");
+
+		if(std::filesystem::exists(defaultMapFilePath)) {
+			printf("found default memory map file location %s\n", defaultMapFilePath.c_str());
+			loadedMemoryMap = new MemoryMap(defaultMapFilePath);
+		} else {
+			printf("default memory map file %s not found\n", defaultMapFilePath.c_str());
+		}
 
 		printf("loading %s\n", filename);
 		FILE* romFileP = fopen(filename, "rb");
@@ -996,6 +1013,16 @@ EM_BOOL mainloop(double time, void* userdata) {
 							ofstream dumpfile ("ram_debug.dat", ios::out | ios::binary);
 							dumpfile.write((char*) ram_buffer, RAMSIZE);
 							dumpfile.close();
+							loadedMemoryMap->forEach([](const Symbol& symbol) {
+								if(symbol.address < 0x2000) {
+									uint8_t value = MemoryReadResolve(symbol.address, false);
+									std::cout << symbol.name << "@" << std::hex << symbol.address << " = " << std::hex << static_cast<unsigned int>(value);
+									if(!ram_inited[FULL_RAM_ADDRESS(symbol.address & 0x1FFF)]) {
+										std::cout << " (uninitialized)";
+									}
+									std::cout << std::endl;
+								}
+							});
 						}
 						break;
             		default:

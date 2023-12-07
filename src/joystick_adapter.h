@@ -24,7 +24,7 @@ private:
 public:
 	JoystickAdapter();
 	~JoystickAdapter();
-	uint8_t read(uint8_t portNum);
+	uint8_t read(uint8_t portNum, bool stateful);
 	void update(SDL_Event *e);
 	void SetHeldButtons(uint16_t heldMask);
 };

@@ -17,24 +17,30 @@ JoystickAdapter::~JoystickAdapter() {
 	gGameController = NULL;
 }
 
-uint8_t JoystickAdapter::read(uint8_t portNum) {
+uint8_t JoystickAdapter::read(uint8_t portNum, bool stateful) {
 	uint8_t outbyte = 0xFF;
 	if(portNum % 2) {
-		pad1State = false;
+		
 		if(pad2State) {
 			outbyte = (uint8_t) (pad2Mask >> 8);
 		} else {
 			outbyte = (uint8_t) pad2Mask;
 		}
-		pad2State = !pad2State;
+		if(stateful) {
+			pad1State = false;
+			pad2State = !pad2State;
+		}
 	} else {
-		pad2State = false;
+		
 		if(pad1State) {
 			outbyte = (uint8_t) ((pad1Mask | held1Mask) >> 8);
 		} else {
 			outbyte = (uint8_t) (pad1Mask | held1Mask);
 		}
-		pad1State = !pad1State;
+		if(stateful) {
+			pad2State = false;
+			pad1State = !pad1State;
+		}
 	}
 	return ~outbyte;
 }

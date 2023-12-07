@@ -14,7 +14,7 @@ TAG = ""
 NIGHTLY = no
 
 #OBJS specifies which files to compile as part of the project
-_SRCS = mos6502/mos6502.cpp joystick_adapter.cpp audio_coprocessor.cpp gte.cpp font.cpp
+_SRCS = mos6502/mos6502.cpp joystick_adapter.cpp audio_coprocessor.cpp gte.cpp font.cpp devtools/memory_map.cpp
 SRCS = $(_SRCS:%=src/%)
 OBJS = $(SRCS:%=$O/%.o)
 NATIVE_SRCS = src/tinyfd/tinyfiledialogs.c
