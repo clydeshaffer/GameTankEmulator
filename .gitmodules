@@ -1,5 +1,5 @@
 [submodule "mos6502"]
-	path = mos6502
+	path = src/mos6502
 	url = https://github.com/clydeshaffer/mos6502.git
 [submodule "asm/CubicleKnight"]
 	path = asm/CubicleKnight

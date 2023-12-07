@@ -14,9 +14,10 @@ TAG = ""
 NIGHTLY = no
 
 #OBJS specifies which files to compile as part of the project
-SRCS = mos6502/mos6502.cpp joystick_adapter.cpp audio_coprocessor.cpp gte.cpp font.cpp
+_SRCS = mos6502/mos6502.cpp joystick_adapter.cpp audio_coprocessor.cpp gte.cpp font.cpp
+SRCS = $(_SRCS:%=src/%)
 OBJS = $(SRCS:%=$O/%.o)
-NATIVE_SRCS = tinyfd/tinyfiledialogs.c
+NATIVE_SRCS = src/tinyfd/tinyfiledialogs.c
 NATIVE_OBJS = $(NATIVE_SRCS:%=$O/%.o)
 
 #BIN_NAME specifies the name of our exectuable
@@ -44,7 +45,7 @@ ifeq ($(OS), Windows_NT)
 	SDL_ROOT = ../SDL2-2.26.2/x86_64-w64-mingw32
 
 	#INCLUDE_PATHS specifies the additional include paths we'll need
-	INCLUDE_PATHS = -I$(SDL_ROOT)/include/SDL2
+	INCLUDE_PATHS = -I/usr/include
 
 	#LIBRARY_PATHS specifies the additional library paths we'll need
 	LIBRARY_PATHS = -L$(SDL_ROOT)/lib
