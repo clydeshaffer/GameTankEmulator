@@ -35,7 +35,7 @@ ZIP_NAME = GTE_$(OS).zip
 
 WEB_SHELL = shell.html
 
-ALWAYS_INCLUDE = -Isrc/imgui -Isrc/imgui/backends -Isrc/imgui/ext/implot
+IMGUI_INCLUDES = -Isrc/imgui -Isrc/imgui/backends -Isrc/imgui/ext/implot
 
 ifeq ($(NIGHTLY), yes)
 	TAG = _$(shell date '+%Y%m%d')
@@ -56,7 +56,7 @@ ifeq ($(OS), Windows_NT)
 	SDL_ROOT = ../SDL2-2.26.2/x86_64-w64-mingw32
 
 	#INCLUDE_PATHS specifies the additional include paths we'll need
-	INCLUDE_PATHS = -I$(SDL_ROOT)/include/SDL2 $(ALWAYS_INCLUDE)
+	INCLUDE_PATHS = -I$(SDL_ROOT)/include/SDL2 $(IMGUI_INCLUDES)
 
 	#LIBRARY_PATHS specifies the additional library paths we'll need
 	LIBRARY_PATHS = -L$(SDL_ROOT)/lib
@@ -71,15 +71,17 @@ ifeq ($(OS), Windows_NT)
 	#LINKER_FLAGS specifies the libraries we're linking against
 	LINKER_FLAGS = -lmingw32 -lSDL2main -lSDL2 -Wl,-Bstatic -mwindows -lm -ldinput8 -ldxguid -ldxerr8 -luser32 -lgdi32 -lwinmm -limm32 -lcomdlg32 -lole32 -loleaut32 -lshell32 -lversion -luuid -static-libgcc -lsetupapi
 else
-	COMPILER_FLAGS = -w -std=c++17 -g -I/usr/include/SDL2 $(ALWAYS_INCLUDE)
+	COMPILER_FLAGS = -w -std=c++17 -g -I/usr/include/SDL2 $(IMGUI_INCLUDES)
 	LINKER_FLAGS = -lSDL2
 endif
 ifeq ($(OS), wasm)
 	CC = emcc
 	CPPC = emcc
-	COMPILER_FLAGS += -s USE_SDL=2 -D WASM_BUILD -D EMBED_ROM_FILE='"$(ROMFILE)"' $(ALWAYS_INCLUDE)
+	COMPILER_FLAGS += -s USE_SDL=2 -D WASM_BUILD -D EMBED_ROM_FILE='"$(ROMFILE)"'
 	BIN_NAME = index.html
 	LINKER_FLAGS += --embed-file $(ROMFILE) --shell-file web/$(WEB_SHELL) -s EXPORTED_FUNCTIONS='["_LoadRomFile", "_main", "_SetButtons"]' -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]'
+	SRCS := $(filter-out %imgui%, $(SRCS))
+	SRCS := $(filter-out %_window.cpp%, $(SRCS))
 else
 	OBJS += $(NATIVE_OBJS)
 endif

@@ -26,12 +26,15 @@
 
 #include "ui/ui_utils.h"
 #include "devtools/profiler.h"
+
+#ifndef WASM_BUILD
 #include "devtools/profiler_window.h"
 #include "devtools/mem_browser_window.h"
 #include "imgui.h"
 #include "implot.h"
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_sdlrenderer2.h"
+#endif
 
 using namespace std;
 
@@ -168,8 +171,10 @@ extern unsigned char font_map[];
 Timekeeper timekeeper;
 Profiler profiler(timekeeper);
 
+#ifndef WASM_BUILD
 ProfilerWindow* profilerWindow;
 MemBrowserWindow* memBrowserWindow;
+#endif
 
 SDL_Surface* screenSurface = NULL;
 SDL_Surface* profilerSurface = NULL;
@@ -627,10 +632,14 @@ extern "C" {
 		if(std::filesystem::exists(defaultMapFilePath)) {
 			printf("found default memory map file location %s\n", defaultMapFilePath.c_str());
 			loadedMemoryMap = new MemoryMap(defaultMapFilePath.string());
+#ifndef WASM_BUILD
 			memBrowserWindow = new MemBrowserWindow(loadedMemoryMap, MemoryReadResolve);
+#endif
 		} else {
+#ifndef WASM_BUILD
 			printf("default memory map file %s not found\n", defaultMapFilePath.c_str());
 			memBrowserWindow = new MemBrowserWindow(NULL, MemoryReadResolve);
+#endif
 		}
 
 		printf("loading %s\n", filename);
@@ -691,11 +700,13 @@ extern "C" {
 }
 
 void openProfilerWindow() {
+#ifndef WASM_BUILD
 	if(!profiler_open) {
 		profilerWindow = new ProfilerWindow(profiler);
 		profiler_open = true;
 		printf("opened profiler window\n");
 	}
+#endif
 }
 
 void openBuffersWindow() {
@@ -708,11 +719,13 @@ void openBuffersWindow() {
 }
 
 void closeProfilerWindow() {
+#ifndef WASM_BUILD
 	if(profiler_open) {
 		profiler_open = false;
 		delete profilerWindow;
 		profilerWindow = NULL;
 	}
+#endif
 }
 
 void closeBuffersWindow() {
@@ -818,7 +831,9 @@ EM_BOOL mainloop(double time, void* userdata) {
 
 		while( SDL_PollEvent( &e ) != 0 )
         {
+#ifndef WASM_BUILD
 			ImGui_ImplSDL2_ProcessEvent(&e);
+#endif
             //User requests quit
             if( e.type == SDL_QUIT )
             {
@@ -933,7 +948,7 @@ EM_BOOL mainloop(double time, void* userdata) {
 			}
         }
 
-		
+#ifndef WASM_BUILD
 		ImGui_ImplSDLRenderer2_NewFrame();
 		ImGui_ImplSDL2_NewFrame();
 		ImGui::NewFrame();
@@ -946,11 +961,8 @@ EM_BOOL mainloop(double time, void* userdata) {
 				closeProfilerWindow();
 			}
 		}
-		profiler.ResetTimers();
-
 		ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 		ImGui::Render();
-
 		ImGuiIO io = ImGui::GetIO();
 		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
 		{
@@ -962,6 +974,8 @@ EM_BOOL mainloop(double time, void* userdata) {
         SDL_RenderClear(dearImguiRenderer);
         ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData());
         SDL_RenderPresent(dearImguiRenderer);
+#endif
+		profiler.ResetTimers();
 		
 	if(!running) {
 #ifdef WASM_BUILD
@@ -1008,6 +1022,7 @@ int main(int argC, char* argV[]) {
 	SDL_Init(SDL_INIT_VIDEO);
 	atexit(SDL_Quit);
 
+#ifndef WASM_BUILD
 	IMGUI_CHECKVERSION();
     ImGui::CreateContext();
 	ImPlot::CreateContext();
@@ -1029,6 +1044,7 @@ int main(int argC, char* argV[]) {
 	}
 	ImGui_ImplSDL2_InitForSDLRenderer(dearImguiWindow, dearImguiRenderer);
 	ImGui_ImplSDLRenderer2_Init(dearImguiRenderer);
+#endif
 
 	mainWindow = SDL_CreateWindow( "GameTank Emulator", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 	screenSurface = SDL_GetWindowSurface(mainWindow);
