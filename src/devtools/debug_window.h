@@ -1,4 +1,4 @@
-
+#pragma once
 class DebugWindow {
 protected:
     bool open = true;

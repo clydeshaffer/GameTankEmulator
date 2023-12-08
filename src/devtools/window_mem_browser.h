@@ -1,4 +1,0 @@
-class WindowMemBrowser {
-    public:
-    WindowMemBrowser();
-};

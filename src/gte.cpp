@@ -27,7 +27,9 @@
 #include "ui/ui_utils.h"
 #include "devtools/profiler.h"
 #include "devtools/profiler_window.h"
+#include "devtools/mem_browser_window.h"
 #include "imgui.h"
+#include "implot.h"
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_sdlrenderer2.h"
 
@@ -167,6 +169,7 @@ Timekeeper timekeeper;
 Profiler profiler(timekeeper);
 
 ProfilerWindow* profilerWindow;
+MemBrowserWindow* memBrowserWindow;
 
 SDL_Surface* screenSurface = NULL;
 SDL_Surface* profilerSurface = NULL;
@@ -190,10 +193,6 @@ bool isFullScreen = false;
 bool profiler_open = false;
 bool buffers_open = false;
 int profiler_x_axis = 0;
-
-uint8_t prof_R[8] = {255, 255, 255, 0, 0, 128, 128, 255};
-uint8_t prof_G[8] = {0, 128, 255, 255, 0, 0, 128, 255};
-uint8_t prof_B[8] = {0, 0, 0, 0, 255, 128, 128, 255};
 
 void drawBuffersWindow() {
 	SDL_Rect src, dest;
@@ -449,7 +448,7 @@ uint8_t MemoryRead_Unknown(uint16_t address) {
 	}
 }
 
-uint8_t MemoryReadResolve(uint16_t address, bool stateful) {
+uint8_t MemoryReadResolve(const uint16_t address, bool stateful) {
 	if(address & 0x8000) {
 		switch(loadedRomType) {
 			case RomType::EEPROM8K:
@@ -628,8 +627,10 @@ extern "C" {
 		if(std::filesystem::exists(defaultMapFilePath)) {
 			printf("found default memory map file location %s\n", defaultMapFilePath.c_str());
 			loadedMemoryMap = new MemoryMap(defaultMapFilePath.string());
+			memBrowserWindow = new MemBrowserWindow(loadedMemoryMap, MemoryReadResolve);
 		} else {
 			printf("default memory map file %s not found\n", defaultMapFilePath.c_str());
+			memBrowserWindow = new MemBrowserWindow(NULL, MemoryReadResolve);
 		}
 
 		printf("loading %s\n", filename);
@@ -939,22 +940,23 @@ EM_BOOL mainloop(double time, void* userdata) {
 		if(profiler_open) {
 			
 			profilerWindow->Draw();
+			memBrowserWindow->Draw();
 			
 			if(!profilerWindow->IsOpen()) {
 				closeProfilerWindow();
 			}
 		}
 		profiler.ResetTimers();
+
+		ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 		ImGui::Render();
+
 		ImGuiIO io = ImGui::GetIO();
 		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
 		{
 			ImGui::UpdatePlatformWindows();
 			ImGui::RenderPlatformWindowsDefault();
 		}
-		
-		ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-		ImGui::Render();
         SDL_RenderSetScale(dearImguiRenderer, io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);
         SDL_SetRenderDrawColor(dearImguiRenderer, (Uint8)(clear_color.x * 255), (Uint8)(clear_color.y * 255), (Uint8)(clear_color.z * 255), (Uint8)(clear_color.w * 255));
         SDL_RenderClear(dearImguiRenderer);
@@ -1002,17 +1004,13 @@ int main(int argC, char* argV[]) {
 	soundcard = new AudioCoprocessor();
 	cpu_core = new mos6502(MemoryRead, MemoryWrite, CPUStopped);
 	cpu_core->Reset();
-
 	
 	SDL_Init(SDL_INIT_VIDEO);
 	atexit(SDL_Quit);
 
-	mainWindow = SDL_CreateWindow( "GameTank Emulator", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
-	screenSurface = SDL_GetWindowSurface(mainWindow);
-	SDL_SetColorKey(screenSurface, SDL_FALSE, 0);
-
 	IMGUI_CHECKVERSION();
     ImGui::CreateContext();
+	ImPlot::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
 	io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 	io.ConfigViewportsNoDecoration = false;
@@ -1021,7 +1019,7 @@ int main(int argC, char* argV[]) {
 	
 	dearImguiWindow = SDL_CreateWindow("",
 		SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-	 	1024, 768, 0);
+	 	1920, 1200, 0);
 	if(dearImguiWindow == NULL) {
 	std::cout << SDL_GetError() << std::endl;
 	}
@@ -1031,6 +1029,10 @@ int main(int argC, char* argV[]) {
 	}
 	ImGui_ImplSDL2_InitForSDLRenderer(dearImguiWindow, dearImguiRenderer);
 	ImGui_ImplSDLRenderer2_Init(dearImguiRenderer);
+
+	mainWindow = SDL_CreateWindow( "GameTank Emulator", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+	screenSurface = SDL_GetWindowSurface(mainWindow);
+	SDL_SetColorKey(screenSurface, SDL_FALSE, 0);
 
 	#if SDL_BYTEORDER == SDL_BIG_ENDIAN
 	    rmask = 0xff000000;

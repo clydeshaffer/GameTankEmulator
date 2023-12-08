@@ -1,4 +1,5 @@
 #include "profiler.h"
+#include <cmath>
 
 void Profiler::LogTime(uint8_t index) {
 	uint64_t delta = timekeeper.totalCyclesCount - profilingTimeStamps[index];
@@ -7,7 +8,7 @@ void Profiler::LogTime(uint8_t index) {
 	}
 	profilingTimes[index] += delta;
 	profilingCounts[index]++;
-    profilingHistory[index][history_num] = profilingTimes[index] / timekeeper.cycles_per_vsync;
+    profilingHistory[index][history_num] = std::log(profilingTimes[index]) / std::log(timekeeper.cycles_per_vsync);
 }
 
 void Profiler::ResetTimers() {

@@ -4,3 +4,6 @@
 [submodule "asm/CubicleKnight"]
 	path = asm/CubicleKnight
 	url = https://github.com/clydeshaffer/CubicleKnight.git
+[submodule "src/imgui/ext/implot"]
+	path = src/imgui/ext/implot
+	url = git@github.com:epezent/implot.git

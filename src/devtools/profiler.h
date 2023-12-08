@@ -3,7 +3,7 @@
 #include "../timekeeper.h"
 
 #define PROFILER_ENTRIES 64
-#define PROFILER_HISTORY 64
+#define PROFILER_HISTORY 256
 class Profiler {
 private:
     Timekeeper& timekeeper;

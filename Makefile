@@ -20,7 +20,7 @@ else
 endif
 
 #OBJS specifies which files to compile as part of the project
-SRCS := $(shell $(FIND) src -name "*.cpp")
+SRCS := $(filter-out %example_implot.cpp, $(shell $(FIND) src -name "*.cpp"))
 OBJS = $(SRCS:%=$O/%.o)
 NATIVE_SRCS = src/tinyfd/tinyfiledialogs.c
 NATIVE_OBJS = $(NATIVE_SRCS:%=$O/%.o)
@@ -65,7 +65,7 @@ ifeq ($(OS), Windows_NT)
 	#LINKER_FLAGS specifies the libraries we're linking against
 	LINKER_FLAGS = -lmingw32 -lSDL2main -lSDL2 -Wl,-Bstatic -mwindows -lm -ldinput8 -ldxguid -ldxerr8 -luser32 -lgdi32 -lwinmm -limm32 -lcomdlg32 -lole32 -loleaut32 -lshell32 -lversion -luuid -static-libgcc -lsetupapi
 else
-	COMPILER_FLAGS = -w -std=c++17 -g -Isrc/imgui -I/usr/include/SDL2 -Isrc/imgui/backends
+	COMPILER_FLAGS = -w -std=c++17 -g -Isrc/imgui -I/usr/include/SDL2 -Isrc/imgui/backends -Isrc/imgui/ext/implot
 	LINKER_FLAGS = -lSDL2
 endif
 ifeq ($(OS), wasm)
