@@ -14,7 +14,7 @@ uint8_t AudioCoprocessor::ram_read(uint16_t address) {
 }
 
 void AudioCoprocessor::register_write(uint16_t address, uint8_t value) {
-    printf("audio register %x written with %x\n", (address), value);
+    //printf("audio register %x written with %x\n", (address), value);
 	switch(address & 7) {
 		case ACP_RESET:
 			state.resetting = true;
