@@ -134,7 +134,7 @@ $O/%.c.o : %.c
 	$(CC) -c $< -o $@ $(INCLUDE_PATHS) $(COMPILER_FLAGS) $(DEFINES)
 
 $O/$(BIN_NAME) : $(OBJS)
-	$(CPPC) $(COMPILER_FLAGS) -o $@ $^ $(LIBRARY_PATHS) $(LINKER_FLAGS)
+	$(CPPC) $(COMPILER_FLAGS) -o $@ $^ $(LIBRARY_PATHS) $(LINKER_FLAGS) -std=c++17
 
 clean:
 	rm -rf $O

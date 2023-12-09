@@ -469,7 +469,7 @@ uint8_t MemoryReadResolve(const uint16_t address, bool stateful) {
 		return VDMA_Read(address);
 	} else if((address >= 0x3000) && (address <= 0x3FFF)) {
 		return soundcard->ram_read(address);
-	} else if((address & 0x2800) == address) {
+	} else if((address >= 0x2800) && (address <= 0x2FFF)) {
 		return VIA_regs[address & 0xF];
 	} else if(address < 0x2000) {
 		if(stateful) {
