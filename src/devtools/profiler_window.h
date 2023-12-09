@@ -5,7 +5,7 @@
 class ProfilerWindow : public DebugWindow {
 private:
     Profiler& _profiler;
+    void Render();
 public:
     ProfilerWindow(Profiler& profiler): _profiler(profiler) {};
-    void Draw();
 };

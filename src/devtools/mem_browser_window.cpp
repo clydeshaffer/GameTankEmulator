@@ -6,7 +6,7 @@ static const char* headers[16] = {
     " 8", " 9", " A", " B", " C", " D", " E", " F"
 };
 
-void MemBrowserWindow::Draw() {
+void MemBrowserWindow::Render() {
     ImGui::Begin("Mem Browser", NULL, ImGuiWindowFlags_None);
     ImGui::SetWindowFontScale(2);
     if(ImGui::BeginTable("memtable",16, 0, ImVec2(800, 400))) {

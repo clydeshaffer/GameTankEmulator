@@ -6,7 +6,7 @@ static float prof_R[8] = {1, 1, 1, 0, 0, 0.5f, 0.5f, 1};
 static float prof_G[8] = {0, 0.5f, 1, 1, 0, 0, 0.5f, 1};
 static float prof_B[8] = {0, 0, 0, 0, 1, 0.5f, 0.5f, 1};
 
-void ProfilerWindow::Draw() {
+void ProfilerWindow::Render() {
     ImGui::Begin("Profiler", NULL, ImGuiWindowFlags_None);
     ImGui::Text("FPS: %d", _profiler.fps);
     

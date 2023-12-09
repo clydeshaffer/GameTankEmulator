@@ -478,7 +478,7 @@ uint8_t MemoryReadResolve(const uint16_t address, bool stateful) {
 			}
 		}
 		return ram_buffer[FULL_RAM_ADDRESS(address & 0x1FFF)];
-	} else if(address == 0x2008 || address == 0x2009) {
+	} else if((address == 0x2008) || (address == 0x2009)) {
 		return joysticks->read((uint8_t) address, stateful);
 	}
 	printf("Attempted to read write-only device, may be unintended? %x\n", address);
