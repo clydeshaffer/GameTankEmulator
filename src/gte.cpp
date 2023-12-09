@@ -694,7 +694,7 @@ void openProfilerWindow() {
 #ifndef WASM_BUILD
 	if(!profiler_open) {
 		profilerWindow = new ProfilerWindow(profiler);
-		memBrowserWindow = new MemBrowserWindow(NULL, MemoryReadResolve);
+		memBrowserWindow = new MemBrowserWindow(loadedMemoryMap, MemoryReadResolve);
 		profiler_open = true;
 		printf("opened profiler window\n");
 	}

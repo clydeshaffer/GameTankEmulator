@@ -19,4 +19,6 @@ class MemoryMap {
         MemoryMap();
         MemoryMap(const std::string& mapfile);
         void forEach(const std::function<void(const Symbol&)>& func) const;
+        int GetCount();
+        Symbol& GetAt(int i);
 };
