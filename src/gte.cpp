@@ -825,9 +825,10 @@ EM_BOOL mainloop(double time, void* userdata) {
 
 		while( SDL_PollEvent( &e ) != 0 )
         {
+#ifndef WASM
 			if(profilerWindow) profilerWindow->HandleEvent(e);
 			if(memBrowserWindow) memBrowserWindow->HandleEvent(e);
-
+#endif
             //User requests quit
             if( e.type == SDL_QUIT )
             {
