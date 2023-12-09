@@ -32,8 +32,6 @@
 #include "devtools/mem_browser_window.h"
 #include "imgui.h"
 #include "implot.h"
-#include "imgui_impl_sdl2.h"
-#include "imgui_impl_sdlrenderer2.h"
 #endif
 
 using namespace std;
@@ -189,9 +187,6 @@ JoystickAdapter *joysticks;
 SDL_Window* mainWindow = NULL;
 SDL_Window* buffers_window = NULL;
 Uint32 rmask, gmask, bmask, amask;
-
-SDL_Window* dearImguiWindow;
-SDL_Renderer* dearImguiRenderer;
 
 bool isFullScreen = false;
 
@@ -481,7 +476,9 @@ uint8_t MemoryReadResolve(const uint16_t address, bool stateful) {
 	} else if((address == 0x2008) || (address == 0x2009)) {
 		return joysticks->read((uint8_t) address, stateful);
 	}
-	printf("Attempted to read write-only device, may be unintended? %x\n", address);
+	if(stateful) {
+		printf("Attempted to read write-only device, may be unintended? %x\n", address);
+	}
 	return open_bus();
 }
 
@@ -632,14 +629,8 @@ extern "C" {
 		if(std::filesystem::exists(defaultMapFilePath)) {
 			printf("found default memory map file location %s\n", defaultMapFilePath.c_str());
 			loadedMemoryMap = new MemoryMap(defaultMapFilePath.string());
-#ifndef WASM_BUILD
-			memBrowserWindow = new MemBrowserWindow(loadedMemoryMap, MemoryReadResolve);
-#endif
 		} else {
-#ifndef WASM_BUILD
 			printf("default memory map file %s not found\n", defaultMapFilePath.c_str());
-			memBrowserWindow = new MemBrowserWindow(NULL, MemoryReadResolve);
-#endif
 		}
 
 		printf("loading %s\n", filename);
@@ -703,6 +694,7 @@ void openProfilerWindow() {
 #ifndef WASM_BUILD
 	if(!profiler_open) {
 		profilerWindow = new ProfilerWindow(profiler);
+		memBrowserWindow = new MemBrowserWindow(NULL, MemoryReadResolve);
 		profiler_open = true;
 		printf("opened profiler window\n");
 	}
@@ -723,7 +715,9 @@ void closeProfilerWindow() {
 	if(profiler_open) {
 		profiler_open = false;
 		delete profilerWindow;
+		delete memBrowserWindow;
 		profilerWindow = NULL;
+		memBrowserWindow = NULL;
 	}
 #endif
 }
@@ -831,9 +825,9 @@ EM_BOOL mainloop(double time, void* userdata) {
 
 		while( SDL_PollEvent( &e ) != 0 )
         {
-#ifndef WASM_BUILD
-			ImGui_ImplSDL2_ProcessEvent(&e);
-#endif
+			if(profilerWindow) profilerWindow->HandleEvent(e);
+			if(memBrowserWindow) memBrowserWindow->HandleEvent(e);
+
             //User requests quit
             if( e.type == SDL_QUIT )
             {
@@ -949,9 +943,6 @@ EM_BOOL mainloop(double time, void* userdata) {
         }
 
 #ifndef WASM_BUILD
-		ImGui_ImplSDLRenderer2_NewFrame();
-		ImGui_ImplSDL2_NewFrame();
-		ImGui::NewFrame();
 		if(profiler_open) {
 			
 			profilerWindow->Draw();
@@ -961,19 +952,6 @@ EM_BOOL mainloop(double time, void* userdata) {
 				closeProfilerWindow();
 			}
 		}
-		ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-		ImGui::Render();
-		ImGuiIO io = ImGui::GetIO();
-		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-		{
-			ImGui::UpdatePlatformWindows();
-			ImGui::RenderPlatformWindowsDefault();
-		}
-        SDL_RenderSetScale(dearImguiRenderer, io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);
-        SDL_SetRenderDrawColor(dearImguiRenderer, (Uint8)(clear_color.x * 255), (Uint8)(clear_color.y * 255), (Uint8)(clear_color.z * 255), (Uint8)(clear_color.w * 255));
-        SDL_RenderClear(dearImguiRenderer);
-        ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData());
-        SDL_RenderPresent(dearImguiRenderer);
 #endif
 		profiler.ResetTimers();
 		
@@ -1021,30 +999,6 @@ int main(int argC, char* argV[]) {
 	
 	SDL_Init(SDL_INIT_VIDEO);
 	atexit(SDL_Quit);
-
-#ifndef WASM_BUILD
-	IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-	ImPlot::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
-	io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
-	io.ConfigViewportsNoDecoration = false;
-	io.ConfigViewportsNoAutoMerge = true;
-	ImGui::StyleColorsDark();
-	
-	dearImguiWindow = SDL_CreateWindow("",
-		SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-	 	1920, 1200, 0);
-	if(dearImguiWindow == NULL) {
-	std::cout << SDL_GetError() << std::endl;
-	}
-	dearImguiRenderer = SDL_CreateRenderer(dearImguiWindow, -1, SDL_RENDERER_SOFTWARE);
-	if(dearImguiRenderer == NULL) {
-		std::cout << SDL_GetError() << std::endl;
-	}
-	ImGui_ImplSDL2_InitForSDLRenderer(dearImguiWindow, dearImguiRenderer);
-	ImGui_ImplSDLRenderer2_Init(dearImguiRenderer);
-#endif
 
 	mainWindow = SDL_CreateWindow( "GameTank Emulator", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 	screenSurface = SDL_GetWindowSurface(mainWindow);

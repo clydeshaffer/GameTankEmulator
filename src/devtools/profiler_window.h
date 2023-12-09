@@ -5,7 +5,7 @@
 class ProfilerWindow : public DebugWindow {
 private:
     Profiler& _profiler;
-    void Render();
+    ImVec2 Render();
 public:
     ProfilerWindow(Profiler& profiler): _profiler(profiler) {};
 };

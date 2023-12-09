@@ -6,12 +6,13 @@ static float prof_R[8] = {1, 1, 1, 0, 0, 0.5f, 0.5f, 1};
 static float prof_G[8] = {0, 0.5f, 1, 1, 0, 0, 0.5f, 1};
 static float prof_B[8] = {0, 0, 0, 0, 1, 0.5f, 0.5f, 1};
 
-void ProfilerWindow::Render() {
-    ImGui::Begin("Profiler", NULL, ImGuiWindowFlags_None);
+ImVec2 ProfilerWindow::Render() {
+
+    ImVec2 sizeOut = {0, 0};
+
+    ImGui::Begin("Profiler", NULL, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar);
     ImGui::Text("FPS: %d", _profiler.fps);
     
-
-     
     if(ImPlot::BeginPlot("Timer history")) {
         ImPlot::SetupAxes("", "");
         ImPlot::SetupAxesLimits(0,256, 0, 2, ImPlotCond_Always);
@@ -29,7 +30,11 @@ void ProfilerWindow::Render() {
             "Timer %02d: %ld / %ld", i, _profiler.profilingTimes[i], _profiler.profilingCounts[i]);
         }
     }
+
     ImGui::EndChild();
-    
+    ImGui::SetWindowPos({0, 0});
+    ImGui::SetWindowSize({640,480});
+    sizeOut = ImVec2(640, 480);
     ImGui::End();
+    return sizeOut;
 }
