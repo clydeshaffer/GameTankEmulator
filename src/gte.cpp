@@ -825,7 +825,7 @@ EM_BOOL mainloop(double time, void* userdata) {
 
 		while( SDL_PollEvent( &e ) != 0 )
         {
-#ifndef WASM
+#ifndef WASM_BUILD
 			if(profilerWindow) profilerWindow->HandleEvent(e);
 			if(memBrowserWindow) memBrowserWindow->HandleEvent(e);
 #endif
