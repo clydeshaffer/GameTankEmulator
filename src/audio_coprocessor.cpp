@@ -116,7 +116,6 @@ AudioCoprocessor::AudioCoprocessor() {
     state.irqRate = 0;
     state.resetting = false;
     state.running = false;
-    state.dacReg;
     state.clksPerHostSample = 315000000 / (88 * 44100);
     state.cycles_per_sample = 1024;
     state.last_irq_cycles = 0;
@@ -156,7 +155,7 @@ AudioCoprocessor::AudioCoprocessor() {
 	return;
 }
 
-void AudioCoprocessor::dump_ram(char* filename) {
+void AudioCoprocessor::dump_ram(const char* filename) {
     ofstream dumpfile (filename, ios::out | ios::binary);
     dumpfile.write((char*) state.ram, 4096);
     dumpfile.close();

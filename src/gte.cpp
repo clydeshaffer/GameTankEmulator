@@ -76,7 +76,7 @@ uint8_t ram_buffer[RAMSIZE];
 uint8_t cart_ram_buffer[CARTRAMSIZE];
 bool using_battery_cart;
 
-char* lTheOpenFileName = NULL;
+const char* lTheOpenFileName = NULL;
 MemoryMap* loadedMemoryMap;
 std::string filenameNoPath;
 std::string nvramFileFullPath;
@@ -467,9 +467,9 @@ uint8_t MemoryReadResolve(const uint16_t address, bool stateful) {
 		}
 	} else if(address & 0x4000) {
 		return VDMA_Read(address);
-	} else if(address >= 0x3000 && address <= 0x3FFF) {
+	} else if((address >= 0x3000) && (address <= 0x3FFF)) {
 		return soundcard->ram_read(address);
-	} else if(address & 0x2800 == address) {
+	} else if((address & 0x2800) == address) {
 		return VIA_regs[address & 0xF];
 	} else if(address < 0x2000) {
 		if(stateful) {
@@ -600,7 +600,7 @@ void CPUStopped() {
 #endif
 }
 
-char * open_rom_dialog() {
+const char * open_rom_dialog() {
 	char const * lFilterPatterns[1] = {"*.gtr"};
 #ifdef TINYFILEDIALOGS_H
 	return tinyfd_openFileDialog(
@@ -668,7 +668,7 @@ extern "C" {
 			break;
 			default:
 			loadedRomType = RomType::UNKNOWN;
-			printf("Unknown ROM type: Size is %d bytes\n");
+			printf("Unknown ROM type: Size is %d bytes\n", ROMSIZE);
 			break;
 		}
 		fread(rom_buffer, sizeof(uint8_t), ROMSIZE, romFileP);

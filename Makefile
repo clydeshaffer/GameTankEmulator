@@ -62,16 +62,15 @@ ifeq ($(OS), Windows_NT)
 	LIBRARY_PATHS = -L$(SDL_ROOT)/lib
 
 	#COMPILER_FLAGS specifies the additional compilation options we're using
-	# -w suppresses all warnings
 	# -Wl,-subsystem,windows gets rid of the console window
 	# change subsystem,windows to subsystem,console to get printfs on command line
-	COMPILER_FLAGS = -w -Wl,-subsystem,windows -std=c++17
+	COMPILER_FLAGS = -Wl,-subsystem,windows
 	DEFINES = -D _WIN32
 
 	#LINKER_FLAGS specifies the libraries we're linking against
 	LINKER_FLAGS = -lmingw32 -lSDL2main -lSDL2 -Wl,-Bstatic -mwindows -lm -ldinput8 -ldxguid -ldxerr8 -luser32 -lgdi32 -lwinmm -limm32 -lcomdlg32 -lole32 -loleaut32 -lshell32 -lversion -luuid -static-libgcc -lsetupapi
 else
-	COMPILER_FLAGS = -w -std=c++17 -g -I/usr/include/SDL2 $(IMGUI_INCLUDES)
+	COMPILER_FLAGS = -g -I/usr/include/SDL2 $(IMGUI_INCLUDES)
 	LINKER_FLAGS = -lSDL2
 endif
 ifeq ($(OS), wasm)
@@ -128,7 +127,7 @@ commit_hash.txt :
 
 $O/%.cpp.o : %.cpp
 	@mkdir -p $(@D)
-	$(CPPC) -c $< -o $@ $(INCLUDE_PATHS) $(COMPILER_FLAGS) $(DEFINES)
+	$(CPPC) -c $< -o $@ $(INCLUDE_PATHS) $(COMPILER_FLAGS) $(DEFINES) -std=c++17
 
 $O/%.c.o : %.c
 	@mkdir -p $(@D)

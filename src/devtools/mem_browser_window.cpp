@@ -1,7 +1,7 @@
 #include "imgui.h"
 #include "mem_browser_window.h"
 
-static char* headers[16] = {
+static const char* headers[16] = {
     " 0", " 1", " 2", " 3", " 4", " 5", " 6", " 7",
     " 8", " 9", " A", " B", " C", " D", " E", " F"
 };
