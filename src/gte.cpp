@@ -581,7 +581,7 @@ uint8_t MemoryReadResolve(uint16_t address, bool stateful) {
 }
 
 uint8_t MemoryRead(uint16_t address) {
-	MemoryReadResolve(address, true);
+	return MemoryReadResolve(address, true);
 }
 
 void MemoryWrite(uint16_t address, uint8_t value) {
