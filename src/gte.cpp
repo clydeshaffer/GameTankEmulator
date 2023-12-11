@@ -963,10 +963,12 @@ EM_BOOL mainloop(double time, void* userdata) {
 	if(!running) {
 #ifdef WASM_BUILD
 		emscripten_cancel_main_loop();
-#endif
-		printf("Finished running\n");
+#else
 		if(profilerWindow) delete(profilerWindow);
 		if(memBrowserWindow) delete(memBrowserWindow);
+#endif
+		printf("Finished running\n");
+		
 		SDL_DestroyWindow(mainWindow);
 		SDL_Quit();
 	}
