@@ -961,6 +961,8 @@ EM_BOOL mainloop(double time, void* userdata) {
 		emscripten_cancel_main_loop();
 #endif
 		printf("Finished running\n");
+		if(profilerWindow) delete(profilerWindow);
+		if(memBrowserWindow) delete(memBrowserWindow);
 		SDL_DestroyWindow(mainWindow);
 		SDL_Quit();
 	}
