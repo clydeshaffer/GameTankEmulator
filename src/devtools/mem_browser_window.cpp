@@ -96,8 +96,8 @@ ImVec2 MemBrowserWindow::Render() {
     
     ImGui::EndTabBar();
     ImGui::SetWindowPos({0, 0});
-    ImGui::SetWindowSize({0, 800});
-    sizeOut = ImGui::GetItemRectSize();
+    ImGui::SetWindowSize({432, 800});
+    sizeOut.x = 432;
     sizeOut.y = 800;
     ImGui::End();
     return sizeOut;
