@@ -18,9 +18,21 @@
 #include "audio_coprocessor.h"
 #include "gametank_palette.h"
 
+#include "timekeeper.h"
+
 #include "mos6502/mos6502.h"
 
 #include "devtools/memory_map.h"
+
+#include "ui/ui_utils.h"
+#include "devtools/profiler.h"
+
+#ifndef WASM_BUILD
+#include "devtools/profiler_window.h"
+#include "devtools/mem_browser_window.h"
+#include "imgui.h"
+#include "implot.h"
+#endif
 
 using namespace std;
 
@@ -62,7 +74,7 @@ uint8_t ram_buffer[RAMSIZE];
 uint8_t cart_ram_buffer[CARTRAMSIZE];
 bool using_battery_cart;
 
-char* lTheOpenFileName = NULL;
+const char* lTheOpenFileName = NULL;
 MemoryMap* loadedMemoryMap;
 std::string filenameNoPath;
 std::string nvramFileFullPath;
@@ -154,7 +166,14 @@ uint8_t dma_params[DMA_PARAMS_COUNT];
 
 extern unsigned char font_map[];
 
-SDL_Surface* bmpFont = NULL;
+Timekeeper timekeeper;
+Profiler profiler(timekeeper);
+
+#ifndef WASM_BUILD
+ProfilerWindow* profilerWindow;
+MemBrowserWindow* memBrowserWindow;
+#endif
+
 SDL_Surface* screenSurface = NULL;
 SDL_Surface* profilerSurface = NULL;
 SDL_Surface* buffersWindowSurface = NULL;
@@ -165,132 +184,15 @@ mos6502 *cpu_core;
 AudioCoprocessor *soundcard;
 JoystickAdapter *joysticks;
 
-#define PROFILER_ENTRIES 64
-uint8_t bufferFlipCount = 0;
-uint64_t totalCyclesCount = 0;
-uint64_t profilingTimeStamps[PROFILER_ENTRIES];
-uint64_t profilingTimes[PROFILER_ENTRIES];
-uint64_t profilingCounts[PROFILER_ENTRIES];
-int fps = 60;
-
-#define BMP_CHAR_SIZE 8
-
-#define INITIAL_TIME_SCALING 1000
-#define INITIAL_SCALING_INCREMENT 100
-
-SDL_Window* window = NULL;
-SDL_Window* profiler_window = NULL;
+SDL_Window* mainWindow = NULL;
 SDL_Window* buffers_window = NULL;
 Uint32 rmask, gmask, bmask, amask;
-uint64_t system_clock = 315000000/88;
-uint64_t actual_cycles = 0;
-uint64_t cycles_since_vsync = 0;
-uint64_t cycles_per_vsync = system_clock / 60;
-double time_scaling = INITIAL_TIME_SCALING;
-double scaling_increment = INITIAL_SCALING_INCREMENT;
-uint32_t lastTicks = 0, currentTicks;
-uint8_t frameCount = 0;
-bool prev_overlong = false;
-int zeroConsec = 0;
+
 bool isFullScreen = false;
-
-void drawText(SDL_Surface* surface, SDL_Rect* area, char* text) {
-	SDL_Rect cursor_rect, char_rect;
-	cursor_rect.x = area->x;
-	cursor_rect.y = area->y;
-	cursor_rect.w = BMP_CHAR_SIZE;
-	cursor_rect.h = BMP_CHAR_SIZE;
-
-	char_rect.w = BMP_CHAR_SIZE;
-	char_rect.h = BMP_CHAR_SIZE;
-
-	while((*text != 0) && (cursor_rect.y < (area->y + area->h))) {
-		if(*text == '\n' || ((cursor_rect.x + cursor_rect.w) > area->w)) {
-			cursor_rect.x = area->x;
-			cursor_rect.y += BMP_CHAR_SIZE;
-		} else {
-			char_rect.x = ((*text) & 0x0F) << 3;
-			char_rect.y = ((*text) & 0xF0) >> 1;
-			SDL_BlitSurface(bmpFont, &char_rect, surface, &cursor_rect);
-			cursor_rect.x += BMP_CHAR_SIZE;
-		}
-		++text;
-	}
-}
 
 bool profiler_open = false;
 bool buffers_open = false;
 int profiler_x_axis = 0;
-
-uint8_t prof_R[8] = {255, 255, 255, 0, 0, 128, 128, 255};
-uint8_t prof_G[8] = {0, 128, 255, 255, 0, 0, 128, 255};
-uint8_t prof_B[8] = {0, 0, 0, 0, 255, 128, 128, 255};
-
-
-void drawProfilingWindow() {
-	SDL_Rect profilerArea, graphRect;
-	profilerArea.x = 0;
-	profilerArea.y = 0;
-	profilerArea.w = PROFILER_WIDTH;
-	profilerArea.h = BMP_CHAR_SIZE;
-
-	graphRect.x = profiler_x_axis;
-	graphRect.y = 0;
-	graphRect.w = 1;
-	graphRect.h = PROFILER_HEIGHT;
-
-	char buf[64];
-
-	SDL_FillRect(profilerSurface, &graphRect, SDL_MapRGB(profilerSurface->format, 0, 0, 0));
-	graphRect.h = 1;
-	graphRect.y = PROFILER_HEIGHT - 128;
-	SDL_FillRect(profilerSurface, &graphRect, SDL_MapRGB(profilerSurface->format, 32, 32, 32));
-	
-	sprintf(buf,"FPS: %d\n", fps);
-	SDL_FillRect(profilerSurface, &profilerArea, SDL_MapRGB(profilerSurface->format, 0, 0, 0));
-	drawText(profilerSurface, &profilerArea, buf);
-	profilerArea.y += BMP_CHAR_SIZE;
-
-	sprintf(buf,"ACP: %4d / 1024\n", soundcard->get_irq_cycle_count());
-	SDL_FillRect(profilerSurface, &profilerArea, SDL_MapRGB(profilerSurface->format, 0, 0, 0));
-	drawText(profilerSurface, &profilerArea, buf);
-	profilerArea.y += BMP_CHAR_SIZE;
-
-	for(int i = 0; i < PROFILER_ENTRIES; ++i) {
-		Uint32 id_col = SDL_MapRGB(profilerSurface->format, prof_R[i % 8], prof_G[i % 8], prof_B[i % 8]);
-		if(profilingTimes[i] != 0) {
-			sprintf(buf,"Timer %d: %04llu - %llu\n", i, profilingCounts[i], profilingTimes[i]);
-			profilerArea.x = 0;
-			profilerArea.w = 2;
-			SDL_FillRect(profilerSurface, &profilerArea, id_col);
-			profilerArea.x = 4;
-			profilerArea.w = PROFILER_WIDTH-4;
-			SDL_FillRect(profilerSurface, &profilerArea, SDL_MapRGB(profilerSurface->format, 0, 0, 0));
-			drawText(profilerSurface, &profilerArea, buf);
-
-			if(profilingTimes[i] < 100000) {
-				graphRect.y = PROFILER_HEIGHT - (profilingTimes[i] >> 9);
-			} else {
-				graphRect.y = 128;
-			}
-			SDL_FillRect(profilerSurface, &graphRect, id_col);
-		}
-		profilerArea.y += BMP_CHAR_SIZE;
-		profilingTimes[i] = 0;
-		profilingCounts[i] = 0;
-	}
-	
-	profiler_x_axis = (profiler_x_axis + 1) % PROFILER_WIDTH;
-}
-
-void reportProfileTime(uint8_t index) {
-	uint64_t delta = totalCyclesCount - profilingTimeStamps[index];
-	if(delta > system_clock) {
-		printf("Timer %d took longer than one second: %llu cycles.\n", index, delta);
-	}
-	profilingTimes[index] += delta;
-	profilingCounts[index]++;
-}
 
 void drawBuffersWindow() {
 	SDL_Rect src, dest;
@@ -358,15 +260,13 @@ void refreshScreen() {
 	src.y = (dma_control_reg & DMA_VID_OUT_PAGE_BIT) ? GT_HEIGHT : 0;
 	src.w = GT_WIDTH;
 	src.h = GT_HEIGHT;
-	SDL_GetWindowSize(window, &scr_w, &scr_h);
+	SDL_GetWindowSize(mainWindow, &scr_w, &scr_h);
 	dest.w = min(scr_w, scr_h);
 	dest.h = dest.w;
 	dest.x = (scr_w - dest.w) / 2;
 	dest.y = (scr_h - dest.h) / 2;
 	SDL_BlitScaled(vRAM_Surface, &src, screenSurface, &dest);
-	if(profiler_open) {
-		drawProfilingWindow();
-	}
+
 	if(buffers_open) {
 		drawBuffersWindow();
 	}
@@ -539,7 +439,7 @@ uint8_t MemoryRead_Flash2M(uint16_t address) {
 
 uint8_t MemoryRead_Unknown(uint16_t address) {
 	//If ROMSIZE is smaller than unbanked ROM range, align end with 0xFFFF and wrap
-	//If ROMSIZE is bigger than unbanked ROM range, access window at end of file.
+	//If ROMSIZE is bigger than unbanked ROM range, access mainWindow at end of file.
 	//TODO: Decide if unknown ROM type should just terminate emulator :P
 	if(ROMSIZE <= 32768) {
 		return rom_buffer[((address & 0x7FFF) + 32768 - ROMSIZE) % ROMSIZE];
@@ -548,7 +448,7 @@ uint8_t MemoryRead_Unknown(uint16_t address) {
 	}
 }
 
-uint8_t MemoryReadResolve(uint16_t address, bool stateful) {
+uint8_t MemoryReadResolve(const uint16_t address, bool stateful) {
 	if(address & 0x8000) {
 		switch(loadedRomType) {
 			case RomType::EEPROM8K:
@@ -562,9 +462,9 @@ uint8_t MemoryReadResolve(uint16_t address, bool stateful) {
 		}
 	} else if(address & 0x4000) {
 		return VDMA_Read(address);
-	} else if(address >= 0x3000 && address <= 0x3FFF) {
+	} else if((address >= 0x3000) && (address <= 0x3FFF)) {
 		return soundcard->ram_read(address);
-	} else if(address & 0x2800 == address) {
+	} else if((address >= 0x2800) && (address <= 0x2FFF)) {
 		return VIA_regs[address & 0xF];
 	} else if(address < 0x2000) {
 		if(stateful) {
@@ -573,10 +473,12 @@ uint8_t MemoryReadResolve(uint16_t address, bool stateful) {
 			}
 		}
 		return ram_buffer[FULL_RAM_ADDRESS(address & 0x1FFF)];
-	} else if(address == 0x2008 || address == 0x2009) {
+	} else if((address == 0x2008) || (address == 0x2009)) {
 		return joysticks->read((uint8_t) address, stateful);
 	}
-	printf("Attempted to read write-only device, may be unintended? %x\n", address);
+	if(stateful) {
+		printf("Attempted to read write-only device, may be unintended? %x\n", address);
+	}
 	return open_bus();
 }
 
@@ -609,10 +511,10 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 					//falling edge of high bit of ORB
 					if(value & 0x40) {
 						//report duration
-						reportProfileTime(value & 0x3F);
+						profiler.LogTime(value & 0x3F);
 					} else {
 						//store timestamp
-						profilingTimeStamps[value & 0x3F] = totalCyclesCount;
+						profiler.profilingTimeStamps[value & 0x3F] = timekeeper.totalCyclesCount;
 					}
 				}
 			}
@@ -620,7 +522,7 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 		} else {
 			if((address & 0x000F) == 0x0007) {
 				if((value & DMA_VID_OUT_PAGE_BIT) != (dma_control_reg & DMA_VID_OUT_PAGE_BIT)) {
-					bufferFlipCount++;
+					profiler.bufferFlipCount++;
 				}
 				dma_control_reg = value;
 				if(dma_control_reg & DMA_TRANSPARENCY_BIT) {
@@ -695,7 +597,7 @@ void CPUStopped() {
 #endif
 }
 
-char * open_rom_dialog() {
+const char * open_rom_dialog() {
 	char const * lFilterPatterns[1] = {"*.gtr"};
 #ifdef TINYFILEDIALOGS_H
 	return tinyfd_openFileDialog(
@@ -757,7 +659,7 @@ extern "C" {
 			break;
 			default:
 			loadedRomType = RomType::UNKNOWN;
-			printf("Unknown ROM type: Size is %d bytes\n");
+			printf("Unknown ROM type: Size is %d bytes\n", ROMSIZE);
 			break;
 		}
 		fread(rom_buffer, sizeof(uint8_t), ROMSIZE, romFileP);
@@ -789,12 +691,14 @@ extern "C" {
 }
 
 void openProfilerWindow() {
+#ifndef WASM_BUILD
 	if(!profiler_open) {
-		profiler_window = SDL_CreateWindow( "GameTank Profiler", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, PROFILER_WIDTH, PROFILER_HEIGHT, SDL_WINDOW_SHOWN );
-		profilerSurface = SDL_GetWindowSurface(profiler_window);
-		SDL_SetColorKey(profilerSurface, SDL_FALSE, 0);
+		profilerWindow = new ProfilerWindow(profiler);
+		memBrowserWindow = new MemBrowserWindow(loadedMemoryMap, MemoryReadResolve);
 		profiler_open = true;
+		printf("opened profiler window\n");
 	}
+#endif
 }
 
 void openBuffersWindow() {
@@ -807,11 +711,15 @@ void openBuffersWindow() {
 }
 
 void closeProfilerWindow() {
+#ifndef WASM_BUILD
 	if(profiler_open) {
 		profiler_open = false;
-		SDL_DestroyWindow(profiler_window);
-		profilerSurface = NULL;
+		delete profilerWindow;
+		delete memBrowserWindow;
+		profilerWindow = NULL;
+		memBrowserWindow = NULL;
 	}
+#endif
 }
 
 void closeBuffersWindow() {
@@ -830,76 +738,77 @@ char titlebuf[256];
 uint64_t total_frames_ever = 0;
 int32_t intended_cycles = 0;
 EM_BOOL mainloop(double time, void* userdata) {
+
 	if(!paused) {
-			actual_cycles = totalCyclesCount;
+			timekeeper.actual_cycles = timekeeper.totalCyclesCount;
 #ifndef WASM_BUILD
-			intended_cycles = cycles_per_vsync;
-			cpu_core->Run(cycles_per_vsync, totalCyclesCount);
+			intended_cycles = timekeeper.cycles_per_vsync;
+			cpu_core->Run(timekeeper.cycles_per_vsync, timekeeper.totalCyclesCount);
 #else
 			++total_frames_ever;
 			double average_per_frame = time / ((double) total_frames_ever);
-			intended_cycles = cycles_per_vsync * average_per_frame * 0.06;
-			cpu_core->Run(intended_cycles, totalCyclesCount);
+			intended_cycles = timekeeper.cycles_per_vsync * average_per_frame * 0.06;
+			cpu_core->Run(intended_cycles, timekeeper.totalCyclesCount);
 #endif
-			actual_cycles = totalCyclesCount - actual_cycles;
+			timekeeper.actual_cycles = timekeeper.totalCyclesCount - timekeeper.actual_cycles;
 			if(cpu_core->illegalOpcode) {
 				printf("Hit illegal opcode %x\npc = %x\n", cpu_core->illegalOpcodeSrc, cpu_core->pc);
 				paused = true;
-			} else if(actual_cycles == 0) {
-				zeroConsec++;
-				if(zeroConsec == 10) {
+			} else if(timekeeper.actual_cycles == 0) {
+				profiler.zeroConsec++;
+				if(profiler.zeroConsec == 10) {
 					printf("(Got stuck at 0x%x)\n", cpu_core->pc);
 					paused = true;
 				}
-				totalCyclesCount += intended_cycles;
+				timekeeper.totalCyclesCount += intended_cycles;
 			} else {
-				zeroConsec = 0;
+				profiler.zeroConsec = 0;
 			}
 
 #ifndef WASM_BUILD
 			if(!gofast) {
-				SDL_Delay(time_scaling * actual_cycles/system_clock);
+				SDL_Delay(timekeeper.time_scaling * timekeeper.actual_cycles/timekeeper.system_clock);
 			} else {
-				lastTicks = 0;
+				timekeeper.lastTicks = 0;
 			}
-			currentTicks = SDL_GetTicks();
-			if(lastTicks != 0) {
-				int time_error = (currentTicks - lastTicks) - (1000 * actual_cycles/system_clock);
-				if(frameCount == 100) {
-					sprintf(titlebuf, "GameTank Emulator | %s | s: %.1f inc: %.1f err: %d\n", filenameNoPath.c_str(), time_scaling, scaling_increment, time_error);
-					SDL_SetWindowTitle(window, titlebuf);
-					fps = bufferFlipCount * 60 / 100;
-					frameCount = 0;
-					bufferFlipCount = 0;
+			timekeeper.currentTicks = SDL_GetTicks();
+			if(timekeeper.lastTicks != 0) {
+				int time_error = (timekeeper.currentTicks - timekeeper.lastTicks) - (1000 * timekeeper.actual_cycles/timekeeper.system_clock);
+				if(timekeeper.frameCount == 100) {
+					sprintf(titlebuf, "GameTank Emulator | %s | s: %.1f inc: %.1f err: %d\n", filenameNoPath.c_str(), timekeeper.time_scaling, timekeeper.scaling_increment, time_error);
+					SDL_SetWindowTitle(mainWindow, titlebuf);
+					profiler.fps = profiler.bufferFlipCount * 60 / 100;
+					timekeeper.frameCount = 0;
+					profiler.bufferFlipCount = 0;
 				}
 				bool overlong = time_error > 0;
-				if(overlong == prev_overlong) {
+				if(overlong == timekeeper.prev_overlong) {
 					//scaling_increment = 1;
-				} else if(scaling_increment > 1) {
-					scaling_increment -= 1;
+				} else if(timekeeper.scaling_increment > 1) {
+					timekeeper.scaling_increment -= 1;
 				}
-				if((scaling_increment > 1) || (abs(time_error) > 2)) {
+				if((timekeeper.scaling_increment > 1) || (abs(time_error) > 2)) {
 					if(overlong) {
-						time_scaling -= scaling_increment;
+						timekeeper.time_scaling -= timekeeper.scaling_increment;
 					} else {
-						time_scaling += scaling_increment;
+						timekeeper.time_scaling += timekeeper.scaling_increment;
 					}
 				}
-				prev_overlong = overlong;
+				timekeeper.prev_overlong = overlong;
 
-				if(time_scaling < 100) {
-					time_scaling = 100;
-				} else if(time_scaling > 2000) {
-					time_scaling = 2000;
+				if(timekeeper.time_scaling < 100) {
+					timekeeper.time_scaling = 100;
+				} else if(timekeeper.time_scaling > 2000) {
+					timekeeper.time_scaling = 2000;
 				}
 			}
-			lastTicks = currentTicks;
+			timekeeper.lastTicks = timekeeper.currentTicks;
 
-			frameCount++;
+			timekeeper.frameCount++;
 #endif
-			cycles_since_vsync += intended_cycles;
-			if(cycles_since_vsync >= cycles_per_vsync) {
-				cycles_since_vsync -= cycles_per_vsync;
+			timekeeper.cycles_since_vsync += intended_cycles;
+			if(timekeeper.cycles_since_vsync >= timekeeper.cycles_per_vsync) {
+				timekeeper.cycles_since_vsync -= timekeeper.cycles_per_vsync;
 				if(dma_control_reg & DMA_VSYNC_NMI_BIT) {
 					cpu_core->NMI();
 				}
@@ -908,16 +817,18 @@ EM_BOOL mainloop(double time, void* userdata) {
 			SDL_Delay(100);
 		}
 		refreshScreen();
-		SDL_UpdateWindowSurface(window);
-		if(profiler_open) {
-			SDL_UpdateWindowSurface(profiler_window);
-		}
+		SDL_UpdateWindowSurface(mainWindow);
+
 		if(buffers_open) {
 			SDL_UpdateWindowSurface(buffers_window);
 		}
 
 		while( SDL_PollEvent( &e ) != 0 )
         {
+#ifndef WASM_BUILD
+			if(profilerWindow) profilerWindow->HandleEvent(e);
+			if(memBrowserWindow) memBrowserWindow->HandleEvent(e);
+#endif
             //User requests quit
             if( e.type == SDL_QUIT )
             {
@@ -926,10 +837,8 @@ EM_BOOL mainloop(double time, void* userdata) {
 			{
 				if(e.window.event == SDL_WINDOWEVENT_CLOSE) {
 					SDL_Window* closedWindow = SDL_GetWindowFromID(e.window.windowID);
-					if(closedWindow == window) {
+					if(closedWindow == mainWindow) {
 						running = false;
-					} else if(closedWindow == profiler_window) {
-						closeProfilerWindow();
 					} else if(closedWindow == buffers_window) {
 						closeBuffersWindow();
 					}
@@ -994,17 +903,17 @@ EM_BOOL mainloop(double time, void* userdata) {
 					case SDLK_F11:
 						if(e.type == SDL_KEYDOWN) {
 							if(isFullScreen) {
-								SDL_SetWindowFullscreen(window, 0);
+								SDL_SetWindowFullscreen(mainWindow, 0);
 								isFullScreen = false;
-								screenSurface = SDL_GetWindowSurface(window);
+								screenSurface = SDL_GetWindowSurface(mainWindow);
 								SDL_SetColorKey(screenSurface, SDL_FALSE, 0);
 							} else {
-								SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+								SDL_SetWindowFullscreen(mainWindow, SDL_WINDOW_FULLSCREEN_DESKTOP);
 								isFullScreen = true;
-								screenSurface = SDL_GetWindowSurface(window);
+								screenSurface = SDL_GetWindowSurface(mainWindow);
 								SDL_SetColorKey(screenSurface, SDL_FALSE, 0);
 							}
-							scaling_increment = INITIAL_SCALING_INCREMENT;
+							timekeeper.scaling_increment = INITIAL_SCALING_INCREMENT;
 						}
 						break;
 					case SDLK_F12:
@@ -1033,13 +942,26 @@ EM_BOOL mainloop(double time, void* userdata) {
 				joysticks->update(&e);
 			}
         }
+
+#ifndef WASM_BUILD
+		if(profiler_open) {
+			
+			profilerWindow->Draw();
+			memBrowserWindow->Draw();
+			
+			if(!profilerWindow->IsOpen()) {
+				closeProfilerWindow();
+			}
+		}
+#endif
+		profiler.ResetTimers();
 		
 	if(!running) {
 #ifdef WASM_BUILD
 		emscripten_cancel_main_loop();
 #endif
 		printf("Finished running\n");
-		SDL_DestroyWindow(window);
+		SDL_DestroyWindow(mainWindow);
 		SDL_Quit();
 	}
 	return running;
@@ -1075,13 +997,12 @@ int main(int argC, char* argV[]) {
 	soundcard = new AudioCoprocessor();
 	cpu_core = new mos6502(MemoryRead, MemoryWrite, CPUStopped);
 	cpu_core->Reset();
-
 	
 	SDL_Init(SDL_INIT_VIDEO);
 	atexit(SDL_Quit);
 
-	window = SDL_CreateWindow( "GameTank Emulator", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
-	screenSurface = SDL_GetWindowSurface(window);
+	mainWindow = SDL_CreateWindow( "GameTank Emulator", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+	screenSurface = SDL_GetWindowSurface(mainWindow);
 	SDL_SetColorKey(screenSurface, SDL_FALSE, 0);
 
 	#if SDL_BYTEORDER == SDL_BIG_ENDIAN
@@ -1111,7 +1032,7 @@ int main(int argC, char* argV[]) {
 #ifdef WASM_BUILD
 	emscripten_request_animation_frame_loop(mainloop, 0);
 #else
-	SDL_RaiseWindow(window);
+	SDL_RaiseWindow(mainWindow);
 	while(running) {
 		mainloop(0, NULL);
 	}

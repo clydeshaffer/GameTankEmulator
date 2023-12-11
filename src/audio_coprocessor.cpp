@@ -14,7 +14,7 @@ uint8_t AudioCoprocessor::ram_read(uint16_t address) {
 }
 
 void AudioCoprocessor::register_write(uint16_t address, uint8_t value) {
-    printf("audio register %x written with %x\n", (address), value);
+    //printf("audio register %x written with %x\n", (address), value);
 	switch(address & 7) {
 		case ACP_RESET:
 			state.resetting = true;
@@ -116,7 +116,6 @@ AudioCoprocessor::AudioCoprocessor() {
     state.irqRate = 0;
     state.resetting = false;
     state.running = false;
-    state.dacReg;
     state.clksPerHostSample = 315000000 / (88 * 44100);
     state.cycles_per_sample = 1024;
     state.last_irq_cycles = 0;
@@ -156,7 +155,7 @@ AudioCoprocessor::AudioCoprocessor() {
 	return;
 }
 
-void AudioCoprocessor::dump_ram(char* filename) {
+void AudioCoprocessor::dump_ram(const char* filename) {
     ofstream dumpfile (filename, ios::out | ios::binary);
     dumpfile.write((char*) state.ram, 4096);
     dumpfile.close();

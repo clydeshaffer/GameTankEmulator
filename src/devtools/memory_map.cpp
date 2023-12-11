@@ -57,3 +57,11 @@ void MemoryMap::forEach(const std::function<void(const Symbol&)>& func) const {
             func(symbol);
         }
 }
+
+int MemoryMap::GetCount() {
+    return symbols.size();
+}
+
+Symbol& MemoryMap::GetAt(int i) {
+    return symbols.at(i);
+}
