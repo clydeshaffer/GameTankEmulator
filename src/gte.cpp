@@ -32,6 +32,8 @@
 #include "devtools/mem_browser_window.h"
 #include "imgui.h"
 #include "implot.h"
+#include "imgui/backends/imgui_impl_sdl2.h"
+#include "imgui/backends/imgui_impl_sdlrenderer2.h"
 #endif
 
 using namespace std;
@@ -169,11 +171,6 @@ extern unsigned char font_map[];
 Timekeeper timekeeper;
 Profiler profiler(timekeeper);
 
-#ifndef WASM_BUILD
-ProfilerWindow* profilerWindow;
-MemBrowserWindow* memBrowserWindow;
-#endif
-
 SDL_Surface* buffersWindowSurface = NULL;
 SDL_Surface* gRAM_Surface = NULL;
 SDL_Surface* vRAM_Surface = NULL;
@@ -185,6 +182,13 @@ JoystickAdapter *joysticks;
 SDL_Window* mainWindow = NULL;
 SDL_Window* buffers_window = NULL;
 Uint32 rmask, gmask, bmask, amask;
+
+#ifndef WASM_BUILD
+ImGuiContext* main_imgui_ctx;
+ImPlotContext* main_implot_ctx;
+ProfilerWindow* profilerWindow;
+MemBrowserWindow* memBrowserWindow;
+#endif
 
 SDL_Renderer* mainRenderer = NULL;
 SDL_Texture* framebufferTexture = NULL;
@@ -252,29 +256,6 @@ void put_pixel32( SDL_Surface *surface, int x, int y, Uint32 pixel )
     
     //Set the pixel
     pixels[ ( y * surface->w ) + x ] = pixel;
-}
-
-void refreshScreen() {
-	SDL_Rect src, dest;
-	int scr_w, scr_h;
-	src.x = 0;
-	src.y = (dma_control_reg & DMA_VID_OUT_PAGE_BIT) ? GT_HEIGHT : 0;
-	src.w = GT_WIDTH;
-	src.h = GT_HEIGHT;
-	SDL_GetWindowSize(mainWindow, &scr_w, &scr_h);
-	dest.w = min(scr_w, scr_h);
-	dest.h = dest.w;
-	dest.x = (scr_w - dest.w) / 2;
-	dest.y = (scr_h - dest.h) / 2;
-	//SDL_BlitScaled(vRAM_Surface, &src, screenSurface, &dest);
-	SDL_UpdateTexture(framebufferTexture, NULL, vRAM_Surface->pixels, vRAM_Surface->pitch);
-
-	SDL_RenderClear(mainRenderer);
-	SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
-	SDL_RenderPresent(mainRenderer);
-	if(buffers_open) {
-		drawBuffersWindow();
-	}
 }
 
 uint8_t VDMA_Read(uint16_t address) {
@@ -739,6 +720,66 @@ void closeBuffersWindow() {
 #define EM_BOOL int
 #endif
 
+void refreshScreen() {
+	SDL_Rect src, dest;
+	int scr_w, scr_h;
+	src.x = 0;
+	src.y = (dma_control_reg & DMA_VID_OUT_PAGE_BIT) ? GT_HEIGHT : 0;
+	src.w = GT_WIDTH;
+	src.h = GT_HEIGHT;
+	SDL_GetWindowSize(mainWindow, &scr_w, &scr_h);
+	dest.w = min(scr_w, scr_h);
+	dest.h = dest.w;
+	dest.x = (scr_w - dest.w) / 2;
+	dest.y = (scr_h - dest.h) / 2;
+	//SDL_BlitScaled(vRAM_Surface, &src, screenSurface, &dest);
+	SDL_UpdateTexture(framebufferTexture, NULL, vRAM_Surface->pixels, vRAM_Surface->pitch);
+
+	SDL_RenderClear(mainRenderer);
+	SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
+
+#ifndef WASM_BUILD
+	ImGui::SetCurrentContext(main_imgui_ctx);
+
+    ImGui_ImplSDLRenderer2_NewFrame();
+    ImGui_ImplSDL2_NewFrame();
+	ImGui::NewFrame();
+	if(ImGui::BeginMainMenuBar()) {
+		if (ImGui::BeginMenu("File")) {
+			if(ImGui::MenuItem("Open Rom")) {
+				lTheOpenFileName = open_rom_dialog();
+				if(lTheOpenFileName) {
+					LoadRomFile(lTheOpenFileName);
+				}	
+			}
+			ImGui::EndMenu();
+		}
+		if(ImGui::BeginMenu("Tools")) {
+			if(ImGui::MenuItem("Profiler")) {
+				if(profiler_open)
+					closeProfilerWindow();
+				else
+					openProfilerWindow();
+			}
+			if(ImGui::MenuItem("VRAM Viewer")) {
+				if(buffers_open)
+					closeBuffersWindow();
+				else
+					openBuffersWindow();
+			}
+			ImGui::EndMenu();
+		}
+		ImGui::EndMainMenuBar();
+	}
+	ImGui::Render();
+	ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData());
+#endif
+	SDL_RenderPresent(mainRenderer);
+	if(buffers_open) {
+		drawBuffersWindow();
+	}
+}
+
 char titlebuf[256];
 uint64_t total_frames_ever = 0;
 int32_t intended_cycles = 0;
@@ -831,6 +872,11 @@ EM_BOOL mainloop(double time, void* userdata) {
 		while( SDL_PollEvent( &e ) != 0 )
         {
 #ifndef WASM_BUILD
+			if(SDL_GetMouseFocus() == mainWindow) {
+				ImGui::SetCurrentContext(main_imgui_ctx);
+				ImPlot::SetCurrentContext(main_implot_ctx);
+				ImGui_ImplSDL2_ProcessEvent(&e);
+			}
 			if(profilerWindow) profilerWindow->HandleEvent(e);
 			if(memBrowserWindow) memBrowserWindow->HandleEvent(e);
 #endif
@@ -898,7 +944,7 @@ EM_BOOL mainloop(double time, void* userdata) {
 								closeProfilerWindow();
 							else
 								openProfilerWindow();
-						}
+							}
 						break;
 					case SDLK_F10:
 						if(e.type == SDL_KEYDOWN) {
@@ -966,9 +1012,15 @@ EM_BOOL mainloop(double time, void* userdata) {
 #else
 		if(profilerWindow) delete(profilerWindow);
 		if(memBrowserWindow) delete(memBrowserWindow);
+		if(buffers_open) {
+			closeBuffersWindow();
+		}
+		ImPlot::DestroyContext(main_implot_ctx);
+    	ImGui::DestroyContext(main_imgui_ctx);
 #endif
 		printf("Finished running\n");
 		
+    	SDL_DestroyRenderer(mainRenderer);
 		SDL_DestroyWindow(mainWindow);
 		SDL_Quit();
 	}
@@ -1020,6 +1072,16 @@ int main(int argC, char* argV[]) {
 	mainWindow = SDL_CreateWindow( "GameTank Emulator", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 	mainRenderer = SDL_CreateRenderer(mainWindow, -1, SDL_RENDERER_ACCELERATED);
 	framebufferTexture = SDL_CreateTexture(mainRenderer, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING, GT_WIDTH, GT_HEIGHT * 2);
+
+#ifndef WASM_BUILD
+	main_imgui_ctx = ImGui::CreateContext();
+	main_implot_ctx = ImPlot::CreateContext();
+	ImGuiIO& io = ImGui::GetIO(); (void)io;
+	io.ConfigViewportsNoAutoMerge = true;
+	ImGui::StyleColorsDark();
+	ImGui_ImplSDL2_InitForSDLRenderer(mainWindow, mainRenderer);
+	ImGui_ImplSDLRenderer2_Init(mainRenderer);
+#endif
 
 	#if SDL_BYTEORDER == SDL_BIG_ENDIAN
 	    rmask = 0xff000000;

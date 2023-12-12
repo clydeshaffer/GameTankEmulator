@@ -4,6 +4,8 @@
 #include "imgui_impl_sdlrenderer2.h"
 
 DebugWindow::DebugWindow() {
+    ImGuiContext* oldCtx = ImGui::GetCurrentContext();
+    ImPlotContext* oldPlotCtx = ImPlot::GetCurrentContext();
     ctx = ImGui::CreateContext();
     plot_ctx = ImPlot::CreateContext();
 
@@ -21,6 +23,9 @@ DebugWindow::DebugWindow() {
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
     ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
 	ImGui_ImplSDLRenderer2_Init(renderer);
+
+    ImGui::SetCurrentContext(oldCtx);
+    ImPlot::SetCurrentContext(oldPlotCtx);
 }
 
 DebugWindow::~DebugWindow() {
