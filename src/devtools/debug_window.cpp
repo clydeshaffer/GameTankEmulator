@@ -3,7 +3,9 @@
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_sdlrenderer2.h"
 
-DebugWindow::DebugWindow() {
+DebugWindow::DebugWindow():BaseWindow(10, 10) {
+    ImGuiContext* oldCtx = ImGui::GetCurrentContext();
+    ImPlotContext* oldPlotCtx = ImPlot::GetCurrentContext();
     ctx = ImGui::CreateContext();
     plot_ctx = ImPlot::CreateContext();
 
@@ -15,23 +17,18 @@ DebugWindow::DebugWindow() {
 	io.ConfigViewportsNoAutoMerge = true;
 	ImGui::StyleColorsDark();
 
-    window = SDL_CreateWindow("",
-		SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-	 	1000, 1000, 0);
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
     ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
 	ImGui_ImplSDLRenderer2_Init(renderer);
+
+    ImGui::SetCurrentContext(oldCtx);
+    ImPlot::SetCurrentContext(oldPlotCtx);
 }
 
 DebugWindow::~DebugWindow() {
     ImPlot::DestroyContext(plot_ctx);
     ImGui::DestroyContext(ctx);
     SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
-}
-
-bool DebugWindow::IsOpen() {
-    return open;
 }
 
 void DebugWindow::Draw() {
@@ -64,6 +61,15 @@ void DebugWindow::Draw() {
 }
 
 void DebugWindow::HandleEvent(SDL_Event& e) {
+    if(e.type == SDL_WINDOWEVENT) {
+        if(e.window.event == SDL_WINDOWEVENT_CLOSE) {
+            SDL_Window* closedWindow = SDL_GetWindowFromID(e.window.windowID);
+            if(closedWindow == window) {
+                open = false;
+            }
+        }
+    }
+
     if(SDL_GetMouseFocus() != window) return;
     ImGui::SetCurrentContext(ctx);
     ImPlot::SetCurrentContext(plot_ctx);

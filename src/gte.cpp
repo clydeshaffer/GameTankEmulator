@@ -7,6 +7,7 @@
 #include <fstream>
 #include <cstring>
 #include <filesystem>
+#include <vector>
 #ifdef WASM_BUILD
 #include "emscripten.h"
 #include <emscripten/html5.h>
@@ -19,6 +20,7 @@
 #include "gametank_palette.h"
 
 #include "timekeeper.h"
+#include "system_state.h"
 
 #include "mos6502/mos6502.h"
 
@@ -30,8 +32,11 @@
 #ifndef WASM_BUILD
 #include "devtools/profiler_window.h"
 #include "devtools/mem_browser_window.h"
+#include "devtools/vram_window.h"
 #include "imgui.h"
 #include "implot.h"
+#include "imgui/backends/imgui_impl_sdl2.h"
+#include "imgui/backends/imgui_impl_sdlrenderer2.h"
 #endif
 
 using namespace std;
@@ -44,11 +49,6 @@ typedef struct RGBA_Color {
 	uint8_t r, g, b, a;
 } RGBA_Color;
 
-int ROMSIZE = 8192;
-const int RAMSIZE = 32768;
-const int CARTRAMSIZE = 32768;
-const int FRAME_BUFFER_SIZE = 16384;
-
 const int GT_WIDTH = 128;
 const int GT_HEIGHT = 128;
 
@@ -58,21 +58,19 @@ enum RomType {
 	EEPROM32K,
 	FLASH2M,	
 };
-
-uint8_t flash2M_highbits_shifter;
-uint32_t flash2M_highbits;
 RomType loadedRomType;
+bool using_battery_cart; //TODO fold this into the enum
+
+mos6502 *cpu_core;
+AudioCoprocessor *soundcard;
+JoystickAdapter *joysticks;
+SystemState system_state;
+CartridgeState cartridge_state;
+BlitterState blitter_state;
 
 const int SCREEN_WIDTH = 512;
 const int SCREEN_HEIGHT = 512;
-const int PROFILER_WIDTH = 256;
-const int PROFILER_HEIGHT = 512;
 RGB_Color *palette;
-uint8_t *rom_buffer;
-uint8_t ram_buffer[RAMSIZE];
-
-uint8_t cart_ram_buffer[CARTRAMSIZE];
-bool using_battery_cart;
 
 const char* lTheOpenFileName = NULL;
 MemoryMap* loadedMemoryMap;
@@ -84,7 +82,7 @@ void SaveNVRAM() {
 	if(loadedRomType != RomType::FLASH2M) return;
 	printf("SAVING %s\n", nvramFileFullPath.c_str());
 	file.open(nvramFileFullPath.c_str(), ios_base::out | ios_base::binary | ios_base::trunc);
-	file.write((char*) cart_ram_buffer, CARTRAMSIZE);
+	file.write((char*) cartridge_state.save_ram, CARTRAMSIZE);
 }
 
 void LoadNVRAM() {
@@ -92,22 +90,11 @@ void LoadNVRAM() {
 	if(loadedRomType != RomType::FLASH2M) return;
 	printf("LOADING %s\n", nvramFileFullPath.c_str());
 	file.open(nvramFileFullPath.c_str(), ios_base::in | ios_base::binary);
-	file.read((char*) cart_ram_buffer, CARTRAMSIZE);
+	file.read((char*) cartridge_state.save_ram, CARTRAMSIZE);
 }
 
 
-bool ram_inited[RAMSIZE];
 
-#define VRAM_BUFFER_SIZE (FRAME_BUFFER_SIZE*2)
-#define GRAM_BUFFER_SIZE (FRAME_BUFFER_SIZE*32)
-
-uint8_t vram_buffer[VRAM_BUFFER_SIZE];
-uint8_t gram_buffer[GRAM_BUFFER_SIZE];
-
-#define BUFFERS_PREVIEW_WIDTH 1152
-#define BUFFERS_PREVIEW_HEIGHT 512
-
-uint8_t VIA_regs[16];
 const uint8_t VIA_ORB    = 0x0;
 const uint8_t VIA_ORA    = 0x1;
 const uint8_t VIA_DDRB   = 0x2;
@@ -139,7 +126,6 @@ const uint8_t VIA_SPI_BIT_MISO = 0b10000000;
 #define DMA_CPU_TO_VRAM 32
 #define DMA_COPY_IRQ_BIT 64
 #define DMA_TRANSPARENCY_BIT 128
-uint8_t dma_control_reg = 0;
 
 #define BANK_GRAM_MASK  0b00000111
 #define BANK_VRAM_MASK  0b00001000
@@ -148,43 +134,26 @@ uint8_t dma_control_reg = 0;
 #define BANK_RAM_MASK   0b11000000
 #define RAM_HIGHBITS_SHIFT 7
 
-uint8_t banking_reg = 0;
-uint8_t gram_mid_bits = 0;
-
-#define FULL_RAM_ADDRESS(x) (((banking_reg & BANK_RAM_MASK) << RAM_HIGHBITS_SHIFT) | (x))
-
-#define DMA_PARAMS_COUNT 8
-const uint8_t DMA_PARAM_VX      = 0;
-const uint8_t DMA_PARAM_VY      = 1;
-const uint8_t DMA_PARAM_GX      = 2;
-const uint8_t DMA_PARAM_GY      = 3;
-const uint8_t DMA_PARAM_WIDTH   = 4;
-const uint8_t DMA_PARAM_HEIGHT  = 5;
-const uint8_t DMA_PARAM_TRIGGER = 6;
-const uint8_t DMA_PARAM_COLOR   = 7;
-uint8_t dma_params[DMA_PARAMS_COUNT];
+#define FULL_RAM_ADDRESS(x) (((system_state.banking & BANK_RAM_MASK) << RAM_HIGHBITS_SHIFT) | (x))
 
 extern unsigned char font_map[];
 
 Timekeeper timekeeper;
 Profiler profiler(timekeeper);
 
-#ifndef WASM_BUILD
-ProfilerWindow* profilerWindow;
-MemBrowserWindow* memBrowserWindow;
-#endif
-
-SDL_Surface* buffersWindowSurface = NULL;
 SDL_Surface* gRAM_Surface = NULL;
 SDL_Surface* vRAM_Surface = NULL;
-
-mos6502 *cpu_core;
-AudioCoprocessor *soundcard;
-JoystickAdapter *joysticks;
 
 SDL_Window* mainWindow = NULL;
 SDL_Window* buffers_window = NULL;
 Uint32 rmask, gmask, bmask, amask;
+
+#ifndef WASM_BUILD
+ImGuiContext* main_imgui_ctx;
+ImPlotContext* main_implot_ctx;
+
+std::vector<BaseWindow*> toolWindows;
+#endif
 
 SDL_Renderer* mainRenderer = NULL;
 SDL_Texture* framebufferTexture = NULL;
@@ -194,34 +163,6 @@ bool isFullScreen = false;
 bool profiler_open = false;
 bool buffers_open = false;
 int profiler_x_axis = 0;
-
-void drawBuffersWindow() {
-	SDL_Rect src, dest;
-	dest.x = 0;
-	dest.y = 0;
-	dest.w = 128;
-	dest.h = 256;
-	src.x = 0;
-	src.y = 0;
-	src.w = 128;
-	src.h = 256;
-	SDL_BlitSurface(vRAM_Surface, &src, buffersWindowSurface, &dest);
-	src.h = 512;
-	dest.h = 512;
-	for(int i = 0; i < 8; i++) {
-		dest.x = (i+1) * 128;
-		src.y = i * 512;
-		SDL_BlitSurface(gRAM_Surface, &src, buffersWindowSurface, &dest);
-	}
-
-	char buf[128];
-	sprintf(buf, "DMA:\n%x\nBANK:\n%x\nPC:\n%x\nSTATUS:\n%x\nWAIT:%d\nHIBITS:%d", dma_control_reg, banking_reg, cpu_core->pc, cpu_core->status, cpu_core->waiting, flash2M_highbits);
-	dest.x = 0;
-	dest.y = 256;
-	dest.w = 128;
-	dest.h = 512-128;
-	drawText(buffersWindowSurface, &dest, buf);
-}
 
 uint8_t open_bus() {
 	return rand() % 256;
@@ -254,66 +195,43 @@ void put_pixel32( SDL_Surface *surface, int x, int y, Uint32 pixel )
     pixels[ ( y * surface->w ) + x ] = pixel;
 }
 
-void refreshScreen() {
-	SDL_Rect src, dest;
-	int scr_w, scr_h;
-	src.x = 0;
-	src.y = (dma_control_reg & DMA_VID_OUT_PAGE_BIT) ? GT_HEIGHT : 0;
-	src.w = GT_WIDTH;
-	src.h = GT_HEIGHT;
-	SDL_GetWindowSize(mainWindow, &scr_w, &scr_h);
-	dest.w = min(scr_w, scr_h);
-	dest.h = dest.w;
-	dest.x = (scr_w - dest.w) / 2;
-	dest.y = (scr_h - dest.h) / 2;
-	//SDL_BlitScaled(vRAM_Surface, &src, screenSurface, &dest);
-	SDL_UpdateTexture(framebufferTexture, NULL, vRAM_Surface->pixels, vRAM_Surface->pitch);
-
-	SDL_RenderClear(mainRenderer);
-	SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
-	SDL_RenderPresent(mainRenderer);
-	if(buffers_open) {
-		drawBuffersWindow();
-	}
-}
-
 uint8_t VDMA_Read(uint16_t address) {
-	if(dma_control_reg & DMA_COPY_ENABLE_BIT) {
+	if(system_state.dma_control & DMA_COPY_ENABLE_BIT) {
 		return open_bus();
 	} else {
 		uint8_t* bufPtr;
 		uint32_t offset = 0;
-		if(dma_control_reg & DMA_CPU_TO_VRAM) {
-			bufPtr = vram_buffer;
-			if(banking_reg & BANK_VRAM_MASK) {
+		if(system_state.dma_control & DMA_CPU_TO_VRAM) {
+			bufPtr = system_state.vram;
+			if(system_state.banking & BANK_VRAM_MASK) {
 				offset = 0x4000;
 			}
 		} else {
-			bufPtr = gram_buffer;
-			offset = (((banking_reg & BANK_GRAM_MASK) << 2) | (gram_mid_bits)) << 14;
+			bufPtr = system_state.gram;
+			offset = (((system_state.banking & BANK_GRAM_MASK) << 2) | (blitter_state.gram_mid_bits)) << 14;
 		}
 		return bufPtr[(address & 0x3FFF) | offset];
 	}
 }
 
 void VDMA_Write(uint16_t address, uint8_t value) {
-	if(dma_control_reg & DMA_COPY_ENABLE_BIT) {
+	if(system_state.dma_control & DMA_COPY_ENABLE_BIT) {
 		if(((address & 0x7) == DMA_PARAM_TRIGGER) && (value & 1)) {
 			SDL_Rect gRect, vRect;
-			vRect.x = dma_params[DMA_PARAM_VX];
-			vRect.y = dma_params[DMA_PARAM_VY];
-			vRect.w = dma_params[DMA_PARAM_WIDTH];
-			vRect.h = dma_params[DMA_PARAM_HEIGHT];
-			gRect.x = dma_params[DMA_PARAM_GX];
-			gRect.y = dma_params[DMA_PARAM_GY];
-			gRect.w = dma_params[DMA_PARAM_WIDTH];
-			gRect.h = dma_params[DMA_PARAM_HEIGHT];
+			vRect.x = blitter_state.params[DMA_PARAM_VX];
+			vRect.y = blitter_state.params[DMA_PARAM_VY];
+			vRect.w = blitter_state.params[DMA_PARAM_WIDTH];
+			vRect.h = blitter_state.params[DMA_PARAM_HEIGHT];
+			gRect.x = blitter_state.params[DMA_PARAM_GX];
+			gRect.y = blitter_state.params[DMA_PARAM_GY];
+			gRect.w = blitter_state.params[DMA_PARAM_WIDTH];
+			gRect.h = blitter_state.params[DMA_PARAM_HEIGHT];
 			uint8_t outColor[2];
 			uint8_t colorSel = 0;
-			if(dma_control_reg & DMA_COLORFILL_ENABLE_BIT) {
+			if(system_state.dma_control & DMA_COLORFILL_ENABLE_BIT) {
 				colorSel = 1;
 			}
-			outColor[1] = ~(dma_params[DMA_PARAM_COLOR]);
+			outColor[1] = ~(blitter_state.params[DMA_PARAM_COLOR]);
 #ifdef VIDDEBUG
 			printf("Copying from (%d, %d) to (%d, %d) at (%d x %d)\n",
 				gRect.x & 0x7F, gRect.y & 0x7F,
@@ -321,59 +239,59 @@ void VDMA_Write(uint16_t address, uint8_t value) {
 				gRect.w, gRect.h);
 #endif
 			uint32_t vOffset = 0, gOffset = 0;
-			if(banking_reg & BANK_VRAM_MASK) {
+			if(system_state.banking & BANK_VRAM_MASK) {
 				vOffset = 0x4000;
 			}
 			int yShift = 0;
-			int vy = dma_params[DMA_PARAM_VY],
-				gy = dma_params[DMA_PARAM_GY],
+			int vy = blitter_state.params[DMA_PARAM_VY],
+				gy = blitter_state.params[DMA_PARAM_GY],
 				gy2;
-			if(banking_reg & BANK_VRAM_MASK) {
+			if(system_state.banking & BANK_VRAM_MASK) {
 				yShift = GT_HEIGHT;
 			}
-			for(uint16_t y = 0; y < (dma_params[DMA_PARAM_HEIGHT] & 0x7F); y++) {
-				int vx = dma_params[DMA_PARAM_VX],
-					gx = dma_params[DMA_PARAM_GX],
+			for(uint16_t y = 0; y < (blitter_state.params[DMA_PARAM_HEIGHT] & 0x7F); y++) {
+				int vx = blitter_state.params[DMA_PARAM_VX],
+					gx = blitter_state.params[DMA_PARAM_GX],
 					gx2;
-				for(uint16_t x = 0; x < (dma_params[DMA_PARAM_WIDTH] & 0x7F); x++) {
+				for(uint16_t x = 0; x < (blitter_state.params[DMA_PARAM_WIDTH] & 0x7F); x++) {
 					gx2 = gx; gy2 = gy;
-					if(dma_params[DMA_PARAM_WIDTH] & 0x80) {
+					if(blitter_state.params[DMA_PARAM_WIDTH] & 0x80) {
 						gx2 = ~gx2;
 					}
-					if(dma_params[DMA_PARAM_HEIGHT] & 0x80) {
+					if(blitter_state.params[DMA_PARAM_HEIGHT] & 0x80) {
 						gy2 = ~gy2;
 					}
 
-					gOffset = ((banking_reg & BANK_GRAM_MASK) << 16) + 
+					gOffset = ((system_state.banking & BANK_GRAM_MASK) << 16) + 
 						(!!(gy2 & 0x80) << 15) +
 						(!!(gx2 & 0x80) << 14);
-					gram_mid_bits = (!!(gy2 & 0x80) * 2) +
+					blitter_state.gram_mid_bits = (!!(gy2 & 0x80) * 2) +
 						(!!(gx2 & 0x80) * 1);
-					outColor[0] = gram_buffer[((gy2 & 0x7F) << 7) | (gx2 & 0x7F) | gOffset];
-					if(((dma_control_reg & DMA_TRANSPARENCY_BIT) || (outColor[colorSel] != 0))
-						&& !((vx & 0x80) && (banking_reg & BANK_WRAPX_MASK))
-						&& !((vy & 0x80) && banking_reg & BANK_WRAPY_MASK)) {
-						vram_buffer[((vy & 0x7F) << 7) | (vx & 0x7F) | vOffset] = outColor[colorSel];
+					outColor[0] = system_state.gram[((gy2 & 0x7F) << 7) | (gx2 & 0x7F) | gOffset];
+					if(((system_state.dma_control & DMA_TRANSPARENCY_BIT) || (outColor[colorSel] != 0))
+						&& !((vx & 0x80) && (system_state.banking & BANK_WRAPX_MASK))
+						&& !((vy & 0x80) && system_state.banking & BANK_WRAPY_MASK)) {
+						system_state.vram[((vy & 0x7F) << 7) | (vx & 0x7F) | vOffset] = outColor[colorSel];
 						put_pixel32(vRAM_Surface, vx & 0x7F, (vy & 0x7F) + yShift, convert_color(vRAM_Surface, outColor[colorSel]));
 					}
 					vx++;
-					if(dma_control_reg & DMA_GCARRY_BIT) {
+					if(system_state.dma_control & DMA_GCARRY_BIT) {
 						gx++;
 					} else {
 						gx = (gx & 0xF0) | ((gx+1) & 0x0F);
 					}
 				}
 				vy++;
-				if(dma_control_reg & DMA_GCARRY_BIT) {
+				if(system_state.dma_control & DMA_GCARRY_BIT) {
 					gy++;
 				} else {
 					gy = (gy & 0xF0) | ((gy+1) & 0x0F);
 				}
 			}
 
-			if(dma_control_reg & DMA_COPY_IRQ_BIT) {
+			if(system_state.dma_control & DMA_COPY_IRQ_BIT) {
 				cpu_core->ClearIRQ();
-				cpu_core->ScheduleIRQ(((dma_params[DMA_PARAM_HEIGHT] & 0x7F) * (dma_params[DMA_PARAM_WIDTH] & 0x7F)));
+				cpu_core->ScheduleIRQ(((blitter_state.params[DMA_PARAM_HEIGHT] & 0x7F) * (blitter_state.params[DMA_PARAM_WIDTH] & 0x7F)));
 			}
 		} else if(((address & 0x7) == DMA_PARAM_TRIGGER) && !(value & 1)) {
 			cpu_core->ClearIRQ();
@@ -381,25 +299,25 @@ void VDMA_Write(uint16_t address, uint8_t value) {
 #ifdef VIDDEBUG
 			printf("Setting DMA param %d to %d\n", address & 0x7, value);
 #endif
-			dma_params[address & 0x7] = value;
+			blitter_state.params[address & 0x7] = value;
 		}
 	} else {
 		uint8_t* bufPtr;
 		uint32_t offset = 0;
 		SDL_Surface* targetSurface = NULL;
 		uint32_t yShift = 0;
-		if(dma_control_reg & DMA_CPU_TO_VRAM) {
-			bufPtr = vram_buffer;
+		if(system_state.dma_control & DMA_CPU_TO_VRAM) {
+			bufPtr = system_state.vram;
 			targetSurface = vRAM_Surface;
-			if(banking_reg & BANK_VRAM_MASK) {
+			if(system_state.banking & BANK_VRAM_MASK) {
 				offset = 0x4000;
 				yShift = GT_HEIGHT;
 			}
 		} else {
-			bufPtr = gram_buffer;
+			bufPtr = system_state.gram;
 			targetSurface = gRAM_Surface;
-			yShift = (((banking_reg & BANK_GRAM_MASK) << 2) | (gram_mid_bits)) * GT_HEIGHT;
-			offset = (((banking_reg & BANK_GRAM_MASK) << 2) | (gram_mid_bits)) << 14;
+			yShift = (((system_state.banking & BANK_GRAM_MASK) << 2) | (blitter_state.gram_mid_bits)) * GT_HEIGHT;
+			offset = (((system_state.banking & BANK_GRAM_MASK) << 2) | (blitter_state.gram_mid_bits)) << 14;
 		}
 		bufPtr[(address & 0x3FFF) | offset] = value;
 
@@ -413,43 +331,43 @@ void VDMA_Write(uint16_t address, uint8_t value) {
 void UpdateFlashShiftRegister(uint8_t nextVal) {
 	//TODO: Care about DDR bits
 	//For now assuming that if we're using Flash2M hardware we're behaving ourselves
-	uint8_t oldVal = VIA_regs[VIA_ORA];
+	uint8_t oldVal = system_state.VIA_regs[VIA_ORA];
 	uint8_t risingBits = nextVal & ~oldVal;
 	if(risingBits & VIA_SPI_BIT_CLK) {
-		flash2M_highbits_shifter = flash2M_highbits_shifter << 1;
-		flash2M_highbits_shifter &= 0xFE;
-		flash2M_highbits_shifter |= !!(oldVal & VIA_SPI_BIT_MOSI);
+		cartridge_state.bank_shifter = cartridge_state.bank_shifter << 1;
+		cartridge_state.bank_shifter &= 0xFE;
+		cartridge_state.bank_shifter |= !!(oldVal & VIA_SPI_BIT_MOSI);
 	} else if(risingBits & VIA_SPI_BIT_CS) {
 		//flash cart CS is connected to latch clock
-		if((flash2M_highbits ^ flash2M_highbits_shifter) & 0x80) {
+		if((cartridge_state.bank_mask ^ cartridge_state.bank_shifter) & 0x80) {
 			SaveNVRAM();
 		}
-		flash2M_highbits = flash2M_highbits_shifter;
+		cartridge_state.bank_mask = cartridge_state.bank_shifter;
 		if(!using_battery_cart) {
-			flash2M_highbits |= 0x80;
+			cartridge_state.bank_mask |= 0x80;
 		}
-		printf("Flash highbits set to %x\n", flash2M_highbits);
+		printf("Flash highbits set to %x\n", cartridge_state.bank_mask);
 	}
 }
 
 uint8_t MemoryRead_Flash2M(uint16_t address) {
 	if(address & 0x4000) {
-		return rom_buffer[0b111111100000000000000 | (address & 0x3FFF)];
+		return cartridge_state.rom[0b111111100000000000000 | (address & 0x3FFF)];
 	} else {
-		if(!(flash2M_highbits & 0x80))
-			return cart_ram_buffer[(address & 0x3FFF) | ((flash2M_highbits & 0x40) << 8)];
-		else return rom_buffer[((flash2M_highbits & 0x7F) << 14) | (address & 0x3FFF)];
+		if(!(cartridge_state.bank_mask & 0x80))
+			return cartridge_state.save_ram[(address & 0x3FFF) | ((cartridge_state.bank_mask & 0x40) << 8)];
+		else return cartridge_state.rom[((cartridge_state.bank_mask & 0x7F) << 14) | (address & 0x3FFF)];
 	}
 }
 
 uint8_t MemoryRead_Unknown(uint16_t address) {
-	//If ROMSIZE is smaller than unbanked ROM range, align end with 0xFFFF and wrap
-	//If ROMSIZE is bigger than unbanked ROM range, access mainWindow at end of file.
+	//If cartridge_state.size is smaller than unbanked ROM range, align end with 0xFFFF and wrap
+	//If cartridge_state.size is bigger than unbanked ROM range, access mainWindow at end of file.
 	//TODO: Decide if unknown ROM type should just terminate emulator :P
-	if(ROMSIZE <= 32768) {
-		return rom_buffer[((address & 0x7FFF) + 32768 - ROMSIZE) % ROMSIZE];
+	if(cartridge_state.size <= 32768) {
+		return cartridge_state.rom[((address & 0x7FFF) + 32768 - cartridge_state.size) % cartridge_state.size];
 	} else {
-		return rom_buffer[((address & 0x7FFF) + ROMSIZE - 32768)];
+		return cartridge_state.rom[((address & 0x7FFF) + cartridge_state.size - 32768)];
 	}
 }
 
@@ -457,9 +375,9 @@ uint8_t MemoryReadResolve(const uint16_t address, bool stateful) {
 	if(address & 0x8000) {
 		switch(loadedRomType) {
 			case RomType::EEPROM8K:
-			return rom_buffer[address & 0x1FFF];
+			return cartridge_state.rom[address & 0x1FFF];
 			case RomType::EEPROM32K:
-			return rom_buffer[address & 0x7FFF];
+			return cartridge_state.rom[address & 0x7FFF];
 			case RomType::FLASH2M:
 			return MemoryRead_Flash2M(address);
 			case RomType::UNKNOWN:
@@ -470,14 +388,14 @@ uint8_t MemoryReadResolve(const uint16_t address, bool stateful) {
 	} else if((address >= 0x3000) && (address <= 0x3FFF)) {
 		return soundcard->ram_read(address);
 	} else if((address >= 0x2800) && (address <= 0x2FFF)) {
-		return VIA_regs[address & 0xF];
+		return system_state.VIA_regs[address & 0xF];
 	} else if(address < 0x2000) {
 		if(stateful) {
-			if(!ram_inited[FULL_RAM_ADDRESS(address & 0x1FFF)]) {
-				printf("WARNING! Uninitialized RAM read at %x (Bank %x)\n", address, banking_reg >> 5);
+			if(!system_state.ram_initialized[FULL_RAM_ADDRESS(address & 0x1FFF)]) {
+				printf("WARNING! Uninitialized RAM read at %x (Bank %x)\n", address, system_state.banking >> 5);
 			}
 		}
-		return ram_buffer[FULL_RAM_ADDRESS(address & 0x1FFF)];
+		return system_state.ram[FULL_RAM_ADDRESS(address & 0x1FFF)];
 	} else if((address == 0x2008) || (address == 0x2009)) {
 		return joysticks->read((uint8_t) address, stateful);
 	}
@@ -495,8 +413,8 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 	if(address & 0x8000) {
 		//Assuming for now that it's a 2M Flash + 32K RAM
 		if(!(address & 0x4000)) {
-			if(!(flash2M_highbits & 0x80)) {
-				cart_ram_buffer[(address & 0x3FFF) | ((flash2M_highbits & 0x40) << 8)] = value;
+			if(!(cartridge_state.bank_mask & 0x80)) {
+				cartridge_state.save_ram[(address & 0x3FFF) | ((cartridge_state.bank_mask & 0x40) << 8)] = value;
 			}
 		}
 	}
@@ -512,7 +430,7 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 				}
 			}
 			if((address & 0xF) == VIA_ORB) {
-				if((VIA_regs[VIA_ORB] & 0x80) && !(value & 0x80)) {
+				if((system_state.VIA_regs[VIA_ORB] & 0x80) && !(value & 0x80)) {
 					//falling edge of high bit of ORB
 					if(value & 0x40) {
 						//report duration
@@ -523,20 +441,20 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 					}
 				}
 			}
-			VIA_regs[address & 0xF] = value;
+			system_state.VIA_regs[address & 0xF] = value;
 		} else {
 			if((address & 0x000F) == 0x0007) {
-				if((value & DMA_VID_OUT_PAGE_BIT) != (dma_control_reg & DMA_VID_OUT_PAGE_BIT)) {
+				if((value & DMA_VID_OUT_PAGE_BIT) != (system_state.dma_control & DMA_VID_OUT_PAGE_BIT)) {
 					profiler.bufferFlipCount++;
 				}
-				dma_control_reg = value;
-				if(dma_control_reg & DMA_TRANSPARENCY_BIT) {
+				system_state.dma_control = value;
+				if(system_state.dma_control & DMA_TRANSPARENCY_BIT) {
 					SDL_SetColorKey(gRAM_Surface, SDL_TRUE, SDL_MapRGB(gRAM_Surface->format, 0, 0, 0));
 				} else {
 					SDL_SetColorKey(gRAM_Surface, SDL_FALSE, 0);
 				}
 			} else if((address & 0x000F) == 0x0005) {
-				banking_reg = value;
+				system_state.banking = value;
 				//printf("banking reg set to %x\n", value);
 			} else {
 				soundcard->register_write(address, value);
@@ -544,11 +462,11 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 		}
 	}
 	else if(address < 0x2000) {
-		/*if(!ram_inited[FULL_RAM_ADDRESS(address & 0x1FFF)]) {
-			printf("First RAM write at %x (Bank %x) (Value %x)\n", address, banking_reg >> 6, value);
+		/*if(!system_state.ram_initialized[FULL_RAM_ADDRESS(address & 0x1FFF)]) {
+			printf("First RAM write at %x (Bank %x) (Value %x)\n", address, system_state.banking >> 6, value);
 		}*/
-		ram_inited[FULL_RAM_ADDRESS(address & 0x1FFF)] = true;
-		ram_buffer[FULL_RAM_ADDRESS(address & 0x1FFF)] = value;
+		system_state.ram_initialized[FULL_RAM_ADDRESS(address & 0x1FFF)] = true;
+		system_state.ram[FULL_RAM_ADDRESS(address & 0x1FFF)] = value;
 	}
 }
 
@@ -561,34 +479,34 @@ bool rshift = false;
 
 void randomize_vram() {
 	for(int i = 0; i < VRAM_BUFFER_SIZE; i ++) {
-		vram_buffer[i] = rand() % 256;
-		put_pixel32(vRAM_Surface, i & 127, i >> 7, convert_color(vRAM_Surface, vram_buffer[i]));
+		system_state.vram[i] = rand() % 256;
+		put_pixel32(vRAM_Surface, i & 127, i >> 7, convert_color(vRAM_Surface, system_state.vram[i]));
 	}
 	for(int i = 0; i < GRAM_BUFFER_SIZE; i ++) {
-		gram_buffer[i] = rand() % 256;
-		put_pixel32(gRAM_Surface, i & 127, i >> 7, convert_color(gRAM_Surface, gram_buffer[i]));
+		system_state.gram[i] = rand() % 256;
+		put_pixel32(gRAM_Surface, i & 127, i >> 7, convert_color(gRAM_Surface, system_state.gram[i]));
 	}
 }
 
 void randomize_memory() {
 	for(int i = 0; i < RAMSIZE; i++) {
-		ram_buffer[i] = rand() % 256;
-		ram_inited[i] = false;
+		system_state.ram[i] = rand() % 256;
+		system_state.ram_initialized[i] = false;
 	}
 
 	for(int i = 0; i < VRAM_BUFFER_SIZE; i++) {
-		vram_buffer[i] = rand() % 256;	
+		system_state.vram[i] = rand() % 256;	
 	}
 
 	for(int i = 0; i < GRAM_BUFFER_SIZE; i++) {
-		gram_buffer[i] = rand() % 256;	
+		system_state.gram[i] = rand() % 256;	
 	}
 	
-	dma_control_reg = rand() % 256;
-	banking_reg = rand() % 256;
-	gram_mid_bits = rand() % 4;
+	system_state.dma_control = rand() % 256;
+	system_state.banking = rand() % 256;
+	blitter_state.gram_mid_bits = rand() % 4;
 	for(int i = 0; i < DMA_PARAMS_COUNT; i++) {
-		dma_params[i] = rand() % 256;
+		blitter_state.params[i] = rand() % 256;
 	}
 }
 
@@ -646,10 +564,10 @@ extern "C" {
 		}
 
 		fseek(romFileP, 0L, SEEK_END);
-		ROMSIZE = ftell(romFileP);
-		rom_buffer = new uint8_t [ROMSIZE];
+		cartridge_state.size = ftell(romFileP);
+		cartridge_state.rom = new uint8_t [cartridge_state.size];
 		rewind(romFileP);
-		switch(ROMSIZE) {
+		switch(cartridge_state.size) {
 			case 8192:
 			loadedRomType = RomType::EEPROM8K;
 			printf("Detected 8K (EEPROM)\n");
@@ -664,10 +582,10 @@ extern "C" {
 			break;
 			default:
 			loadedRomType = RomType::UNKNOWN;
-			printf("Unknown ROM type: Size is %d bytes\n", ROMSIZE);
+			printf("Unknown ROM type: Size is %d bytes\n", cartridge_state.size);
 			break;
 		}
-		fread(rom_buffer, sizeof(uint8_t), ROMSIZE, romFileP);
+		fread(cartridge_state.rom, sizeof(uint8_t), cartridge_state.size, romFileP);
 		fclose(romFileP);
 		if(cpu_core) {
 			paused = false;
@@ -680,10 +598,10 @@ extern "C" {
 			}
 
 			using_battery_cart =
-				(rom_buffer[0x1FFFF0] == 'S') &&
-				(rom_buffer[0x1FFFF1] == 'A') &&
-				(rom_buffer[0x1FFFF2] == 'V') &&
-				(rom_buffer[0x1FFFF3] == 'E');
+				(cartridge_state.rom[0x1FFFF0] == 'S') &&
+				(cartridge_state.rom[0x1FFFF1] == 'A') &&
+				(cartridge_state.rom[0x1FFFF2] == 'V') &&
+				(cartridge_state.rom[0x1FFFF3] == 'E');
 		}
 		return 0;
 	}
@@ -694,50 +612,120 @@ extern "C" {
 		}
 	}
 }
-
-void openProfilerWindow() {
 #ifndef WASM_BUILD
-	if(!profiler_open) {
-		profilerWindow = new ProfilerWindow(profiler);
-		memBrowserWindow = new MemBrowserWindow(loadedMemoryMap, MemoryReadResolve);
-		profiler_open = true;
-		printf("opened profiler window\n");
+template <typename T>
+void closeToolByType() {
+    toolWindows.erase(
+        std::remove_if(
+            toolWindows.begin(),
+            toolWindows.end(),
+            [](BaseWindow* window) {
+                if(dynamic_cast<T*>(window) != nullptr) {
+					delete window;
+					return true;
+				}
+				return false;
+            }
+        ),
+        toolWindows.end()
+    );
+}
+
+template <typename T>
+bool toolTypeIsOpen() {
+    for (const auto& window : toolWindows) {
+        if (dynamic_cast<T*>(window) != nullptr) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void toggleProfilerWindow() {
+
+	if(!toolTypeIsOpen<ProfilerWindow>()) {
+		toolWindows.push_back(new ProfilerWindow(profiler));
+	} else {
+		closeToolByType<ProfilerWindow>();
 	}
+}
+
+void toggleMemBrowserWindow() {
+	if(!toolTypeIsOpen<MemBrowserWindow>()) {
+		toolWindows.push_back(new MemBrowserWindow(loadedMemoryMap, MemoryReadResolve));
+	} else {
+		closeToolByType<MemBrowserWindow>();
+	}
+}
+
+void toggleVRAMWindow() {
+	if(!toolTypeIsOpen<VRAMWindow>()) {
+		toolWindows.push_back(new VRAMWindow(vRAM_Surface, gRAM_Surface,
+			&system_state, cpu_core, &cartridge_state));
+	} else {
+		closeToolByType<VRAMWindow>();
+	}
+}
+
 #endif
-}
-
-void openBuffersWindow() {
-	if(!buffers_open) {
-		buffers_window = SDL_CreateWindow("System state info",  SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, BUFFERS_PREVIEW_WIDTH, BUFFERS_PREVIEW_HEIGHT, SDL_WINDOW_SHOWN );
-		buffersWindowSurface = SDL_GetWindowSurface(buffers_window);
-		SDL_SetColorKey(buffersWindowSurface, SDL_FALSE, 0);
-		buffers_open = true;
-	}
-}
-
-void closeProfilerWindow() {
-#ifndef WASM_BUILD
-	if(profiler_open) {
-		profiler_open = false;
-		delete profilerWindow;
-		delete memBrowserWindow;
-		profilerWindow = NULL;
-		memBrowserWindow = NULL;
-	}
-#endif
-}
-
-void closeBuffersWindow() {
-	if(buffers_open) {
-		buffers_open = false;
-		SDL_DestroyWindow(buffers_window);
-		buffersWindowSurface = NULL;
-	}
-}
 
 #ifndef EM_BOOL
 #define EM_BOOL int
 #endif
+
+void refreshScreen() {
+	SDL_Rect src, dest;
+	int scr_w, scr_h;
+	src.x = 0;
+	src.y = (system_state.dma_control & DMA_VID_OUT_PAGE_BIT) ? GT_HEIGHT : 0;
+	src.w = GT_WIDTH;
+	src.h = GT_HEIGHT;
+	SDL_GetWindowSize(mainWindow, &scr_w, &scr_h);
+	dest.w = min(scr_w, scr_h);
+	dest.h = dest.w;
+	dest.x = (scr_w - dest.w) / 2;
+	dest.y = (scr_h - dest.h) / 2;
+	//SDL_BlitScaled(vRAM_Surface, &src, screenSurface, &dest);
+	SDL_UpdateTexture(framebufferTexture, NULL, vRAM_Surface->pixels, vRAM_Surface->pitch);
+
+	SDL_RenderClear(mainRenderer);
+	SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
+
+#ifndef WASM_BUILD
+	ImGui::SetCurrentContext(main_imgui_ctx);
+
+    ImGui_ImplSDLRenderer2_NewFrame();
+    ImGui_ImplSDL2_NewFrame();
+	ImGui::NewFrame();
+	if(ImGui::BeginMainMenuBar()) {
+		if (ImGui::BeginMenu("File")) {
+			if(ImGui::MenuItem("Open Rom")) {
+				lTheOpenFileName = open_rom_dialog();
+				if(lTheOpenFileName) {
+					LoadRomFile(lTheOpenFileName);
+				}	
+			}
+			ImGui::EndMenu();
+		}
+		if(ImGui::BeginMenu("Tools")) {
+			if(ImGui::MenuItem("Profiler")) {
+				toggleProfilerWindow();
+			}
+			if(ImGui::MenuItem("Memory Browser")) {
+				toggleMemBrowserWindow();
+			}
+			if(ImGui::MenuItem("VRAM Viewer")) {
+				toggleVRAMWindow();
+			}
+			ImGui::EndMenu();
+		}
+		ImGui::EndMainMenuBar();
+	}
+	ImGui::Render();
+	ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData());
+#endif
+	SDL_RenderPresent(mainRenderer);
+}
 
 char titlebuf[256];
 uint64_t total_frames_ever = 0;
@@ -814,7 +802,7 @@ EM_BOOL mainloop(double time, void* userdata) {
 			timekeeper.cycles_since_vsync += intended_cycles;
 			if(timekeeper.cycles_since_vsync >= timekeeper.cycles_per_vsync) {
 				timekeeper.cycles_since_vsync -= timekeeper.cycles_per_vsync;
-				if(dma_control_reg & DMA_VSYNC_NMI_BIT) {
+				if(system_state.dma_control & DMA_VSYNC_NMI_BIT) {
 					cpu_core->NMI();
 				}
 			}
@@ -824,15 +812,17 @@ EM_BOOL mainloop(double time, void* userdata) {
 		refreshScreen();
 		SDL_UpdateWindowSurface(mainWindow);
 
-		if(buffers_open) {
-			SDL_UpdateWindowSurface(buffers_window);
-		}
-
 		while( SDL_PollEvent( &e ) != 0 )
         {
 #ifndef WASM_BUILD
-			if(profilerWindow) profilerWindow->HandleEvent(e);
-			if(memBrowserWindow) memBrowserWindow->HandleEvent(e);
+			if(SDL_GetMouseFocus() == mainWindow) {
+				ImGui::SetCurrentContext(main_imgui_ctx);
+				ImPlot::SetCurrentContext(main_implot_ctx);
+				ImGui_ImplSDL2_ProcessEvent(&e);
+			}
+			for (auto toolWindow : toolWindows) {
+				toolWindow->HandleEvent(e);
+			}
 #endif
             //User requests quit
             if( e.type == SDL_QUIT )
@@ -844,8 +834,6 @@ EM_BOOL mainloop(double time, void* userdata) {
 					SDL_Window* closedWindow = SDL_GetWindowFromID(e.window.windowID);
 					if(closedWindow == mainWindow) {
 						running = false;
-					} else if(closedWindow == buffers_window) {
-						closeBuffersWindow();
 					}
 				}
 			} else if((e.key.repeat == 0) && (e.type == SDL_KEYDOWN || e.type == SDL_KEYUP)) {  
@@ -863,6 +851,7 @@ EM_BOOL mainloop(double time, void* userdata) {
             			gofast = (e.type == SDL_KEYDOWN);
             			break;
             		case SDLK_r:
+						//TODO add menu item for reset
             			paused = false;
 						if(lshift || rshift) {
 							randomize_memory();
@@ -892,22 +881,6 @@ EM_BOOL mainloop(double time, void* userdata) {
 							SDL_FreeSurface(screenshot);
 						}
 						break;
-					case SDLK_F9:
-						if(e.type == SDL_KEYDOWN) {
-							if(profiler_open)
-								closeProfilerWindow();
-							else
-								openProfilerWindow();
-						}
-						break;
-					case SDLK_F10:
-						if(e.type == SDL_KEYDOWN) {
-							if(buffers_open)
-								closeBuffersWindow();
-							else
-								openBuffersWindow();
-						}
-						break;
 					case SDLK_F11:
 						if(e.type == SDL_KEYDOWN) {
 							if(isFullScreen) {
@@ -921,16 +894,17 @@ EM_BOOL mainloop(double time, void* userdata) {
 						}
 						break;
 					case SDLK_F12:
+						//TODO move to function and add menu item
 						if(e.type == SDL_KEYDOWN) {
 							soundcard->dump_ram("audio_debug.dat");
 							ofstream dumpfile ("ram_debug.dat", ios::out | ios::binary);
-							dumpfile.write((char*) ram_buffer, RAMSIZE);
+							dumpfile.write((char*) system_state.ram, RAMSIZE);
 							dumpfile.close();
 							loadedMemoryMap->forEach([](const Symbol& symbol) {
 								if(symbol.address < 0x2000) {
 									uint8_t value = MemoryReadResolve(symbol.address, false);
 									std::cout << symbol.name << "@" << std::hex << symbol.address << " = " << std::hex << static_cast<unsigned int>(value);
-									if(!ram_inited[FULL_RAM_ADDRESS(symbol.address & 0x1FFF)]) {
+									if(!system_state.ram_initialized[FULL_RAM_ADDRESS(symbol.address & 0x1FFF)]) {
 										std::cout << " (uninitialized)";
 									}
 									std::cout << std::endl;
@@ -948,15 +922,15 @@ EM_BOOL mainloop(double time, void* userdata) {
         }
 
 #ifndef WASM_BUILD
-		if(profiler_open) {
-			
-			profilerWindow->Draw();
-			memBrowserWindow->Draw();
-			
-			if(!profilerWindow->IsOpen()) {
-				closeProfilerWindow();
-			}
+		for (auto& window : toolWindows) {
+			window->Draw();
 		}
+
+		auto const to_be_removed = std::partition(begin(toolWindows), end(toolWindows), [](auto w){ return w->IsOpen(); });
+		std::for_each(to_be_removed, end(toolWindows), [](auto w) {
+			delete w;
+		});
+		toolWindows.erase(to_be_removed, end(toolWindows));
 #endif
 		profiler.ResetTimers();
 		
@@ -964,11 +938,17 @@ EM_BOOL mainloop(double time, void* userdata) {
 #ifdef WASM_BUILD
 		emscripten_cancel_main_loop();
 #else
-		if(profilerWindow) delete(profilerWindow);
-		if(memBrowserWindow) delete(memBrowserWindow);
+		for (auto& window : toolWindows) {
+			delete window;
+		}
+		toolWindows.clear();
+
+		ImPlot::DestroyContext(main_implot_ctx);
+    	ImGui::DestroyContext(main_imgui_ctx);
 #endif
 		printf("Finished running\n");
 		
+    	SDL_DestroyRenderer(mainRenderer);
 		SDL_DestroyWindow(mainWindow);
 		SDL_Quit();
 	}
@@ -995,9 +975,9 @@ int main(int argC, char* argV[]) {
 		"No ROM was loaded",
 		"warning");
 #endif
-		rom_buffer = new uint8_t [ROMSIZE];
-		for(int i = 0; i < ROMSIZE; i++) {
-			rom_buffer[i] = 0;
+		cartridge_state.rom = new uint8_t [cartridge_state.size];
+		for(int i = 0; i < cartridge_state.size; i++) {
+			cartridge_state.rom[i] = 0;
 		}
 	}
 
@@ -1020,6 +1000,16 @@ int main(int argC, char* argV[]) {
 	mainWindow = SDL_CreateWindow( "GameTank Emulator", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 	mainRenderer = SDL_CreateRenderer(mainWindow, -1, SDL_RENDERER_ACCELERATED);
 	framebufferTexture = SDL_CreateTexture(mainRenderer, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING, GT_WIDTH, GT_HEIGHT * 2);
+
+#ifndef WASM_BUILD
+	main_imgui_ctx = ImGui::CreateContext();
+	main_implot_ctx = ImPlot::CreateContext();
+	ImGuiIO& io = ImGui::GetIO(); (void)io;
+	io.ConfigViewportsNoAutoMerge = true;
+	ImGui::StyleColorsDark();
+	ImGui_ImplSDL2_InitForSDLRenderer(mainWindow, mainRenderer);
+	ImGui_ImplSDLRenderer2_Init(mainRenderer);
+#endif
 
 	#if SDL_BYTEORDER == SDL_BIG_ENDIAN
 	    rmask = 0xff000000;
