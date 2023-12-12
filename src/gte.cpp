@@ -174,8 +174,6 @@ ProfilerWindow* profilerWindow;
 MemBrowserWindow* memBrowserWindow;
 #endif
 
-SDL_Surface* screenSurface = NULL;
-SDL_Surface* profilerSurface = NULL;
 SDL_Surface* buffersWindowSurface = NULL;
 SDL_Surface* gRAM_Surface = NULL;
 SDL_Surface* vRAM_Surface = NULL;
@@ -187,6 +185,9 @@ JoystickAdapter *joysticks;
 SDL_Window* mainWindow = NULL;
 SDL_Window* buffers_window = NULL;
 Uint32 rmask, gmask, bmask, amask;
+
+SDL_Renderer* mainRenderer = NULL;
+SDL_Texture* framebufferTexture = NULL;
 
 bool isFullScreen = false;
 
@@ -265,8 +266,12 @@ void refreshScreen() {
 	dest.h = dest.w;
 	dest.x = (scr_w - dest.w) / 2;
 	dest.y = (scr_h - dest.h) / 2;
-	SDL_BlitScaled(vRAM_Surface, &src, screenSurface, &dest);
+	//SDL_BlitScaled(vRAM_Surface, &src, screenSurface, &dest);
+	SDL_UpdateTexture(framebufferTexture, NULL, vRAM_Surface->pixels, vRAM_Surface->pitch);
 
+	SDL_RenderClear(mainRenderer);
+	SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
+	SDL_RenderPresent(mainRenderer);
 	if(buffers_open) {
 		drawBuffersWindow();
 	}
@@ -381,7 +386,7 @@ void VDMA_Write(uint16_t address, uint8_t value) {
 	} else {
 		uint8_t* bufPtr;
 		uint32_t offset = 0;
-		SDL_Surface* targetSurface = screenSurface;
+		SDL_Surface* targetSurface = NULL;
 		uint32_t yShift = 0;
 		if(dma_control_reg & DMA_CPU_TO_VRAM) {
 			bufPtr = vram_buffer;
@@ -554,7 +559,7 @@ bool paused = false;
 bool lshift = false;
 bool rshift = false;
 
-void vram_to_surface() {
+void randomize_vram() {
 	for(int i = 0; i < VRAM_BUFFER_SIZE; i ++) {
 		vram_buffer[i] = rand() % 256;
 		put_pixel32(vRAM_Surface, i & 127, i >> 7, convert_color(vRAM_Surface, vram_buffer[i]));
@@ -861,7 +866,7 @@ EM_BOOL mainloop(double time, void* userdata) {
             			paused = false;
 						if(lshift || rshift) {
 							randomize_memory();
-							vram_to_surface();
+							randomize_vram();
 						}
             			cpu_core->Reset();
             			break;
@@ -881,7 +886,10 @@ EM_BOOL mainloop(double time, void* userdata) {
             			break;
 					case SDLK_F8:
 						if(e.type == SDL_KEYDOWN) {
-							SDL_SaveBMP(screenSurface, "screenshot.bmp");
+							SDL_Surface *screenshot = SDL_CreateRGBSurface(0, SCREEN_WIDTH, SCREEN_HEIGHT, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
+							SDL_RenderReadPixels(mainRenderer, NULL, SDL_PIXELFORMAT_ARGB8888, screenshot->pixels, screenshot->pitch);
+							SDL_SaveBMP(screenshot, "screenshot.bmp");
+							SDL_FreeSurface(screenshot);
 						}
 						break;
 					case SDLK_F9:
@@ -905,13 +913,9 @@ EM_BOOL mainloop(double time, void* userdata) {
 							if(isFullScreen) {
 								SDL_SetWindowFullscreen(mainWindow, 0);
 								isFullScreen = false;
-								screenSurface = SDL_GetWindowSurface(mainWindow);
-								SDL_SetColorKey(screenSurface, SDL_FALSE, 0);
 							} else {
 								SDL_SetWindowFullscreen(mainWindow, SDL_WINDOW_FULLSCREEN_DESKTOP);
 								isFullScreen = true;
-								screenSurface = SDL_GetWindowSurface(mainWindow);
-								SDL_SetColorKey(screenSurface, SDL_FALSE, 0);
 							}
 							timekeeper.scaling_increment = INITIAL_SCALING_INCREMENT;
 						}
@@ -959,10 +963,12 @@ EM_BOOL mainloop(double time, void* userdata) {
 	if(!running) {
 #ifdef WASM_BUILD
 		emscripten_cancel_main_loop();
-#endif
-		printf("Finished running\n");
+#else
 		if(profilerWindow) delete(profilerWindow);
 		if(memBrowserWindow) delete(memBrowserWindow);
+#endif
+		printf("Finished running\n");
+		
 		SDL_DestroyWindow(mainWindow);
 		SDL_Quit();
 	}
@@ -1003,9 +1009,17 @@ int main(int argC, char* argV[]) {
 	SDL_Init(SDL_INIT_VIDEO);
 	atexit(SDL_Quit);
 
+	bmpFont = SDL_CreateRGBSurfaceFrom(font_map, 128, 128, 32, 4 * 128, rmask, gmask, bmask, amask);
+
+	vRAM_Surface = SDL_CreateRGBSurface(0, GT_WIDTH, GT_HEIGHT * 2, 32, rmask, gmask, bmask, amask);
+	gRAM_Surface = SDL_CreateRGBSurface(0, GT_WIDTH, GT_HEIGHT * 32, 32, rmask, gmask, bmask, amask);
+
+	SDL_SetColorKey(vRAM_Surface, SDL_FALSE, 0);
+	SDL_SetColorKey(gRAM_Surface, SDL_FALSE, 0);
+
 	mainWindow = SDL_CreateWindow( "GameTank Emulator", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
-	screenSurface = SDL_GetWindowSurface(mainWindow);
-	SDL_SetColorKey(screenSurface, SDL_FALSE, 0);
+	mainRenderer = SDL_CreateRenderer(mainWindow, -1, SDL_RENDERER_ACCELERATED);
+	framebufferTexture = SDL_CreateTexture(mainRenderer, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING, GT_WIDTH, GT_HEIGHT * 2);
 
 	#if SDL_BYTEORDER == SDL_BIG_ENDIAN
 	    rmask = 0xff000000;
@@ -1019,17 +1033,7 @@ int main(int argC, char* argV[]) {
 	    amask = 0xff000000;
 	#endif
 
-	bmpFont = SDL_CreateRGBSurfaceFrom(font_map, 128, 128, 32, 4 * 128, rmask, gmask, bmask, amask);
-
-	vRAM_Surface = SDL_CreateRGBSurface(0, GT_WIDTH, GT_HEIGHT * 2, 32, rmask, gmask, bmask, amask);
-	gRAM_Surface = SDL_CreateRGBSurface(0, GT_WIDTH, GT_HEIGHT * 32, 32, rmask, gmask, bmask, amask);
-
-	SDL_SetColorKey(vRAM_Surface, SDL_FALSE, 0);
-	SDL_SetColorKey(gRAM_Surface, SDL_FALSE, 0);
-
-	SDL_FillRect(screenSurface, NULL, SDL_MapRGB(screenSurface->format, 0x00, 0x00, 0x00));
-
-	vram_to_surface();
+	randomize_vram();
 
 #ifdef WASM_BUILD
 	emscripten_request_animation_frame_loop(mainloop, 0);
