@@ -769,16 +769,6 @@ EM_BOOL mainloop(double time, void* userdata) {
 							ofstream dumpfile ("ram_debug.dat", ios::out | ios::binary);
 							dumpfile.write((char*) system_state.ram, RAMSIZE);
 							dumpfile.close();
-							loadedMemoryMap->forEach([](const Symbol& symbol) {
-								if(symbol.address < 0x2000) {
-									uint8_t value = MemoryReadResolve(symbol.address, false);
-									std::cout << symbol.name << "@" << std::hex << symbol.address << " = " << std::hex << static_cast<unsigned int>(value);
-									if(!system_state.ram_initialized[FULL_RAM_ADDRESS(symbol.address & 0x1FFF)]) {
-										std::cout << " (uninitialized)";
-									}
-									std::cout << std::endl;
-								}
-							});
 						}
 						break;
             		default:
