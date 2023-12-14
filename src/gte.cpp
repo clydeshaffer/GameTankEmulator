@@ -17,7 +17,8 @@
 
 #include "joystick_adapter.h"
 #include "audio_coprocessor.h"
-#include "gametank_palette.h"
+#include "blitter.h"
+#include "palette.h"
 
 #include "timekeeper.h"
 #include "system_state.h"
@@ -41,14 +42,6 @@
 
 using namespace std;
 
-typedef struct RGB_Color {
-	uint8_t r, g, b;
-} RGB_Color;
-
-typedef struct RGBA_Color {
-	uint8_t r, g, b, a;
-} RGBA_Color;
-
 const int GT_WIDTH = 128;
 const int GT_HEIGHT = 128;
 
@@ -62,11 +55,11 @@ RomType loadedRomType;
 bool using_battery_cart; //TODO fold this into the enum
 
 mos6502 *cpu_core;
+Blitter *blitter;
 AudioCoprocessor *soundcard;
 JoystickAdapter *joysticks;
 SystemState system_state;
 CartridgeState cartridge_state;
-BlitterState blitter_state;
 
 const int SCREEN_WIDTH = 512;
 const int SCREEN_HEIGHT = 512;
@@ -118,20 +111,6 @@ const uint8_t VIA_SPI_BIT_MOSI = 0b00000010;
 const uint8_t VIA_SPI_BIT_CS   = 0b00000100;
 const uint8_t VIA_SPI_BIT_MISO = 0b10000000;
 
-#define DMA_COPY_ENABLE_BIT 1
-#define DMA_VID_OUT_PAGE_BIT 2
-#define DMA_VSYNC_NMI_BIT 4
-#define DMA_COLORFILL_ENABLE_BIT 8
-#define DMA_GCARRY_BIT 16
-#define DMA_CPU_TO_VRAM 32
-#define DMA_COPY_IRQ_BIT 64
-#define DMA_TRANSPARENCY_BIT 128
-
-#define BANK_GRAM_MASK  0b00000111
-#define BANK_VRAM_MASK  0b00001000
-#define BANK_WRAPX_MASK 0b00010000
-#define BANK_WRAPY_MASK 0b00100000
-#define BANK_RAM_MASK   0b11000000
 #define RAM_HIGHBITS_SHIFT 7
 
 #define FULL_RAM_ADDRESS(x) (((system_state.banking & BANK_RAM_MASK) << RAM_HIGHBITS_SHIFT) | (x))
@@ -168,34 +147,8 @@ uint8_t open_bus() {
 	return rand() % 256;
 }
 
-Uint32 convert_color(SDL_Surface* target, uint8_t cIndex) {
-	if(cIndex == 0) return SDL_MapRGB(target->format, 0, 0, 0);
-	RGB_Color c = palette[cIndex];
-	Uint32 res = SDL_MapRGB(target->format, c.r, c.g, c.b);
-	if(res == SDL_MapRGB(target->format, 0, 0, 0))
-		return SDL_MapRGB(target->format, 1, 1, 1);
-	return res;
-}
-
-Uint32 get_pixel32( SDL_Surface *surface, int x, int y )
-{
-    //Convert the pixels to 32 bit
-    Uint32 *pixels = (Uint32 *)surface->pixels;
-    
-    //Get the requested pixel
-    return pixels[ ( y * surface->w ) + x ];
-}
-
-void put_pixel32( SDL_Surface *surface, int x, int y, Uint32 pixel )
-{
-    //Convert the pixels to 32 bit
-    Uint32 *pixels = (Uint32 *)surface->pixels;
-    
-    //Set the pixel
-    pixels[ ( y * surface->w ) + x ] = pixel;
-}
-
 uint8_t VDMA_Read(uint16_t address) {
+	blitter->CatchUp();
 	if(system_state.dma_control & DMA_COPY_ENABLE_BIT) {
 		return open_bus();
 	} else {
@@ -208,99 +161,16 @@ uint8_t VDMA_Read(uint16_t address) {
 			}
 		} else {
 			bufPtr = system_state.gram;
-			offset = (((system_state.banking & BANK_GRAM_MASK) << 2) | (blitter_state.gram_mid_bits)) << 14;
+			offset = (((system_state.banking & BANK_GRAM_MASK) << 2) | (blitter->gram_mid_bits)) << 14;
 		}
 		return bufPtr[(address & 0x3FFF) | offset];
 	}
 }
 
 void VDMA_Write(uint16_t address, uint8_t value) {
+	blitter->CatchUp();
 	if(system_state.dma_control & DMA_COPY_ENABLE_BIT) {
-		if(((address & 0x7) == DMA_PARAM_TRIGGER) && (value & 1)) {
-			SDL_Rect gRect, vRect;
-			vRect.x = blitter_state.params[DMA_PARAM_VX];
-			vRect.y = blitter_state.params[DMA_PARAM_VY];
-			vRect.w = blitter_state.params[DMA_PARAM_WIDTH];
-			vRect.h = blitter_state.params[DMA_PARAM_HEIGHT];
-			gRect.x = blitter_state.params[DMA_PARAM_GX];
-			gRect.y = blitter_state.params[DMA_PARAM_GY];
-			gRect.w = blitter_state.params[DMA_PARAM_WIDTH];
-			gRect.h = blitter_state.params[DMA_PARAM_HEIGHT];
-			uint8_t outColor[2];
-			uint8_t colorSel = 0;
-			if(system_state.dma_control & DMA_COLORFILL_ENABLE_BIT) {
-				colorSel = 1;
-			}
-			outColor[1] = ~(blitter_state.params[DMA_PARAM_COLOR]);
-#ifdef VIDDEBUG
-			printf("Copying from (%d, %d) to (%d, %d) at (%d x %d)\n",
-				gRect.x & 0x7F, gRect.y & 0x7F,
-				vRect.x, vRect.y,
-				gRect.w, gRect.h);
-#endif
-			uint32_t vOffset = 0, gOffset = 0;
-			if(system_state.banking & BANK_VRAM_MASK) {
-				vOffset = 0x4000;
-			}
-			int yShift = 0;
-			int vy = blitter_state.params[DMA_PARAM_VY],
-				gy = blitter_state.params[DMA_PARAM_GY],
-				gy2;
-			if(system_state.banking & BANK_VRAM_MASK) {
-				yShift = GT_HEIGHT;
-			}
-			for(uint16_t y = 0; y < (blitter_state.params[DMA_PARAM_HEIGHT] & 0x7F); y++) {
-				int vx = blitter_state.params[DMA_PARAM_VX],
-					gx = blitter_state.params[DMA_PARAM_GX],
-					gx2;
-				for(uint16_t x = 0; x < (blitter_state.params[DMA_PARAM_WIDTH] & 0x7F); x++) {
-					gx2 = gx; gy2 = gy;
-					if(blitter_state.params[DMA_PARAM_WIDTH] & 0x80) {
-						gx2 = ~gx2;
-					}
-					if(blitter_state.params[DMA_PARAM_HEIGHT] & 0x80) {
-						gy2 = ~gy2;
-					}
-
-					gOffset = ((system_state.banking & BANK_GRAM_MASK) << 16) + 
-						(!!(gy2 & 0x80) << 15) +
-						(!!(gx2 & 0x80) << 14);
-					blitter_state.gram_mid_bits = (!!(gy2 & 0x80) * 2) +
-						(!!(gx2 & 0x80) * 1);
-					outColor[0] = system_state.gram[((gy2 & 0x7F) << 7) | (gx2 & 0x7F) | gOffset];
-					if(((system_state.dma_control & DMA_TRANSPARENCY_BIT) || (outColor[colorSel] != 0))
-						&& !((vx & 0x80) && (system_state.banking & BANK_WRAPX_MASK))
-						&& !((vy & 0x80) && system_state.banking & BANK_WRAPY_MASK)) {
-						system_state.vram[((vy & 0x7F) << 7) | (vx & 0x7F) | vOffset] = outColor[colorSel];
-						put_pixel32(vRAM_Surface, vx & 0x7F, (vy & 0x7F) + yShift, convert_color(vRAM_Surface, outColor[colorSel]));
-					}
-					vx++;
-					if(system_state.dma_control & DMA_GCARRY_BIT) {
-						gx++;
-					} else {
-						gx = (gx & 0xF0) | ((gx+1) & 0x0F);
-					}
-				}
-				vy++;
-				if(system_state.dma_control & DMA_GCARRY_BIT) {
-					gy++;
-				} else {
-					gy = (gy & 0xF0) | ((gy+1) & 0x0F);
-				}
-			}
-
-			if(system_state.dma_control & DMA_COPY_IRQ_BIT) {
-				cpu_core->ClearIRQ();
-				cpu_core->ScheduleIRQ(((blitter_state.params[DMA_PARAM_HEIGHT] & 0x7F) * (blitter_state.params[DMA_PARAM_WIDTH] & 0x7F)));
-			}
-		} else if(((address & 0x7) == DMA_PARAM_TRIGGER) && !(value & 1)) {
-			cpu_core->ClearIRQ();
-		} else {
-#ifdef VIDDEBUG
-			printf("Setting DMA param %d to %d\n", address & 0x7, value);
-#endif
-			blitter_state.params[address & 0x7] = value;
-		}
+		blitter->SetParam(address, value);
 	} else {
 		uint8_t* bufPtr;
 		uint32_t offset = 0;
@@ -316,15 +186,15 @@ void VDMA_Write(uint16_t address, uint8_t value) {
 		} else {
 			bufPtr = system_state.gram;
 			targetSurface = gRAM_Surface;
-			yShift = (((system_state.banking & BANK_GRAM_MASK) << 2) | (blitter_state.gram_mid_bits)) * GT_HEIGHT;
-			offset = (((system_state.banking & BANK_GRAM_MASK) << 2) | (blitter_state.gram_mid_bits)) << 14;
+			yShift = (((system_state.banking & BANK_GRAM_MASK) << 2) | (blitter->gram_mid_bits)) * GT_HEIGHT;
+			offset = (((system_state.banking & BANK_GRAM_MASK) << 2) | (blitter->gram_mid_bits)) << 14;
 		}
 		bufPtr[(address & 0x3FFF) | offset] = value;
 
 		uint8_t x, y;
 		x = address & 127;
 		y = (address >> 7) & 127;
-		put_pixel32(targetSurface, x, y + yShift, convert_color(targetSurface, value));
+		put_pixel32(targetSurface, x, y + yShift, Palette::ConvertColor(targetSurface, value));
 	}
 }
 
@@ -444,6 +314,7 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 			system_state.VIA_regs[address & 0xF] = value;
 		} else {
 			if((address & 0x000F) == 0x0007) {
+				blitter->CatchUp();
 				if((value & DMA_VID_OUT_PAGE_BIT) != (system_state.dma_control & DMA_VID_OUT_PAGE_BIT)) {
 					profiler.bufferFlipCount++;
 				}
@@ -480,11 +351,11 @@ bool rshift = false;
 void randomize_vram() {
 	for(int i = 0; i < VRAM_BUFFER_SIZE; i ++) {
 		system_state.vram[i] = rand() % 256;
-		put_pixel32(vRAM_Surface, i & 127, i >> 7, convert_color(vRAM_Surface, system_state.vram[i]));
+		put_pixel32(vRAM_Surface, i & 127, i >> 7, Palette::ConvertColor(vRAM_Surface, system_state.vram[i]));
 	}
 	for(int i = 0; i < GRAM_BUFFER_SIZE; i ++) {
 		system_state.gram[i] = rand() % 256;
-		put_pixel32(gRAM_Surface, i & 127, i >> 7, convert_color(gRAM_Surface, system_state.gram[i]));
+		put_pixel32(gRAM_Surface, i & 127, i >> 7, Palette::ConvertColor(gRAM_Surface, system_state.gram[i]));
 	}
 }
 
@@ -504,10 +375,7 @@ void randomize_memory() {
 	
 	system_state.dma_control = rand() % 256;
 	system_state.banking = rand() % 256;
-	blitter_state.gram_mid_bits = rand() % 4;
-	for(int i = 0; i < DMA_PARAMS_COUNT; i++) {
-		blitter_state.params[i] = rand() % 256;
-	}
+	blitter->gram_mid_bits = rand() % 4;
 }
 
 void CPUStopped() {
@@ -809,6 +677,7 @@ EM_BOOL mainloop(double time, void* userdata) {
 		} else {
 			SDL_Delay(100);
 		}
+		blitter->CatchUp();
 		refreshScreen();
 		SDL_UpdateWindowSurface(mainWindow);
 
@@ -958,9 +827,6 @@ EM_BOOL mainloop(double time, void* userdata) {
 int main(int argC, char* argV[]) {
 
 	srand(time(NULL));
-	randomize_memory();
-
-	palette = (RGB_Color*) gt_palette_vals;
 
 	if(argC > 1) {
 		lTheOpenFileName = argV[1];
@@ -985,6 +851,8 @@ int main(int argC, char* argV[]) {
 	soundcard = new AudioCoprocessor();
 	cpu_core = new mos6502(MemoryRead, MemoryWrite, CPUStopped);
 	cpu_core->Reset();
+	blitter = new Blitter(cpu_core, &timekeeper, &system_state, vRAM_Surface);
+	randomize_memory();
 	
 	SDL_Init(SDL_INIT_VIDEO);
 	atexit(SDL_Quit);
