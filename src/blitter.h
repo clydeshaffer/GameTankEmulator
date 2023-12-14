@@ -52,11 +52,12 @@ public:
     static const uint8_t PARAM_TRIGGER = 6;
     static const uint8_t PARAM_COLOR   = 7;
 
+    bool instant_mode = false;
     
     uint8_t gram_mid_bits;
 
     Blitter(mos6502*& cpu_core, Timekeeper* timekeeper, SystemState* system_state, SDL_Surface*& vram_surface) : cpu_core(cpu_core), timekeeper(timekeeper), system_state(system_state), vram_surface(vram_surface) {};
 
     void SetParam(uint8_t address, uint8_t value);
-    void CatchUp();
+    void CatchUp(uint64_t cycles=0);
 };

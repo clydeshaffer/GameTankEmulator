@@ -585,6 +585,8 @@ void refreshScreen() {
 			if(ImGui::MenuItem("VRAM Viewer")) {
 				toggleVRAMWindow();
 			}
+			ImGui::Separator();
+			ImGui::MenuItem("Instant Blits", NULL, &(blitter->instant_mode));
 			ImGui::EndMenu();
 		}
 		ImGui::EndMainMenuBar();

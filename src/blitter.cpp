@@ -23,8 +23,13 @@ void Blitter::SetParam(uint8_t address, uint8_t value) {
         trigger = value & 1;
         irq = false;
         cpu_core->ClearIRQ();
-        if(trigger)
-            cpu_core->ScheduleIRQ(((params[Blitter::PARAM_HEIGHT] & 0x7F) * (params[Blitter::PARAM_WIDTH] & 0x7F)));
+        if(trigger) {
+            uint32_t cycles = ((params[Blitter::PARAM_HEIGHT] & 0x7F) * (params[Blitter::PARAM_WIDTH] & 0x7F));
+            cpu_core->ScheduleIRQ(cycles);
+            if(instant_mode) {
+                CatchUp(cycles);
+            }
+        }
     } else {
         params[address % DMA_PARAMS_COUNT] = value;
     }
@@ -37,8 +42,10 @@ void Blitter::SetParam(uint8_t address, uint8_t value) {
 #define YDIR (!!(params[PARAM_HEIGHT] & 0x80))
 #define GCARRY(val) ((system_state->dma_control & DMA_GCARRY_BIT) ? val+1 : ((val & 0xF0) | ((val+1) & 0x0F)))
 
-void Blitter::CatchUp() {
-    uint64_t cycles = timekeeper->totalCyclesCount - last_updated_cycle;
+void Blitter::CatchUp(uint64_t cycles) {
+    if(cycles == 0) {
+        cycles = timekeeper->totalCyclesCount - last_updated_cycle;
+    }
     last_updated_cycle = timekeeper->totalCyclesCount;
     uint8_t colorbus;
     while(cycles--) {
