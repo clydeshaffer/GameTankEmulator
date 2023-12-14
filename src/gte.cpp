@@ -241,6 +241,10 @@ uint8_t MemoryRead_Unknown(uint16_t address) {
 	}
 }
 
+uint8_t* GetRAM(const uint16_t address) {
+	return &(system_state.ram[FULL_RAM_ADDRESS(address & 0x1FFF)]);
+}
+
 uint8_t MemoryReadResolve(const uint16_t address, bool stateful) {
 	if(address & 0x8000) {
 		switch(loadedRomType) {
@@ -265,7 +269,7 @@ uint8_t MemoryReadResolve(const uint16_t address, bool stateful) {
 				printf("WARNING! Uninitialized RAM read at %x (Bank %x)\n", address, system_state.banking >> 5);
 			}
 		}
-		return system_state.ram[FULL_RAM_ADDRESS(address & 0x1FFF)];
+		return *GetRAM(address);
 	} else if((address == 0x2008) || (address == 0x2009)) {
 		return joysticks->read((uint8_t) address, stateful);
 	}
@@ -520,7 +524,7 @@ void toggleProfilerWindow() {
 
 void toggleMemBrowserWindow() {
 	if(!toolTypeIsOpen<MemBrowserWindow>()) {
-		toolWindows.push_back(new MemBrowserWindow(loadedMemoryMap, MemoryReadResolve));
+		toolWindows.push_back(new MemBrowserWindow(loadedMemoryMap, MemoryReadResolve, GetRAM));
 	} else {
 		closeToolByType<MemBrowserWindow>();
 	}

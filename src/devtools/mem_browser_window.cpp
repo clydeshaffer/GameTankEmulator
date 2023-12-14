@@ -68,9 +68,9 @@ ImVec2 MemBrowserWindow::Render() {
         } else {
             if(ImGui::BeginTable("vartable",3, ImGuiTableFlags_SizingFixedFit, ImVec2(480, 200))) {
             ImGui::TableSetupScrollFreeze(0, 1);
-            for(int i = 0; i < 3; ++i) {
-                ImGui::TableSetupColumn(var_headers[i], ImGuiTableColumnFlags_None);
-            }
+            ImGui::TableSetupColumn(var_headers[0], ImGuiTableColumnFlags_None);
+            ImGui::TableSetupColumn(var_headers[1], ImGuiTableColumnFlags_None);
+            ImGui::TableSetupColumn(var_headers[2], ImGuiTableColumnFlags_None, 100);
             ImGui::TableHeadersRow();
 
             ImGuiListClipper clipper;
@@ -80,12 +80,20 @@ ImVec2 MemBrowserWindow::Render() {
                     {
                         ImGui::TableNextRow();
                         Symbol& sym = memorymap->GetAt(row);
+                        size_t size = (row < (memorymap->GetCount()-2)) ? memorymap->GetAt(row+1).address - sym.address : 1;
                         ImGui::TableSetColumnIndex(0);
                         ImGui::Text("%04x", sym.address);
                         ImGui::TableSetColumnIndex(1);
                         ImGui::Text("%s",sym.name.c_str());
                         ImGui::TableSetColumnIndex(2);
-                        ImGui::Text("%02x", mem_read(sym.address, false));
+                        
+                        if(sym.address < 0x2000) {
+                            ImGui::PushID(row);
+                            ImGui::InputScalar("", (size == 1) ? ImGuiDataType_U8 : ImGuiDataType_U16, ram_read(sym.address), NULL, NULL, "%x", ImGuiInputTextFlags_CharsHexadecimal);
+                            ImGui::PopID();
+                        } else {
+                            ImGui::Text("%02x", mem_read(sym.address, false));
+                        }
                     }
             }
             ImGui::EndTable();
