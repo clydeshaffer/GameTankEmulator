@@ -997,6 +997,11 @@ void mos6502::NMI()
 	return;
 }
 
+void mos6502::Freeze()
+{
+	freeze = true;
+}
+
 void mos6502::Run(
 	int32_t cyclesRemaining,
 	uint64_t& cycleCount,
@@ -1005,18 +1010,28 @@ void mos6502::Run(
 	uint8_t opcode;
 	Instr instr;
 
-	while(cyclesRemaining > 0 && !illegalOpcode)
+	if(freeze) return;
+
+	while((cyclesRemaining > 0) && !illegalOpcode)
 	{
 		if(waiting) {
 			if(irq_line) {
 				waiting = false;
 				IRQ();
 			} else if(irq_timer > 0) {
-				cycleCount += irq_timer;
-				cyclesRemaining -= irq_timer;
-				irq_timer = 0;
-				irq_line = true;
-				IRQ();
+				if(cyclesRemaining > irq_timer) {
+					cycleCount += irq_timer;
+					cyclesRemaining -= irq_timer;
+					irq_timer = 0;
+					irq_line = true;
+					IRQ();
+				} else {
+					irq_timer -= cyclesRemaining;
+					cycleCount += cyclesRemaining;
+					cyclesRemaining = 0;
+					break;
+
+				}
 			} else {
 				break;
 			}
@@ -1029,7 +1044,11 @@ void mos6502::Run(
 		} else {
 			opcode = Sync(pc++);
 		}
-		
+		if(freeze) {
+			--pc;
+			cyclesRemaining = 0;
+			break;
+		}
 
 		// decode
 		instr = InstrTable[opcode];
@@ -1041,12 +1060,11 @@ void mos6502::Run(
 		}
 		cycleCount += instr.cycles;
 		cyclesRemaining -=
-			cycleMethod == CYCLE_COUNT        ? instr.cycles
+			(cycleMethod == CYCLE_COUNT )       ? instr.cycles
 			/* cycleMethod == INST_COUNT */   : 1;
 		if(irq_timer > 0) {
 			if(irq_timer < instr.cycles) {
 				irq_timer = 0;
-				IRQ();
 			} else {
 				irq_timer -= instr.cycles;
 			}

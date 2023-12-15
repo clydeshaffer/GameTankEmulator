@@ -4,6 +4,13 @@
 #define INITIAL_TIME_SCALING 1000
 #define INITIAL_SCALING_INCREMENT 100
 
+enum ClockMode {
+    CLOCKMODE_NORMAL,
+    CLOCKMODE_SINGLE,
+    CLOCKMODE_STOPPED,
+    CLOCKMODE_STEPOUT,
+};
+
 class Timekeeper {
 public:
     uint64_t system_clock = 315000000/88;
@@ -16,4 +23,5 @@ public:
     uint8_t frameCount = 0;
     bool prev_overlong = false;
     uint64_t totalCyclesCount = 0;
+    ClockMode clock_mode = CLOCKMODE_NORMAL;
 };

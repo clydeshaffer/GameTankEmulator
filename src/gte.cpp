@@ -26,14 +26,17 @@
 #include "mos6502/mos6502.h"
 
 #include "devtools/memory_map.h"
+#include "devtools/breakpoints.h"
 
 #include "ui/ui_utils.h"
 #include "devtools/profiler.h"
+#include "devtools/disassembler.h"
 
 #ifndef WASM_BUILD
 #include "devtools/profiler_window.h"
 #include "devtools/mem_browser_window.h"
 #include "devtools/vram_window.h"
+#include "devtools/stepping_window.h"
 #include "imgui.h"
 #include "implot.h"
 #include "imgui/backends/imgui_impl_sdl2.h"
@@ -283,6 +286,23 @@ uint8_t MemoryRead(uint16_t address) {
 	return MemoryReadResolve(address, true);
 }
 
+uint8_t MemorySync(uint16_t address) {
+	if(Breakpoints::enabled && (timekeeper.clock_mode == CLOCKMODE_NORMAL)) {
+		if(Breakpoints::breakCooldown == 0) {
+			if(Breakpoints::addresses.find(address) != Breakpoints::addresses.end()) {
+				timekeeper.clock_mode = CLOCKMODE_STOPPED;
+				Disassembler::Decode(MemoryReadResolve, address, 32);
+				cpu_core->Freeze();
+				Breakpoints::breakCooldown = 16;
+			}
+		}
+		else {
+			Breakpoints::breakCooldown--;
+		}
+	}
+	return MemoryRead(address);
+}
+
 void MemoryWrite(uint16_t address, uint8_t value) {
 	if(address & 0x8000) {
 		//Assuming for now that it's a 2M Flash + 32K RAM
@@ -514,7 +534,6 @@ bool toolTypeIsOpen() {
 }
 
 void toggleProfilerWindow() {
-
 	if(!toolTypeIsOpen<ProfilerWindow>()) {
 		toolWindows.push_back(new ProfilerWindow(profiler));
 	} else {
@@ -536,6 +555,14 @@ void toggleVRAMWindow() {
 			&system_state, cpu_core, &cartridge_state));
 	} else {
 		closeToolByType<VRAMWindow>();
+	}
+}
+
+void toggleSteppingWindow() {
+	if(!toolTypeIsOpen<SteppingWindow>()) {
+		toolWindows.push_back(new SteppingWindow(timekeeper, loadedMemoryMap, cpu_core));
+	} else {
+		closeToolByType<SteppingWindow>();
 	}
 }
 
@@ -589,6 +616,9 @@ void refreshScreen() {
 			if(ImGui::MenuItem("VRAM Viewer")) {
 				toggleVRAMWindow();
 			}
+			if(ImGui::MenuItem("Code Stepper")) {
+				toggleSteppingWindow();
+			}
 			ImGui::Separator();
 			ImGui::MenuItem("Instant Blits", NULL, &(blitter->instant_mode));
 			ImGui::EndMenu();
@@ -609,8 +639,24 @@ EM_BOOL mainloop(double time, void* userdata) {
 	if(!paused) {
 			timekeeper.actual_cycles = timekeeper.totalCyclesCount;
 #ifndef WASM_BUILD
-			intended_cycles = timekeeper.cycles_per_vsync;
-			cpu_core->Run(timekeeper.cycles_per_vsync, timekeeper.totalCyclesCount);
+			switch(timekeeper.clock_mode) {
+				case CLOCKMODE_NORMAL:
+					cpu_core->freeze = false;
+					intended_cycles = timekeeper.cycles_per_vsync;
+					break;
+				case CLOCKMODE_SINGLE:
+					cpu_core->freeze = false;
+					Disassembler::Decode(MemoryReadResolve, cpu_core->pc, 32);
+					intended_cycles = 1;
+					timekeeper.clock_mode = CLOCKMODE_STOPPED;
+					break;
+				case CLOCKMODE_STOPPED:
+					intended_cycles = 0;
+					break;
+			}
+			if(intended_cycles) {
+				cpu_core->Run(intended_cycles, timekeeper.totalCyclesCount);
+			}
 #else
 			++total_frames_ever;
 			double average_per_frame = time / ((double) total_frames_ever);
@@ -621,7 +667,7 @@ EM_BOOL mainloop(double time, void* userdata) {
 			if(cpu_core->illegalOpcode) {
 				printf("Hit illegal opcode %x\npc = %x\n", cpu_core->illegalOpcodeSrc, cpu_core->pc);
 				paused = true;
-			} else if(timekeeper.actual_cycles == 0) {
+			} else if((timekeeper.clock_mode == CLOCKMODE_NORMAL) && (timekeeper.actual_cycles == 0)) {
 				profiler.zeroConsec++;
 				if(profiler.zeroConsec == 10) {
 					printf("(Got stuck at 0x%x)\n", cpu_core->pc);
@@ -639,39 +685,42 @@ EM_BOOL mainloop(double time, void* userdata) {
 				timekeeper.lastTicks = 0;
 			}
 			timekeeper.currentTicks = SDL_GetTicks();
-			if(timekeeper.lastTicks != 0) {
-				int time_error = (timekeeper.currentTicks - timekeeper.lastTicks) - (1000 * timekeeper.actual_cycles/timekeeper.system_clock);
-				if(timekeeper.frameCount == 100) {
-					sprintf(titlebuf, "GameTank Emulator | %s | s: %.1f inc: %.1f err: %d\n", filenameNoPath.c_str(), timekeeper.time_scaling, timekeeper.scaling_increment, time_error);
-					SDL_SetWindowTitle(mainWindow, titlebuf);
-					profiler.fps = profiler.bufferFlipCount * 60 / 100;
-					timekeeper.frameCount = 0;
-					profiler.bufferFlipCount = 0;
-				}
-				bool overlong = time_error > 0;
-				if(overlong == timekeeper.prev_overlong) {
-					//scaling_increment = 1;
-				} else if(timekeeper.scaling_increment > 1) {
-					timekeeper.scaling_increment -= 1;
-				}
-				if((timekeeper.scaling_increment > 1) || (abs(time_error) > 2)) {
-					if(overlong) {
-						timekeeper.time_scaling -= timekeeper.scaling_increment;
-					} else {
-						timekeeper.time_scaling += timekeeper.scaling_increment;
+
+			if(timekeeper.clock_mode == CLOCKMODE_NORMAL) {
+				if(timekeeper.lastTicks != 0) {
+					int time_error = (timekeeper.currentTicks - timekeeper.lastTicks) - (1000 * timekeeper.actual_cycles/timekeeper.system_clock);
+					if(timekeeper.frameCount == 100) {
+						sprintf(titlebuf, "GameTank Emulator | %s | s: %.1f inc: %.1f err: %d\n", filenameNoPath.c_str(), timekeeper.time_scaling, timekeeper.scaling_increment, time_error);
+						SDL_SetWindowTitle(mainWindow, titlebuf);
+						profiler.fps = profiler.bufferFlipCount * 60 / 100;
+						timekeeper.frameCount = 0;
+						profiler.bufferFlipCount = 0;
+					}
+					bool overlong = time_error > 0;
+
+					if(overlong == timekeeper.prev_overlong) {
+						//scaling_increment = 1;
+					} else if(timekeeper.scaling_increment > 1) {
+						timekeeper.scaling_increment -= 1;
+					}
+					if((timekeeper.scaling_increment > 1) || (abs(time_error) > 2)) {
+						if(overlong) {
+							timekeeper.time_scaling -= timekeeper.scaling_increment;
+						} else {
+							timekeeper.time_scaling += timekeeper.scaling_increment;
+						}
+					}
+					timekeeper.prev_overlong = overlong;
+
+					if(timekeeper.time_scaling < 100) {
+						timekeeper.time_scaling = 100;
+					} else if(timekeeper.time_scaling > 2000) {
+						timekeeper.time_scaling = 2000;
 					}
 				}
-				timekeeper.prev_overlong = overlong;
-
-				if(timekeeper.time_scaling < 100) {
-					timekeeper.time_scaling = 100;
-				} else if(timekeeper.time_scaling > 2000) {
-					timekeeper.time_scaling = 2000;
-				}
+				timekeeper.lastTicks = timekeeper.currentTicks;
+				timekeeper.frameCount++;
 			}
-			timekeeper.lastTicks = timekeeper.currentTicks;
-
-			timekeeper.frameCount++;
 #endif
 			timekeeper.cycles_since_vsync += intended_cycles;
 			if(timekeeper.cycles_since_vsync >= timekeeper.cycles_per_vsync) {
@@ -821,13 +870,11 @@ EM_BOOL mainloop(double time, void* userdata) {
 }
 
 int main(int argC, char* argV[]) {
-
 	srand(time(NULL));
 
 	if(argC > 1) {
 		lTheOpenFileName = argV[1];
 	} else {
-		lTheOpenFileName = open_rom_dialog();
 	}
 
 	if(!lTheOpenFileName || LoadRomFile(lTheOpenFileName) == -1) {
@@ -845,7 +892,7 @@ int main(int argC, char* argV[]) {
 
 	joysticks = new JoystickAdapter();
 	soundcard = new AudioCoprocessor();
-	cpu_core = new mos6502(MemoryRead, MemoryWrite, CPUStopped);
+	cpu_core = new mos6502(MemoryRead, MemoryWrite, CPUStopped, MemorySync);
 	cpu_core->Reset();
 	blitter = new Blitter(cpu_core, &timekeeper, &system_state, vRAM_Surface);
 	randomize_memory();

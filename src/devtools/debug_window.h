@@ -14,7 +14,7 @@ protected:
     virtual ImVec2 Render() = 0;
 public:
     DebugWindow();
-    ~DebugWindow();
+    virtual ~DebugWindow();
     void Draw();
     void HandleEvent(SDL_Event& e);
 };

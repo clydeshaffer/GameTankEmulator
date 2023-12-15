@@ -179,7 +179,8 @@ private:
 	bool irq_line = false;
 
 public:
-	bool illegalOpcode;
+	bool freeze = false;
+	bool illegalOpcode = false;
 	bool waiting;
 	uint16_t illegalOpcodeSrc;
 
@@ -211,4 +212,5 @@ public:
 		int32_t cycles,
 		uint64_t& cycleCount,
 		CycleMethod cycleMethod = CYCLE_COUNT);
+	void Freeze();
 };

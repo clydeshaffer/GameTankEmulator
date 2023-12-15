@@ -13,7 +13,6 @@ private:
     CartridgeState* cartridge_state;
 public:
     VRAMWindow(SDL_Surface* vram, SDL_Surface* gram, SystemState* system, mos6502* cpu, CartridgeState* cartridge);
-    ~VRAMWindow();
     void Draw();
     void HandleEvent(SDL_Event& e);
 };

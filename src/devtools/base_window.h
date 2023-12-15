@@ -8,7 +8,7 @@ protected:
     bool open = true;
 public:
     BaseWindow(int width, int height);
-    ~BaseWindow();
+    virtual ~BaseWindow();
     bool IsOpen();
     virtual void Draw() = 0;
     virtual void HandleEvent(SDL_Event& e) = 0;
