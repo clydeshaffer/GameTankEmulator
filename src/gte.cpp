@@ -291,7 +291,7 @@ uint8_t MemorySync(uint16_t address) {
 		if(Breakpoints::breakCooldown == 0) {
 			if(Breakpoints::addresses.find(address) != Breakpoints::addresses.end()) {
 				timekeeper.clock_mode = CLOCKMODE_STOPPED;
-				Disassembler::Decode(MemoryReadResolve, address, 32);
+				Disassembler::Decode(MemoryReadResolve, loadedMemoryMap, address, 32);
 				cpu_core->Freeze();
 				Breakpoints::breakCooldown = 16;
 			}
@@ -646,7 +646,7 @@ EM_BOOL mainloop(double time, void* userdata) {
 					break;
 				case CLOCKMODE_SINGLE:
 					cpu_core->freeze = false;
-					Disassembler::Decode(MemoryReadResolve, cpu_core->pc, 32);
+					Disassembler::Decode(MemoryReadResolve, loadedMemoryMap, cpu_core->pc, 32);
 					intended_cycles = 1;
 					timekeeper.clock_mode = CLOCKMODE_STOPPED;
 					break;

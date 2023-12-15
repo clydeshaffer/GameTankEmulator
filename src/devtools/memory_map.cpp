@@ -65,3 +65,15 @@ int MemoryMap::GetCount() {
 Symbol& MemoryMap::GetAt(int i) {
     return symbols.at(i);
 }
+
+bool MemoryMap::FindAddress(uint16_t address, Symbol* result) {
+    for(auto sym : symbols) {
+        if(sym.address == address) {
+            if(result != NULL) {
+                *result = sym;
+            }
+            return true;
+        }
+    }
+    return false;
+}

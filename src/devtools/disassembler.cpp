@@ -52,7 +52,7 @@ static size_t opBytes[17] = {
     2, 2, 2, 2,
 };
 
-void Disassembler::FormatArgBytes(std::stringstream& ss, AddressMode mode, uint16_t argBytes) {
+void Disassembler::FormatArgBytes(std::stringstream& ss, MemoryMap* mem_map, AddressMode mode, uint16_t argBytes) {
     switch(mode) {
         case AB:
             //Absolute
@@ -121,11 +121,18 @@ void Disassembler::FormatArgBytes(std::stringstream& ss, AddressMode mode, uint1
     }
 }
 
-vector<string> Disassembler::Decode(const std::function<uint8_t(uint16_t, bool)> mem_read, uint16_t address, size_t instruction_count) {
+vector<string> Disassembler::Decode(const std::function<uint8_t(uint16_t, bool)> mem_read, MemoryMap* mem_map, uint16_t address, size_t instruction_count) {
     vector<string>& output = lastDecode;
     output.clear();
 
     while(instruction_count--) {
+        std::stringstream ss;
+        if(mem_map) {
+            Symbol sym;
+            if(mem_map->FindAddress(address, &sym)) {
+                ss << sym.name << ": ";
+            }
+        }
         string& opcodeName = opcodeNames[mem_read(address, false)];
         AddressMode mode = opcodeModes[mem_read(address, false)];
         size_t argByteCount = opBytes[mode] - 1;
@@ -138,9 +145,8 @@ vector<string> Disassembler::Decode(const std::function<uint8_t(uint16_t, bool)>
             if(argByteCount == 2) {
                 args += (mem_read(address++, false)) << 8;
             }
-            std::stringstream ss;
             ss << opcodeName << " ";
-            FormatArgBytes(ss, mode, args);
+            FormatArgBytes(ss, mem_map, mode, args);
             output.push_back(ss.str());
         }
     }

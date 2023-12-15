@@ -21,4 +21,5 @@ class MemoryMap {
         void forEach(const std::function<void(const Symbol&)>& func) const;
         int GetCount();
         Symbol& GetAt(int i);
+        bool FindAddress(uint16_t address, Symbol* result);
 };

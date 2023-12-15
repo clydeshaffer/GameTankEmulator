@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <functional>
+#include "memory_map.h"
 
 using std::vector;
 using std::string;
@@ -16,12 +17,12 @@ private:
         PR, ST, ZP, IX,
         ZX, ZY, ZI, IY
     };
-    static void FormatArgBytes(std::stringstream& ss, AddressMode mode, uint16_t argBytes);
+    static void FormatArgBytes(std::stringstream& ss, MemoryMap* mem_map, AddressMode mode, uint16_t argBytes);
     static vector<string> opcodeNames;
     static AddressMode opcodeModes[256];
     static vector<string> lastDecode;
 public:
 
-    static vector<string> Decode(const std::function<uint8_t(uint16_t, bool)> mem_read, uint16_t address, size_t instruction_count);
+    static vector<string> Decode(const std::function<uint8_t(uint16_t, bool)> mem_read, MemoryMap* mem_map, uint16_t address, size_t instruction_count);
     static vector<string> GetLastDecode();
 };
