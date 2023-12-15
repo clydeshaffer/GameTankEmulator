@@ -6,4 +6,4 @@
 	url = https://github.com/clydeshaffer/CubicleKnight.git
 [submodule "src/imgui/ext/implot"]
 	path = src/imgui/ext/implot
-	url = git@github.com:epezent/implot.git
+	url = https://github.com/epezent/implot.git
