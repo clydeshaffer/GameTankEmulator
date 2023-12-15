@@ -349,6 +349,7 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 					SDL_SetColorKey(gRAM_Surface, SDL_FALSE, 0);
 				}
 			} else if((address & 0x000F) == 0x0005) {
+				blitter->CatchUp();
 				system_state.banking = value;
 				//printf("banking reg set to %x\n", value);
 			} else {
