@@ -728,6 +728,8 @@ EM_BOOL mainloop(double time, void* userdata) {
 				if(system_state.dma_control & DMA_VSYNC_NMI_BIT) {
 					cpu_core->NMI();
 				}
+				profiler.last_blitter_activity = blitter->pixels_this_frame;
+				blitter->pixels_this_frame = 0;
 			}
 		} else {
 			SDL_Delay(100);

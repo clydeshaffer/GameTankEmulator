@@ -8,15 +8,17 @@ void Profiler::LogTime(uint8_t index) {
 	}
 	profilingTimes[index] += delta;
 	profilingCounts[index]++;
-    profilingHistory[index][history_num] = std::log(profilingTimes[index]) / std::log(timekeeper.cycles_per_vsync);
+    profilingHistory[index][history_num] = (((float)profilingTimes[index]) / ((float)timekeeper.cycles_per_vsync));
 }
 
 void Profiler::ResetTimers() {
+    blitter_history[history_num] = (((float)last_blitter_activity) / ((float)timekeeper.cycles_per_vsync));
     ++history_num;
     history_num %= PROFILER_HISTORY;
     for(int i = 0; i < PROFILER_ENTRIES; ++i) {
         //profilingHistory[i][history_num] = 0;
         profilingTimes[i] = 0;
 		profilingCounts[i] = 0;
+        profilingHistory[i][history_num] = 0;
     }
 }

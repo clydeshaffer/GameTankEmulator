@@ -127,6 +127,7 @@ void Blitter::CatchUp(uint64_t cycles) {
                         system_state->vram[((counterVY & 0x7F) << 7) | (counterVX & 0x7F) | vOffset] = colorbus;
                         put_pixel32(vram_surface, counterVX & 0x7F, (counterVY & 0x7F) + yShift, Palette::ConvertColor(vram_surface, colorbus));
                     }
+                    ++pixels_this_frame;
                 }
             }
 

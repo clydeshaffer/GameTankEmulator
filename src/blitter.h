@@ -53,6 +53,7 @@ public:
     static const uint8_t PARAM_COLOR   = 7;
 
     bool instant_mode = false;
+    uint64_t pixels_this_frame = 0;
     
     uint8_t gram_mid_bits;
 

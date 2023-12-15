@@ -17,6 +17,8 @@ public:
     uint64_t profilingTimes[PROFILER_ENTRIES];
     uint64_t profilingCounts[PROFILER_ENTRIES];
     float profilingHistory[PROFILER_ENTRIES][PROFILER_HISTORY];
+    float blitter_history[PROFILER_HISTORY];
+    uint64_t last_blitter_activity = 0;
     int fps = 60;
     int history_num = 0;
 };
