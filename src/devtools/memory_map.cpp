@@ -3,6 +3,7 @@
 #include <sstream>
 #include <iomanip>
 #include "memory_map.h"
+#include <cstdint>
 
 void MemoryMap::parse() {
     std::ifstream file(filename);
