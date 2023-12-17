@@ -920,6 +920,7 @@ int main(int argC, char* argV[]) {
 	main_implot_ctx = ImPlot::CreateContext();
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
 	io.ConfigViewportsNoAutoMerge = true;
+	io.IniFilename = NULL;
 	ImGui::StyleColorsDark();
 	ImGui_ImplSDL2_InitForSDLRenderer(mainWindow, mainRenderer);
 	ImGui_ImplSDLRenderer2_Init(mainRenderer);

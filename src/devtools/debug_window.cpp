@@ -15,6 +15,7 @@ DebugWindow::DebugWindow():BaseWindow(10, 10) {
     ImGuiIO& io = ImGui::GetIO(); (void)io;
 	io.ConfigViewportsNoDecoration = false;
 	io.ConfigViewportsNoAutoMerge = true;
+    io.IniFilename = NULL;
 	ImGui::StyleColorsDark();
 
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
