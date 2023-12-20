@@ -22,6 +22,7 @@
 
 #include "timekeeper.h"
 #include "system_state.h"
+#include "emulator_config.h"
 
 #include "mos6502/mos6502.h"
 
@@ -341,6 +342,11 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 				blitter->CatchUp();
 				if((value & DMA_VID_OUT_PAGE_BIT) != (system_state.dma_control & DMA_VID_OUT_PAGE_BIT)) {
 					profiler.bufferFlipCount++;
+					if(profiler.measure_by_frameflip) {
+						profiler.ResetTimers();
+						profiler.last_blitter_activity = blitter->pixels_this_frame;
+						blitter->pixels_this_frame = 0;
+					}
 				}
 				system_state.dma_control = value;
 				if(system_state.dma_control & DMA_TRANSPARENCY_BIT) {
@@ -729,8 +735,11 @@ EM_BOOL mainloop(double time, void* userdata) {
 				if(system_state.dma_control & DMA_VSYNC_NMI_BIT) {
 					cpu_core->NMI();
 				}
-				profiler.last_blitter_activity = blitter->pixels_this_frame;
-				blitter->pixels_this_frame = 0;
+				if(!profiler.measure_by_frameflip) {
+					profiler.ResetTimers();
+					profiler.last_blitter_activity = blitter->pixels_this_frame;
+					blitter->pixels_this_frame = 0;
+				}
 			}
 		} else {
 			SDL_Delay(100);
@@ -849,7 +858,6 @@ EM_BOOL mainloop(double time, void* userdata) {
 		});
 		toolWindows.erase(to_be_removed, end(toolWindows));
 #endif
-		profiler.ResetTimers();
 		
 	if(!running) {
 #ifdef WASM_BUILD
@@ -875,17 +883,22 @@ EM_BOOL mainloop(double time, void* userdata) {
 int main(int argC, char* argV[]) {
 	srand(time(NULL));
 
-	if(argC > 1) {
-		lTheOpenFileName = argV[1];
-	} else {
+	for(int argIdx = 1; argIdx < argC; ++argIdx) {
+		if((argV[argIdx])[0] == '-') {
+			EmulatorConfig::parseArg(argV[argIdx]);
+		} else if(!lTheOpenFileName) {
+			lTheOpenFileName = argV[argIdx];
+		}
 	}
 
 	if(!lTheOpenFileName || LoadRomFile(lTheOpenFileName) == -1) {
 		paused = true;
 #ifdef TINYFILEDIALOGS_H
-		tinyfd_notifyPopup("Alert",
-		"No ROM was loaded",
-		"warning");
+		if(lTheOpenFileName) {
+			tinyfd_notifyPopup("Alert",
+			"No ROM was loaded",
+			"warning");
+		}
 #endif
 		cartridge_state.rom = new uint8_t [cartridge_state.size];
 		for(int i = 0; i < cartridge_state.size; i++) {

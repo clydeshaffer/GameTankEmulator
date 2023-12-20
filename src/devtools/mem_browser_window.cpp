@@ -66,6 +66,7 @@ ImVec2 MemBrowserWindow::Render() {
                 }
             }
         } else {
+            ImGui::Checkbox("Decimal", &decimal);
             if(ImGui::BeginTable("vartable",3, ImGuiTableFlags_SizingFixedFit, ImVec2(480, 200))) {
             ImGui::TableSetupScrollFreeze(0, 1);
             ImGui::TableSetupColumn(var_headers[0], ImGuiTableColumnFlags_None);
@@ -89,10 +90,10 @@ ImVec2 MemBrowserWindow::Render() {
                         
                         if(sym.address < 0x2000) {
                             ImGui::PushID(row);
-                            ImGui::InputScalar("", (size == 1) ? ImGuiDataType_U8 : ImGuiDataType_U16, ram_read(sym.address), NULL, NULL, "%x", ImGuiInputTextFlags_CharsHexadecimal);
+                            ImGui::InputScalar("", (size == 1) ? ImGuiDataType_U8 : ImGuiDataType_U16, ram_read(sym.address), NULL, NULL, decimal ? "%d" : "%x", ImGuiInputTextFlags_CharsHexadecimal);
                             ImGui::PopID();
                         } else {
-                            ImGui::Text("%02x", mem_read(sym.address, false));
+                            ImGui::Text(decimal ? "%d" : "%02x", mem_read(sym.address, false));
                         }
                     }
             }

@@ -16,7 +16,8 @@ void Profiler::ResetTimers() {
     ++history_num;
     history_num %= PROFILER_HISTORY;
     for(int i = 0; i < PROFILER_ENTRIES; ++i) {
-        //profilingHistory[i][history_num] = 0;
+        profilingLastSample[i] = profilingTimes[i];
+        profilingLastSampleCount[i] = profilingCounts[i];
         profilingTimes[i] = 0;
 		profilingCounts[i] = 0;
         profilingHistory[i][history_num] = 0;

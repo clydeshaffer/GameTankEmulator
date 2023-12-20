@@ -4,6 +4,7 @@
 #include <fstream>
 
 #include "audio_coprocessor.h"
+#include "emulator_config.h"
 
 void AudioCoprocessor::ram_write(uint16_t address, uint8_t value) {
 	state.ram[address & 0xFFF] = value;
@@ -105,29 +106,8 @@ const char* AudioFormatString(SDL_AudioFormat f) {
 void ACP_CPUStopped() {
 }
 
-AudioCoprocessor::AudioCoprocessor() {
-	SDL_AudioSpec wanted, obtained;
-
-    singleton_acp_state = &state;
-
-    state.cpu = new mos6502(ACP_MemoryRead, ACP_MemoryWrite, ACP_CPUStopped, ACP_CPUSync);
-
-    state.irqCounter = 0;
-    state.irqRate = 0;
-    state.resetting = false;
-    state.running = false;
-    state.clksPerHostSample = 315000000 / (88 * 44100);
-    state.cycles_per_sample = 1024;
-    state.last_irq_cycles = 0;
-#ifdef WASM_BUILD
-    state.clkMult = 2;
-#else
-    state.clkMult = 4;
-#endif
-
-	for(int i = 0; i < AUDIO_RAM_SIZE; i ++) {
-		state.ram[i] = rand() % 256;
-	}
+void AudioCoprocessor::StartAudio() {
+    SDL_AudioSpec wanted, obtained;
 
     /* Set the audio format */
     wanted.freq = 44100;
@@ -150,7 +130,33 @@ AudioCoprocessor::AudioCoprocessor() {
         state.format = obtained.format;
         SDL_PauseAudioDevice(state.device, 0);
     }
+}
 
+AudioCoprocessor::AudioCoprocessor() {
+	singleton_acp_state = &state;
+
+    state.cpu = new mos6502(ACP_MemoryRead, ACP_MemoryWrite, ACP_CPUStopped, ACP_CPUSync);
+
+    state.irqCounter = 0;
+    state.irqRate = 0;
+    state.resetting = false;
+    state.running = false;
+    state.clksPerHostSample = 315000000 / (88 * 44100);
+    state.cycles_per_sample = 1024;
+    state.last_irq_cycles = 0;
+#ifdef WASM_BUILD
+    state.clkMult = 2;
+#else
+    state.clkMult = 4;
+#endif
+
+	for(int i = 0; i < AUDIO_RAM_SIZE; i ++) {
+		state.ram[i] = rand() % 256;
+	}
+
+    if(!EmulatorConfig::noSound) {
+        StartAudio();
+    }
 
 	return;
 }

@@ -33,6 +33,7 @@ private:
 	void capture_snapshot();
 public:
 	AudioCoprocessor();
+	void StartAudio();
 	void ram_write(uint16_t address, uint8_t value);
 	uint8_t ram_read(uint16_t address);
 	void register_write(uint16_t address, uint8_t value);
