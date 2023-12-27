@@ -2,6 +2,7 @@
 
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_sdlrenderer2.h"
+#include "../emulator_config.h"
 
 DebugWindow::DebugWindow():BaseWindow(10, 10) {
     ImGuiContext* oldCtx = ImGui::GetCurrentContext();
@@ -18,7 +19,7 @@ DebugWindow::DebugWindow():BaseWindow(10, 10) {
     io.IniFilename = NULL;
 	ImGui::StyleColorsDark();
 
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    renderer = SDL_CreateRenderer(window, -1, EmulatorConfig::defaultRendererFlags);
     ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
 	ImGui_ImplSDLRenderer2_Init(renderer);
 
