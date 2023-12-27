@@ -748,6 +748,10 @@ EM_BOOL mainloop(double time, void* userdata) {
 		refreshScreen();
 		SDL_UpdateWindowSurface(mainWindow);
 
+		if(EmulatorConfig::noSound) {
+			AudioCoprocessor::fill_audio(AudioCoprocessor::singleton_acp_state, NULL, intended_cycles / AudioCoprocessor::singleton_acp_state->cycles_per_sample);
+		}
+
 		while( SDL_PollEvent( &e ) != 0 )
         {
 #ifndef WASM_BUILD

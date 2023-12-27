@@ -32,6 +32,7 @@ private:
 	ACPState state;
 	void capture_snapshot();
 public:
+	static ACPState* singleton_acp_state;
 	AudioCoprocessor();
 	void StartAudio();
 	void ram_write(uint16_t address, uint8_t value);
@@ -39,4 +40,5 @@ public:
 	void register_write(uint16_t address, uint8_t value);
 	void dump_ram(const char* filename);
 	uint16_t get_irq_cycle_count();
+	static void fill_audio(void *udata, uint8_t *stream, int len);
 };

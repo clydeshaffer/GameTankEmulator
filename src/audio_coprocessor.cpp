@@ -37,13 +37,15 @@ void AudioCoprocessor::register_write(uint16_t address, uint8_t value) {
 	}
 }
 
-void fill_audio(void *udata, uint8_t *stream, int len) {
+void AudioCoprocessor::fill_audio(void *udata, uint8_t *stream, int len) {
     ACPState *state = (ACPState*) udata;
     uint16_t *stream16 = (uint16_t*) stream;
     for(int i = 0; i < len/sizeof(uint16_t); i++) {
-        stream16[i] = state->dacReg;
-        stream16[i] -= 128;
-        stream16[i] *= 32;
+        if(stream16 != NULL) {
+            stream16[i] = state->dacReg;
+            stream16[i] -= 128;
+            stream16[i] *= 32;
+        }
         state->irqCounter -= state->clksPerHostSample;
         if(state->irqCounter < 0) {
             if(state->resetting) {
@@ -61,25 +63,25 @@ void fill_audio(void *udata, uint8_t *stream, int len) {
     }
 }
 
-ACPState *singleton_acp_state;
+ACPState* AudioCoprocessor::singleton_acp_state;
 
 uint8_t ACP_MemoryRead(uint16_t address) {
-    return singleton_acp_state->ram[address & 0xFFF];
+    return AudioCoprocessor::singleton_acp_state->ram[address & 0xFFF];
 }
 
 uint8_t ACP_CPUSync(uint16_t address) {
     uint8_t opcode = ACP_MemoryRead(address);
     if(opcode == 0x40) {
         //If opcode is ReTurn from Interrupt
-        singleton_acp_state->last_irq_cycles = singleton_acp_state->cycle_counter;
+        AudioCoprocessor::singleton_acp_state->last_irq_cycles = AudioCoprocessor::singleton_acp_state->cycle_counter;
     }
     return opcode;
 }
 
 void ACP_MemoryWrite(uint16_t address, uint8_t value) {
-    singleton_acp_state->ram[address & 0xFFF] = value;
+    AudioCoprocessor::singleton_acp_state->ram[address & 0xFFF] = value;
     if(address & 0x8000) {
-        singleton_acp_state->dacReg = value;
+        AudioCoprocessor::singleton_acp_state->dacReg = value;
     }
 }
 
@@ -133,7 +135,7 @@ void AudioCoprocessor::StartAudio() {
 }
 
 AudioCoprocessor::AudioCoprocessor() {
-	singleton_acp_state = &state;
+	AudioCoprocessor::singleton_acp_state = &state;
 
     state.cpu = new mos6502(ACP_MemoryRead, ACP_MemoryWrite, ACP_CPUStopped, ACP_CPUSync);
 
