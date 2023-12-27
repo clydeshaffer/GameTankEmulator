@@ -1,4 +1,5 @@
 #include <cstring>
+#include <cstdio>
 #include "emulator_config.h"
 
 bool EmulatorConfig::noSound = false;
