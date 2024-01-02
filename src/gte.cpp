@@ -270,7 +270,7 @@ uint8_t MemoryReadResolve(const uint16_t address, bool stateful) {
 	} else if(address < 0x2000) {
 		if(stateful) {
 			if(!system_state.ram_initialized[FULL_RAM_ADDRESS(address & 0x1FFF)]) {
-				printf("WARNING! Uninitialized RAM read at %x (Bank %x)\n", address, system_state.banking >> 5);
+				//printf("WARNING! Uninitialized RAM read at %x (Bank %x)\n", address, system_state.banking >> 5);
 			}
 		}
 		return *GetRAM(address);

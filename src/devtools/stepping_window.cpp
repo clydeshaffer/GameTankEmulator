@@ -40,6 +40,30 @@ ImVec2 SteppingWindow::Render() {
             }
             ImGui::EndListBox();
         }
+
+        if(ImGui::Button("Add by address")) {
+            ImGui::OpenPopup("Add Manual Breakpoint");
+        }
+
+        if(ImGui::BeginPopup("Add Manual Breakpoint")) {
+            static uint16_t manual_addr = 0;
+            ImGui::InputScalar("##", ImGuiDataType_U16, &manual_addr, NULL, NULL, "%x", ImGuiInputTextFlags_CharsHexadecimal);
+            if(ImGui::Button("Add")) {
+                Breakpoints::addresses.insert(manual_addr);
+                Breakpoints::manual_breakpoints.insert(manual_addr);
+            }
+            ImGui::EndPopup();
+        }
+
+        for(auto& man : Breakpoints::manual_breakpoints) {
+            ImGui::Text("%04x", man);
+            ImGui::SameLine();
+            if(ImGui::Button("x")) {
+                Breakpoints::addresses.erase(man);
+                Breakpoints::manual_breakpoints.erase(man);
+            }
+        }
+
         ImGui::TreePop();
     }
 

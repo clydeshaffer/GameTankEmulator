@@ -9,4 +9,5 @@ public:
     static int breakCooldown;
     static bool enabled;
     static set<uint16_t> addresses;
+    static set<uint16_t> manual_breakpoints;
 };
