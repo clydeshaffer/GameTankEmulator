@@ -1,6 +1,7 @@
 #include "../imgui/imgui.h"
 #include "profiler_window.h"
 #include "implot.h"
+#include "../audio_coprocessor.h"
 
 static float prof_R[8] = {1,    1, 1, 0, 0, 0.5f, 0.5f, 1};
 static float prof_G[8] = {0, 0.5f, 1, 1, 0,    0, 0.5f, 1};
@@ -12,6 +13,7 @@ ImVec2 ProfilerWindow::Render() {
 
     ImGui::Begin("Profiler", NULL, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar);
     ImGui::Text("FPS: %d", _profiler.fps);
+    ImGui::Text("ACP: %d", AudioCoprocessor::singleton_acp_state->last_irq_cycles);
     ImGui::Text("Graph max:");
     ImGui::SameLine();
     ImGui::InputFloat("##", &max_scale, 0, 0, "%.2f");
