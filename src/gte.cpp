@@ -49,14 +49,7 @@ using namespace std;
 const int GT_WIDTH = 128;
 const int GT_HEIGHT = 128;
 
-enum RomType {
-	UNKNOWN,
-	EEPROM8K,
-	EEPROM32K,
-	FLASH2M,	
-};
 RomType loadedRomType;
-bool using_battery_cart; //TODO fold this into the enum
 
 mos6502 *cpu_core;
 Blitter *blitter;
@@ -76,7 +69,7 @@ std::string nvramFileFullPath;
 
 void SaveNVRAM() {
 	fstream file;
-	if(loadedRomType != RomType::FLASH2M) return;
+	if(loadedRomType != RomType::FLASH2M_RAM32K) return;
 	printf("SAVING %s\n", nvramFileFullPath.c_str());
 	file.open(nvramFileFullPath.c_str(), ios_base::out | ios_base::binary | ios_base::trunc);
 	file.write((char*) cartridge_state.save_ram, CARTRAMSIZE);
@@ -84,7 +77,7 @@ void SaveNVRAM() {
 
 void LoadNVRAM() {
 	fstream file;
-	if(loadedRomType != RomType::FLASH2M) return;
+	if(loadedRomType != RomType::FLASH2M_RAM32K) return;
 	printf("LOADING %s\n", nvramFileFullPath.c_str());
 	file.open(nvramFileFullPath.c_str(), ios_base::in | ios_base::binary);
 	file.read((char*) cartridge_state.save_ram, CARTRAMSIZE);
@@ -217,7 +210,7 @@ void UpdateFlashShiftRegister(uint8_t nextVal) {
 			SaveNVRAM();
 		}
 		cartridge_state.bank_mask = cartridge_state.bank_shifter;
-		if(!using_battery_cart) {
+		if(loadedRomType != RomType::FLASH2M_RAM32K) {
 			cartridge_state.bank_mask |= 0x80;
 		}
 		printf("Flash highbits set to %x\n", cartridge_state.bank_mask);
@@ -306,10 +299,70 @@ uint8_t MemorySync(uint16_t address) {
 
 void MemoryWrite(uint16_t address, uint8_t value) {
 	if(address & 0x8000) {
-		//Assuming for now that it's a 2M Flash + 32K RAM
-		if(!(address & 0x4000)) {
-			if(!(cartridge_state.bank_mask & 0x80)) {
-				cartridge_state.save_ram[(address & 0x3FFF) | ((cartridge_state.bank_mask & 0x40) << 8)] = value;
+		if(loadedRomType == RomType::FLASH2M_RAM32K) {
+			if(!(address & 0x4000)) {
+				if(!(cartridge_state.bank_mask & 0x80)) {
+					cartridge_state.save_ram[(address & 0x3FFF) | ((cartridge_state.bank_mask & 0x40) << 8)] = value;
+				}
+			}
+		}
+		if(loadedRomType == RomType::FLASH2M) {
+			if(cartridge_state.write_mode) {
+				uint8_t* location;
+				if(address & 0x4000) {
+					location = &(cartridge_state.rom[0b111111100000000000000 | (address & 0x3FFF)]);
+				} else {
+					location = &(cartridge_state.rom[((cartridge_state.bank_mask & 0x7F) << 14) | (address & 0x3FFF)]);
+				}
+				*location &= value;
+				cartridge_state.write_mode = false;
+			} else {
+				//Skipping over details like bypass and unlock commands for now
+				//So off-spec flash operation will be inaccurate
+				if(value == 0x10) {
+					//Chip Erase
+					for(int i = 0; i < (1 << 21); ++i) {
+						cartridge_state.rom[i] = 0xFF;
+					}
+				} else if (value == 0x30) {
+					//Sector erase
+					uint8_t sectorBits = ((address & (1 << 13)) >> 13) | ((cartridge_state.bank_mask & 0x7F) << 1);
+					uint8_t sectorNum = sectorBits >> 3;
+					if(sectorNum < 31) {
+						//most of the sector table
+						uint32_t x = sectorNum << 16;
+						for(uint32_t i = 0; i < (1 << 16); ++i) {
+							cartridge_state.rom[x] = 0xFF;
+							++x;
+						}
+					} else if((sectorBits & 4) == 0) {
+						uint32_t x = 0x1F0000;
+						for(uint32_t i = 0; i < (1 << 15); ++i) {
+							cartridge_state.rom[x] = 0xFF;
+							++x;
+						}
+					} else if(sectorBits == 0b11111100) {
+						uint32_t x = 0x1F8000;
+						for(uint32_t i = 0; i < (1 << 13); ++i) {
+							cartridge_state.rom[x] = 0xFF;
+							++x;
+						}
+					} else if(sectorBits == 0b11111101) {
+						uint32_t x = 0x1FA000;
+						for(uint32_t i = 0; i < (1 << 13); ++i) {
+							cartridge_state.rom[x] = 0xFF;
+							++x;
+						}
+					} else if((sectorBits >> 1) == 0b1111111) {
+						uint32_t x = 0x1FC000;
+						for(uint32_t i = 0; i < (1 << 14); ++i) {
+							cartridge_state.rom[x] = 0xFF;
+							++x;
+						}
+					}
+				} else if(value == 0xA0) {
+					cartridge_state.write_mode = true;
+				}
 			}
 		}
 	}
@@ -465,6 +518,7 @@ extern "C" {
 		fseek(romFileP, 0L, SEEK_END);
 		cartridge_state.size = ftell(romFileP);
 		cartridge_state.rom = new uint8_t [cartridge_state.size];
+		cartridge_state.write_mode = false;
 		rewind(romFileP);
 		switch(cartridge_state.size) {
 			case 8192:
@@ -489,6 +543,7 @@ extern "C" {
 		if(cpu_core) {
 			paused = false;
 			cpu_core->Reset();
+			cartridge_state.write_mode = false;
 		}
 
 		if(loadedRomType == RomType::FLASH2M) {
@@ -496,11 +551,13 @@ extern "C" {
 				LoadNVRAM();
 			}
 
-			using_battery_cart =
+			if(
 				(cartridge_state.rom[0x1FFFF0] == 'S') &&
 				(cartridge_state.rom[0x1FFFF1] == 'A') &&
 				(cartridge_state.rom[0x1FFFF2] == 'V') &&
-				(cartridge_state.rom[0x1FFFF3] == 'E');
+				(cartridge_state.rom[0x1FFFF3] == 'E')) {
+					loadedRomType = RomType::FLASH2M_RAM32K;
+				}
 		}
 		return 0;
 	}
@@ -798,6 +855,7 @@ EM_BOOL mainloop(double time, void* userdata) {
 							randomize_vram();
 						}
             			cpu_core->Reset();
+						cartridge_state.write_mode = false;
             			break;
             		case SDLK_o:
             			if(e.type == SDL_KEYDOWN) {
@@ -914,6 +972,7 @@ int main(int argC, char* argV[]) {
 	soundcard = new AudioCoprocessor();
 	cpu_core = new mos6502(MemoryRead, MemoryWrite, CPUStopped, MemorySync);
 	cpu_core->Reset();
+	cartridge_state.write_mode = false;
 	blitter = new Blitter(cpu_core, &timekeeper, &system_state, vRAM_Surface);
 	randomize_memory();
 	

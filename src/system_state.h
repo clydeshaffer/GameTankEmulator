@@ -14,6 +14,14 @@ const int FRAME_BUFFER_SIZE = 16384;
 #define BANK_WRAPY_MASK 0b00100000
 #define BANK_RAM_MASK   0b11000000
 
+enum RomType {
+	UNKNOWN,
+	EEPROM8K,
+	EEPROM32K,
+	FLASH2M,
+	FLASH2M_RAM32K,
+};
+
 struct SystemState {
     uint8_t dma_control;
     uint8_t banking;
@@ -35,4 +43,5 @@ struct CartridgeState
     uint32_t bank_mask;
 
     uint8_t save_ram[CARTRAMSIZE];
+    bool write_mode;
 };
