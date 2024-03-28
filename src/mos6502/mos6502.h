@@ -150,7 +150,8 @@ private:
 	void Op_WAI(uint16_t src);
 	void Op_STP(uint16_t src);
 	void Op_BRA(uint16_t src);
-
+	void Op_TRB(uint16_t src);
+	void Op_TSB(uint16_t src);
 
 	void Op_ILLEGAL(uint16_t src);
 

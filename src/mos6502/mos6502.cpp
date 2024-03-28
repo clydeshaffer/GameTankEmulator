@@ -770,6 +770,25 @@ mos6502::mos6502(BusRead r, BusWrite w, CPUEvent stp, BusRead sync)
 	instr.cycles = 2;
 	InstrTable[0x98] = instr;
 
+	instr.addr = &mos6502::Addr_ABS;
+	instr.code = &mos6502::Op_TRB;
+	instr.cycles = 6;
+	InstrTable[0x1C] = instr;
+	instr.addr = &mos6502::Addr_ZER;
+	instr.code = &mos6502::Op_TRB;
+	instr.cycles = 5;
+	InstrTable[0x14] = instr;
+
+	instr.addr = &mos6502::Addr_ABS;
+	instr.code = &mos6502::Op_TSB;
+	instr.cycles = 6;
+	InstrTable[0x0C] = instr;
+	instr.addr = &mos6502::Addr_ZER;
+	instr.code = &mos6502::Op_TSB;
+	instr.cycles = 5;
+	InstrTable[0x04] = instr;
+
+
 	Reset();
 
 	return;
@@ -1712,4 +1731,20 @@ void mos6502::Op_BRA(uint16_t src)
 {
 	pc = src;
 	return;
+}
+
+void mos6502::Op_TRB(uint16_t src)
+{
+	uint8_t m = Read(src);
+	SET_ZERO(m & A);
+	m = m & ~A;
+	Write(src, m);
+}
+
+void mos6502::Op_TSB(uint16_t src)
+{
+	uint8_t m = Read(src);
+	SET_ZERO(m & A);
+	m = m | A;
+	Write(src, m);
 }
