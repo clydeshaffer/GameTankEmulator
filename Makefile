@@ -47,8 +47,8 @@ endif
 
 ifeq ($(OS), Windows_NT)
 	ifeq ($(XCOMP), yes)
-		CC = i686-w64-mingw32-gcc
-		CPPC = i686-w64-mingw32-g++
+		CC = i686-w64-mingw32-gcc-posix
+		CPPC = i686-w64-mingw32-g++-posix
 	endif
 	BIN_NAME := $(BIN_NAME).exe
 

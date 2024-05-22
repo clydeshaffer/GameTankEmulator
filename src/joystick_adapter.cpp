@@ -1,14 +1,17 @@
 #include "joystick_adapter.h"
+#include "emulator_config.h"
 #include <stdio.h>
 #include <stdlib.h>
 
 JoystickAdapter::JoystickAdapter() {
-	SDL_InitSubSystem(SDL_INIT_JOYSTICK);
-	if(SDL_NumJoysticks() > 0) {
-		printf("Joystick found\n");
-		gGameController = SDL_JoystickOpen(0);
-	} else {
-		printf("Joystick NOT found\n");
+	if(!EmulatorConfig::noJoystick) {
+		SDL_InitSubSystem(SDL_INIT_JOYSTICK);
+		if(SDL_NumJoysticks() > 0) {
+			printf("Joystick found\n");
+			gGameController = SDL_JoystickOpen(0);
+		} else {
+			printf("Joystick NOT found\n");
+		}
 	}
 }
 

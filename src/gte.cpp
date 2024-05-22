@@ -8,6 +8,7 @@
 #include <cstring>
 #include <filesystem>
 #include <vector>
+#include <thread>
 #ifdef WASM_BUILD
 #include "emscripten.h"
 #include <emscripten/html5.h>
@@ -66,6 +67,7 @@ const char* lTheOpenFileName = NULL;
 MemoryMap* loadedMemoryMap;
 std::string filenameNoPath;
 std::string nvramFileFullPath;
+std::string flashFileFullPath;
 
 void SaveNVRAM() {
 	fstream file;
@@ -73,6 +75,7 @@ void SaveNVRAM() {
 	printf("SAVING %s\n", nvramFileFullPath.c_str());
 	file.open(nvramFileFullPath.c_str(), ios_base::out | ios_base::binary | ios_base::trunc);
 	file.write((char*) cartridge_state.save_ram, CARTRAMSIZE);
+	file.close();
 }
 
 void LoadNVRAM() {
@@ -81,9 +84,45 @@ void LoadNVRAM() {
 	printf("LOADING %s\n", nvramFileFullPath.c_str());
 	file.open(nvramFileFullPath.c_str(), ios_base::in | ios_base::binary);
 	file.read((char*) cartridge_state.save_ram, CARTRAMSIZE);
+	file.close();
 }
 
+std::thread savingThread;
 
+void SaveModifiedFlash() {
+	fstream file_out, file_in;
+	uint8_t* rom_cursor = cartridge_state.rom;
+	uint8_t buf[256];
+	file_in.open(lTheOpenFileName, ios_base::in | ios_base::binary);
+	file_out.open(flashFileFullPath.c_str(), ios_base::out | ios_base::binary | ios_base::trunc);
+	while(file_in) {
+		file_in.read((char*) buf, 256);
+		for(int i = 0; i < 256; ++i) {
+			buf[i] ^= *(rom_cursor++);
+		}
+		file_out.write((char*) buf, 256);
+	}
+	file_in.close();
+	file_out.close();
+}
+
+void LoadModifiedFlash() {
+	fstream orig_rom, xor_file;
+	uint8_t* rom_cursor = cartridge_state.rom;
+	uint8_t buf[256];
+	uint8_t bufx[256];
+	orig_rom.open(lTheOpenFileName, ios_base::in | ios_base::binary);
+	xor_file.open(flashFileFullPath, ios_base::in | ios_base::binary);
+	while(orig_rom && xor_file) {
+		orig_rom.read((char*) buf, 256);
+		xor_file.read((char*) bufx, 256); 
+		for(int i = 0; i < 256; ++i) {
+			*(rom_cursor++) = buf[i] ^ bufx[i];
+		}
+	}
+	orig_rom.close();
+	xor_file.close();
+}
 
 const uint8_t VIA_ORB    = 0x0;
 const uint8_t VIA_ORA    = 0x1;
@@ -362,6 +401,12 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 					}
 				} else if(value == 0xA0) {
 					cartridge_state.write_mode = true;
+				} else if(value == 0x90) {
+					//first byte of lock command should be a good time to write to file
+					if(savingThread.joinable()) {
+						savingThread.join();
+					}
+					savingThread = std::thread(SaveModifiedFlash);
 				}
 			}
 		}
@@ -498,6 +543,8 @@ extern "C" {
 		std::filesystem::path nvramPath(filename);
 		nvramPath.replace_extension("sav");
 		nvramFileFullPath = nvramPath.string();
+		nvramPath.replace_extension("xor");
+		flashFileFullPath = nvramPath.string();
 
 		std::filesystem::path defaultMapFilePath = filepath.parent_path().append("../build/out.map");
 
@@ -547,8 +594,9 @@ extern "C" {
 		}
 
 		if(loadedRomType == RomType::FLASH2M) {
-			if(std::filesystem::exists(nvramFileFullPath.c_str())) {
-				LoadNVRAM();
+
+			if(std::filesystem::exists(flashFileFullPath.c_str())) {
+				LoadModifiedFlash();
 			}
 
 			if(
@@ -557,6 +605,9 @@ extern "C" {
 				(cartridge_state.rom[0x1FFFF2] == 'V') &&
 				(cartridge_state.rom[0x1FFFF3] == 'E')) {
 					loadedRomType = RomType::FLASH2M_RAM32K;
+					if(std::filesystem::exists(nvramFileFullPath.c_str())) {
+						LoadNVRAM();
+					}
 				}
 		}
 		return 0;
