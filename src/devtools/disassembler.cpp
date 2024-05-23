@@ -112,7 +112,7 @@ void Disassembler::FormatArgBytes(std::stringstream& ss, MemoryMap* mem_map, Add
             ss << "($" << std::hex << argBytes << ")";
             break;
         case IY:
-            //Zerp Page Indirect Indexed Y
+            //Zero Page Indirect Indexed Y
             ss << "($" << std::hex << argBytes << "), y";
             break;
         case XX:
@@ -133,22 +133,23 @@ vector<string> Disassembler::Decode(const std::function<uint8_t(uint16_t, bool)>
                 ss << sym.name << ": ";
             }
         }
-        string& opcodeName = opcodeNames[mem_read(address, false)];
-        AddressMode mode = opcodeModes[mem_read(address, false)];
+        uint8_t opcode = mem_read(address, false);
+        string& opcodeName = opcodeNames[opcode];
+        AddressMode mode = opcodeModes[opcode];
         size_t argByteCount = opBytes[mode] - 1;
         ++address;
-        uint16_t args = 0;
-        if(argByteCount == 0) {
-            output.push_back(opcodeName);
-        } else {
-            args = mem_read(address++, false);
+
+        ss << opcodeName << " ";
+
+        if(argByteCount != 0) {
+            uint16_t args = mem_read(address++, false);
             if(argByteCount == 2) {
                 args += (mem_read(address++, false)) << 8;
             }
-            ss << opcodeName << " ";
             FormatArgBytes(ss, mem_map, mode, args);
-            output.push_back(ss.str());
         }
+
+        output.push_back(ss.str());
     }
 
     return output;
