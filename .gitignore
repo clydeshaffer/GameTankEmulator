@@ -6,3 +6,4 @@ build/*
 *.dll
 .vscode
 roms/*.sav
+dist
