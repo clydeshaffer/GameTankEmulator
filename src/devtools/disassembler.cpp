@@ -133,13 +133,15 @@ vector<string> Disassembler::Decode(const std::function<uint8_t(uint16_t, bool)>
                 ss << sym.name << ": ";
             }
         }
-        string& opcodeName = opcodeNames[mem_read(address, false)];
-        AddressMode mode = opcodeModes[mem_read(address, false)];
+        uint8_t opcode = mem_read(address, false);
+        string& opcodeName = opcodeNames[opcode];
+        AddressMode mode = opcodeModes[opcode];
         size_t argByteCount = opBytes[mode] - 1;
         ++address;
         uint16_t args = 0;
         if(argByteCount == 0) {
-            output.push_back(opcodeName);
+            ss << opcodeName;
+            output.push_back(ss.str());
         } else {
             args = mem_read(address++, false);
             if(argByteCount == 2) {
