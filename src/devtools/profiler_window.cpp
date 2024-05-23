@@ -59,8 +59,8 @@ ImVec2 ProfilerWindow::Render() {
 
     ImGui::EndChild();
     ImGui::SetWindowPos({0, 0});
-    ImGui::SetWindowSize({640,480});
-    sizeOut = ImVec2(640, 480);
+    ImGui::SetWindowSize({800,480});
+    sizeOut = ImVec2(800, 480);
     ImGui::End();
     return sizeOut;
 }

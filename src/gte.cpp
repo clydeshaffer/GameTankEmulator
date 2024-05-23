@@ -39,6 +39,7 @@
 #include "devtools/mem_browser_window.h"
 #include "devtools/vram_window.h"
 #include "devtools/stepping_window.h"
+#include "devtools/patching_window.h"
 #include "imgui.h"
 #include "implot.h"
 #include "imgui/backends/imgui_impl_sdl2.h"
@@ -65,6 +66,7 @@ RGB_Color *palette;
 
 const char* lTheOpenFileName = NULL;
 MemoryMap* loadedMemoryMap;
+GameConfig* gameconfig;
 std::string filenameNoPath;
 std::string nvramFileFullPath;
 std::string flashFileFullPath;
@@ -90,6 +92,7 @@ void LoadNVRAM() {
 std::thread savingThread;
 
 void SaveModifiedFlash() {
+	if(EmulatorConfig::noSave) return;
 	fstream file_out, file_in;
 	uint8_t* rom_cursor = cartridge_state.rom;
 	uint8_t buf[256];
@@ -252,7 +255,7 @@ void UpdateFlashShiftRegister(uint8_t nextVal) {
 		if(loadedRomType != RomType::FLASH2M_RAM32K) {
 			cartridge_state.bank_mask |= 0x80;
 		}
-		printf("Flash highbits set to %x\n", cartridge_state.bank_mask);
+		//printf("Flash highbits set to %x\n", cartridge_state.bank_mask);
 	}
 }
 
@@ -545,6 +548,9 @@ extern "C" {
 		nvramFileFullPath = nvramPath.string();
 		nvramPath.replace_extension("xor");
 		flashFileFullPath = nvramPath.string();
+		nvramPath.replace_extension("gtrcfg");
+
+		gameconfig = new GameConfig(nvramPath.string().c_str());
 
 		std::filesystem::path defaultMapFilePath = filepath.parent_path().append("../build/out.map");
 
@@ -681,6 +687,14 @@ void toggleSteppingWindow() {
 	}
 }
 
+void togglePatchingWindow() {
+	if(!toolTypeIsOpen<PatchingWindow>()) {
+		toolWindows.push_back(new PatchingWindow(loadedMemoryMap, gameconfig));
+	} else {
+		closeToolByType<PatchingWindow>();
+	}
+}
+
 #endif
 
 #ifndef EM_BOOL
@@ -733,6 +747,12 @@ void refreshScreen() {
 			}
 			if(ImGui::MenuItem("Code Stepper")) {
 				toggleSteppingWindow();
+			}
+			if(ImGui::MenuItem("Patching Window")) {
+				togglePatchingWindow();
+			}
+			if(ImGui::MenuItem("Update Patches")) {
+				gameconfig->UpdateAllPatches(cartridge_state.rom);
 			}
 			ImGui::Separator();
 			ImGui::MenuItem("Instant Blits", NULL, &(blitter->instant_mode));

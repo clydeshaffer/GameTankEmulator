@@ -4,6 +4,7 @@
 
 bool EmulatorConfig::noSound = false;
 bool EmulatorConfig::noJoystick = false;
+bool EmulatorConfig::noSave = false;
 Uint32 EmulatorConfig::defaultRendererFlags = SDL_RENDERER_ACCELERATED;
 
 void EmulatorConfig::parseArg(const char* arg) {

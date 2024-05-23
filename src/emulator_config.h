@@ -5,4 +5,5 @@ public:
     static bool noJoystick;
     static void parseArg(const char* arg);
     static Uint32 defaultRendererFlags;
+    static bool noSave;
 };
