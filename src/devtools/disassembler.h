@@ -17,7 +17,7 @@ private:
         PR, ST, ZP, IX,
         ZX, ZY, ZI, IY
     };
-    static void FormatArgBytes(std::stringstream& ss, MemoryMap* mem_map, AddressMode mode, uint16_t argBytes);
+    static void FormatArgBytes(std::stringstream& ss, MemoryMap* mem_map, AddressMode mode, uint8_t argCount, uint16_t argBytes);
     static vector<string> opcodeNames;
     static AddressMode opcodeModes[256];
     static vector<string> lastDecode;

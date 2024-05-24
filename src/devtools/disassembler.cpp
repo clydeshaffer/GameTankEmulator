@@ -2,6 +2,11 @@
 #include <sstream>
 #include <iostream>
 #include <iomanip>
+#include <assert.h>
+
+#define MAX_INSTRUCTION_SIZE 3
+#define MAX_INSTRUCTION_NAME_LEN 4
+#define ARG_PAD_LEN 20
 
 vector<string> Disassembler::lastDecode;
 
@@ -52,73 +57,79 @@ static size_t opBytes[17] = {
     2, 2, 2, 2,
 };
 
-void Disassembler::FormatArgBytes(std::stringstream& ss, MemoryMap* mem_map, AddressMode mode, uint16_t argBytes) {
+
+void Disassembler::FormatArgBytes(std::stringstream& ss, MemoryMap* mem_map, AddressMode mode, uint8_t argCount, uint16_t argBytes) {
+    #define FMT_ARG std::setw(argCount * 2) << std::setfill('0') << std::right << std::hex << argBytes
+    std::stringstream argstream;
+
     switch(mode) {
         case AB:
             //Absolute
-            ss << "$" << std::hex << argBytes;
+            argstream << "$" << FMT_ARG;
             break;
         case JX:
             //Absolute Indexed Indirect (Indexed JMP)
-            ss << "($" << std::hex << argBytes << ", x)";
+            argstream << "($" << FMT_ARG << ", x)";
             break;
         case AX:
             //Absolute Indexed X
-            ss << "$" << std::hex << argBytes << ", x";
+            argstream << "$" << FMT_ARG << ", x";
             break;
         case AY:
             //Absolute Indexed Y
-            ss << "$" << std::hex << argBytes << ", y";
+            argstream << "$" << FMT_ARG << ", y";
             break;
         case AI:
             //Absolute Indirect
-            ss << "($" << std::hex << argBytes << ")";
+            argstream << "($" << FMT_ARG << ")";
             break;
         case AC:
             //Accumulator
             break;
         case NO:
             //Immediate (NO for Number)
-            ss << "#$" << std::hex << argBytes;
+            argstream << "#$" << FMT_ARG;
             break;
         case IM:
             //Implied
             break;
         case PR:
             //Program Counter Relative
-            ss << "$" << std::hex << argBytes;
+            argstream << "$" << FMT_ARG;
             break;
         case ST:
             //Stack
             break;
         case ZP:
             //Zero page
-            ss << "$" << std::hex << argBytes;
+            argstream << "$" << FMT_ARG;
             break;
         case IX:
             //Zero Page Indexed Indirect X
-            ss << "($" << std::hex << argBytes << ", x)";
+            argstream << "($" << FMT_ARG << ", x)";
             break;
         case ZX:
             //Zero Page Indexed X
-            ss << "($" << std::hex << argBytes << ", x)";
+            argstream << "($" << FMT_ARG << ", x)";
             break;
         case ZY:
             //Zero Page Indexed Y
-            ss << "$" << std::hex << argBytes << ", y";
+            argstream << "$" << FMT_ARG << ", y";
             break;
         case ZI:
             //Zero Page Indirect
-            ss << "($" << std::hex << argBytes << ")";
+            argstream << "($" << FMT_ARG << ")";
             break;
         case IY:
             //Zero Page Indirect Indexed Y
-            ss << "($" << std::hex << argBytes << "), y";
+            argstream << "($" << FMT_ARG << "), y";
             break;
         case XX:
             //Treat invalid opcode as no bytes
             break;
     }
+
+    ss << std::setw(ARG_PAD_LEN) << std::left << argstream.str();
 }
 
 vector<string> Disassembler::Decode(const std::function<uint8_t(uint16_t, bool)> mem_read, MemoryMap* mem_map, uint16_t address, size_t instruction_count) {
@@ -127,26 +138,46 @@ vector<string> Disassembler::Decode(const std::function<uint8_t(uint16_t, bool)>
 
     while(instruction_count--) {
         std::stringstream ss;
+        uint8_t instructionBytes[MAX_INSTRUCTION_SIZE];
+
         if(mem_map) {
             Symbol sym;
             if(mem_map->FindAddress(address, &sym)) {
-                ss << sym.name << ": ";
+                string name = sym.name;
+                name += ':';
+                output.push_back(name);
             }
         }
         uint8_t opcode = mem_read(address, false);
+        instructionBytes[0] = opcode;
         string& opcodeName = opcodeNames[opcode];
         AddressMode mode = opcodeModes[opcode];
-        size_t argByteCount = opBytes[mode] - 1;
+        size_t instructionSize = opBytes[mode];
+
+        assert(instructionSize <= MAX_INSTRUCTION_SIZE);
+
         ++address;
 
-        ss << opcodeName << " ";
+        ss << "\t" << std::setw(MAX_INSTRUCTION_NAME_LEN + 1) << std::left << opcodeName;
 
-        if(argByteCount != 0) {
+        if(instructionSize == 1) {
+            // We don't have any arguments for this instruction
+            ss << std::setw(ARG_PAD_LEN) << "";
+        } else {
             uint16_t args = mem_read(address++, false);
-            if(argByteCount == 2) {
-                args += (mem_read(address++, false)) << 8;
+            instructionBytes[1] = args;
+
+            if(instructionSize == 3) {
+                uint8_t secondArg = mem_read(address++, false);
+                args += secondArg << 8;
+                instructionBytes[2] = secondArg;
             }
-            FormatArgBytes(ss, mem_map, mode, args);
+            FormatArgBytes(ss, mem_map, mode, instructionSize - 1, args);
+        }
+
+        for (size_t i = 0; i < instructionSize; i++) {
+            // NOTE the cast to `uint32_t` is so that the number isn't printed as a char
+            ss << ' ' << std::hex << std::setw(2) << std::setfill('0') << std::right << (uint32_t) instructionBytes[i];
         }
 
         output.push_back(ss.str());
