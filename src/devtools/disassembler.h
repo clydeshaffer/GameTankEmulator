@@ -17,9 +17,18 @@ private:
         PR, ST, ZP, IX,
         ZX, ZY, ZI, IY
     };
-    static void FormatArgBytes(std::stringstream& ss, MemoryMap* mem_map, AddressMode mode, uint8_t argCount, uint16_t argBytes);
+    enum ArgIsLabel {
+        // Not Label
+        N_,
+        // Displacement Label
+        DL,
+        // Absolute Label
+        AL
+    };
+        static void FormatArgBytes(std::stringstream& ss, MemoryMap* mem_map, uint16_t address, uint8_t opcode, uint16_t argBytes);
     static vector<string> opcodeNames;
     static AddressMode opcodeModes[256];
+    static ArgIsLabel opcodeTakesLabels[256];
     static vector<string> lastDecode;
 public:
 

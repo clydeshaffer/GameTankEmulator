@@ -29,6 +29,25 @@ vector<string> Disassembler::opcodeNames = {
     "BEQ", "SBC", "SBC", "???", "???", "SBC", "INC", "SMB7", "SED", "SBC", "PLX", "???", "???", "SBC", "INC", "BBS7"
     };
 
+Disassembler::ArgIsLabel Disassembler::opcodeTakesLabels[256] = {
+    N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,
+    DL,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,
+    AL,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,
+    DL,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,
+    N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,AL,N_,N_,N_,
+    DL,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,
+    N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,AL,N_,N_,N_,
+    DL,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,AL,N_,N_,N_,
+    DL,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,
+    DL,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,
+    N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,
+    DL,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,
+    N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,
+    DL,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,
+    N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,
+    DL,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,
+};
+
 Disassembler::AddressMode Disassembler::opcodeModes[256] = {
     //BRK is listed as "stack" address mode but is a two byte instruction
     NO,IX,XX,XX,ZP,ZP,ZP,ZP,ST,NO,AC,XX,AB,AB,AB,PR,
@@ -58,13 +77,27 @@ static size_t opBytes[17] = {
 };
 
 
-void Disassembler::FormatArgBytes(std::stringstream& ss, MemoryMap* mem_map, AddressMode mode, uint8_t argCount, uint16_t argBytes) {
+void Disassembler::FormatArgBytes(std::stringstream& ss, MemoryMap* mem_map, uint16_t address, uint8_t opcode, uint16_t argBytes) {
     #define FMT_ARG std::setw(argCount * 2) << std::setfill('0') << std::right << std::hex << argBytes
     std::stringstream argstream;
+
+    AddressMode mode = opcodeModes[opcode];
+    uint8_t argCount = opBytes[mode] - 1;
 
     switch(mode) {
         case AB:
             //Absolute
+            //Check to see if the we're jumping
+            if (mem_map && opcodeTakesLabels[opcode] == AL) {
+                Symbol sym;
+                //Check to see if the jump target is a named label
+                if(mem_map->FindAddress(argBytes, &sym)) {
+                    string name = sym.name;
+                    argstream << name;
+                    break;
+                }
+            }
+
             argstream << "$" << FMT_ARG;
             break;
         case JX:
@@ -95,6 +128,17 @@ void Disassembler::FormatArgBytes(std::stringstream& ss, MemoryMap* mem_map, Add
             break;
         case PR:
             //Program Counter Relative
+            //Check to see if the we're branching
+            if (mem_map && opcodeTakesLabels[opcode] == DL) {
+                Symbol sym;
+                //Check to see if the branch target is a named label
+                if(mem_map->FindAddress(address + (char) argBytes, &sym)) {
+                    string name = sym.name;
+                    argstream << name;
+                    break;
+                }
+            }
+
             argstream << "$" << FMT_ARG;
             break;
         case ST:
@@ -172,7 +216,7 @@ vector<string> Disassembler::Decode(const std::function<uint8_t(uint16_t, bool)>
                 args += secondArg << 8;
                 instructionBytes[2] = secondArg;
             }
-            FormatArgBytes(ss, mem_map, mode, instructionSize - 1, args);
+            FormatArgBytes(ss, mem_map, address, opcode, args);
         }
 
         for (size_t i = 0; i < instructionSize; i++) {
