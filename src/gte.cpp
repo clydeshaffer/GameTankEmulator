@@ -408,10 +408,14 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 					cartridge_state.write_mode = true;
 				} else if(value == 0x90) {
 					//first byte of lock command should be a good time to write to file
+#ifdef WASM_BUILD
+					SaveModifiedFlash();
+#else
 					if(savingThread.joinable()) {
 						savingThread.join();
 					}
 					savingThread = std::thread(SaveModifiedFlash);
+#endif
 				}
 			}
 		}
