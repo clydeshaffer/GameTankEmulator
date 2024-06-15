@@ -44,7 +44,7 @@ void AudioCoprocessor::fill_audio(void *udata, uint8_t *stream, int len) {
         if(stream16 != NULL) {
             stream16[i] = state->dacReg;
             stream16[i] -= 128;
-            stream16[i] *= 32;
+            stream16[i] *= 256;
         }
         state->irqCounter -= state->clksPerHostSample;
         if(state->irqCounter < 0) {
@@ -131,6 +131,8 @@ void AudioCoprocessor::StartAudio() {
             obtained.freq, AudioFormatString(obtained.format), obtained.channels, obtained.samples);
         state.format = obtained.format;
         SDL_PauseAudioDevice(state.device, 0);
+
+        state.clksPerHostSample = 315000000 / (88 * obtained.freq);
     }
 }
 
@@ -143,14 +145,11 @@ AudioCoprocessor::AudioCoprocessor() {
     state.irqRate = 0;
     state.resetting = false;
     state.running = false;
-    state.clksPerHostSample = 315000000 / (88 * 44100);
+    state.clksPerHostSample = 0;
     state.cycles_per_sample = 1024;
     state.last_irq_cycles = 0;
-#ifdef WASM_BUILD
-    state.clkMult = 2;
-#else
+
     state.clkMult = 4;
-#endif
 
 	for(int i = 0; i < AUDIO_RAM_SIZE; i ++) {
 		state.ram[i] = rand() % 256;

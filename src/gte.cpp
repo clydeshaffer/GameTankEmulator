@@ -24,6 +24,7 @@
 #include "timekeeper.h"
 #include "system_state.h"
 #include "emulator_config.h"
+#include "game_config.h"
 
 #include "mos6502/mos6502.h"
 
@@ -292,6 +293,7 @@ uint8_t MemoryReadResolve(const uint16_t address, bool stateful) {
 			case RomType::EEPROM32K:
 			return cartridge_state.rom[address & 0x7FFF];
 			case RomType::FLASH2M:
+			case RomType::FLASH2M_RAM32K:
 			return MemoryRead_Flash2M(address);
 			case RomType::UNKNOWN:
 			return MemoryRead_Unknown(address);
