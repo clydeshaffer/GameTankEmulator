@@ -1110,6 +1110,12 @@ int main(int argC, char* argV[]) {
 
 	randomize_vram();
 
+#ifdef DISABLE_KEYBOARD_INPUT
+	SDL_EventState(SDL_TEXTINPUT, SDL_DISABLE);
+	SDL_EventState(SDL_KEYDOWN, SDL_DISABLE);
+	SDL_EventState(SDL_KEYUP, SDL_DISABLE);
+#endif
+
 #ifdef WASM_BUILD
 	emscripten_request_animation_frame_loop(mainloop, 0);
 #else
