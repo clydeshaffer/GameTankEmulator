@@ -8,10 +8,13 @@
 #include <cstring>
 #include <filesystem>
 #include <vector>
+#include <iostream>
 #include <thread>
 #ifdef WASM_BUILD
 #include "emscripten.h"
 #include <emscripten/html5.h>
+#include <emscripten/bind.h>
+#include <emscripten/val.h>
 #else
 #include "tinyfd/tinyfiledialogs.h"
 #endif
@@ -630,6 +633,20 @@ extern "C" {
 			joysticks->SetHeldButtons(buttonMask);
 		}
 	}
+
+#ifdef WASM_BUILD
+	void EMApplyPatch(intptr_t data, unsigned int length, unsigned int offset) {
+		uint8_t* rom_cursor = &cartridge_state.rom[offset];
+		uint8_t* patch_cursor = (uint8_t*) data;
+		for (unsigned int i = 0; i < length; ++i) {
+			*(rom_cursor++) = *(patch_cursor++);
+		}
+	}
+
+	EMSCRIPTEN_BINDINGS(gametank_emulator_module) {
+		emscripten::function("EMApplyPatch", &EMApplyPatch);
+	}
+#endif
 }
 #ifndef WASM_BUILD
 template <typename T>

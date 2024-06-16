@@ -76,9 +76,9 @@ endif
 ifeq ($(OS), wasm)
 	CC = emcc
 	CPPC = emcc
-	COMPILER_FLAGS += -s USE_SDL=2 -D WASM_BUILD -D EMBED_ROM_FILE='"$(ROMFILE)"'
+	COMPILER_FLAGS += -s USE_SDL=2 -D WASM_BUILD -D EMBED_ROM_FILE='"$(ROMFILE)"' -sFORCE_FILESYSTEM
 	BIN_NAME = index.html
-	LINKER_FLAGS += --embed-file $(ROMFILE) --shell-file web/$(WEB_SHELL) -s EXPORTED_FUNCTIONS='["_LoadRomFile", "_main", "_SetButtons"]' -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]'
+	LINKER_FLAGS += --embed-file $(ROMFILE) --shell-file web/$(WEB_SHELL) -s EXPORTED_FUNCTIONS='["_LoadRomFile", "_main", "_SetButtons", "_malloc"]' -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]' --bind
 	SRCS :=  $(filter-out $(foreach src,$(SRCS),$(if $(findstring imgui,$(src)), $(src))),$(SRCS))
 	SRCS := $(filter-out %window.cpp, $(SRCS))
 else
