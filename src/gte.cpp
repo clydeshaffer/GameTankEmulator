@@ -1045,7 +1045,7 @@ EM_BOOL mainloop(double time, void* userdata) {
 int main(int argC, char* argV[]) {
 	srand(time(NULL));
 
-	const char* rom_file_name;
+	const char* rom_file_name = NULL;
 
 #ifdef WASM_BUILD
 	rom_file_name = EMBED_ROM_FILE;
