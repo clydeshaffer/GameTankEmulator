@@ -65,10 +65,9 @@ const int SCREEN_WIDTH = 512;
 const int SCREEN_HEIGHT = 512;
 RGB_Color *palette;
 
-const char* lTheOpenFileName = NULL;
 MemoryMap* loadedMemoryMap;
 GameConfig* gameconfig;
-std::string filenameNoPath;
+std::string currentRomFilePath;
 std::string nvramFileFullPath;
 std::string flashFileFullPath;
 
@@ -97,7 +96,7 @@ void SaveModifiedFlash() {
 	fstream file_out, file_in;
 	uint8_t* rom_cursor = cartridge_state.rom;
 	uint8_t buf[256];
-	file_in.open(lTheOpenFileName, ios_base::in | ios_base::binary);
+	file_in.open(currentRomFilePath, ios_base::in | ios_base::binary);
 	file_out.open(flashFileFullPath.c_str(), ios_base::out | ios_base::binary | ios_base::trunc);
 	while(file_in) {
 		file_in.read((char*) buf, 256);
@@ -126,8 +125,8 @@ void LoadModifiedFlash() {
 	uint8_t buf[256];
 	uint8_t bufx[256];
 	size_t bytes_read = 0;
-	std::cout << "opening " << lTheOpenFileName << " and " << flashFileFullPath << "\n";
-	orig_rom.open(lTheOpenFileName, ios_base::in | ios_base::binary);
+	std::cout << "opening " << currentRomFilePath << " and " << flashFileFullPath << "\n";
+	orig_rom.open(currentRomFilePath, ios_base::in | ios_base::binary);
 	xor_file.open(flashFileFullPath, ios_base::in | ios_base::binary);
 	std::cout << "XORing files together... \n";
 	while(orig_rom && xor_file) {
@@ -564,10 +563,10 @@ extern "C" {
 	// -1 on failure (e.g. file by name doesn't exist)
 	int LoadRomFile(const char* filename) {
 		std::filesystem::path filepath(filename);
-		filenameNoPath = filepath.string();
+		currentRomFilePath = filepath.string();
 #ifdef WASM_BUILD
 		std::filesystem::path nvramPath("/idbfs");
-		nvramPath /= std::filesystem::path(filenameNoPath).filename();
+		nvramPath /= std::filesystem::path(currentRomFilePath).filename();
 #else
 		std::filesystem::path nvramPath(filename);
 #endif
@@ -758,9 +757,9 @@ void refreshScreen() {
 	if(ImGui::BeginMainMenuBar()) {
 		if (ImGui::BeginMenu("File")) {
 			if(ImGui::MenuItem("Open Rom")) {
-				lTheOpenFileName = open_rom_dialog();
-				if(lTheOpenFileName) {
-					LoadRomFile(lTheOpenFileName);
+				const char* rom_file_name = open_rom_dialog();
+				if(rom_file_name) {
+					LoadRomFile(rom_file_name);
 				}	
 			}
 			ImGui::EndMenu();
@@ -855,7 +854,7 @@ EM_BOOL mainloop(double time, void* userdata) {
 				if(timekeeper.lastTicks != 0) {
 					int time_error = (timekeeper.currentTicks - timekeeper.lastTicks) - (1000 * timekeeper.actual_cycles/timekeeper.system_clock);
 					if(timekeeper.frameCount == 100) {
-						sprintf(titlebuf, "GameTank Emulator | %s | s: %.1f inc: %.1f err: %d\n", filenameNoPath.c_str(), timekeeper.time_scaling, timekeeper.scaling_increment, time_error);
+						sprintf(titlebuf, "GameTank Emulator | %s | s: %.1f inc: %.1f err: %d\n", currentRomFilePath.c_str(), timekeeper.time_scaling, timekeeper.scaling_increment, time_error);
 						SDL_SetWindowTitle(mainWindow, titlebuf);
 						profiler.fps = profiler.bufferFlipCount * 60 / 100;
 						timekeeper.frameCount = 0;
@@ -960,9 +959,9 @@ EM_BOOL mainloop(double time, void* userdata) {
             			break;
             		case SDLK_o:
             			if(e.type == SDL_KEYDOWN) {
-            				lTheOpenFileName = open_rom_dialog();
-	            			if(lTheOpenFileName) {
-								LoadRomFile(lTheOpenFileName);
+            				const char* rom_file_name = open_rom_dialog();
+	            			if(rom_file_name) {
+								LoadRomFile(rom_file_name);
 							} else {
 #ifdef TINYFILEDIALOGS_H
 								tinyfd_notifyPopup("Alert",
@@ -1046,22 +1045,24 @@ EM_BOOL mainloop(double time, void* userdata) {
 int main(int argC, char* argV[]) {
 	srand(time(NULL));
 
+	const char* rom_file_name;
+
 #ifdef WASM_BUILD
-	lTheOpenFileName = EMBED_ROM_FILE;
+	rom_file_name = EMBED_ROM_FILE;
 #else
 	for(int argIdx = 1; argIdx < argC; ++argIdx) {
 		if((argV[argIdx])[0] == '-') {
 			EmulatorConfig::parseArg(argV[argIdx]);
-		} else if(!lTheOpenFileName) {
-			lTheOpenFileName = argV[argIdx];
+		} else if(!rom_file_name) {
+			rom_file_name = argV[argIdx];
 		}
 	}
 #endif
 
-	if(!lTheOpenFileName || LoadRomFile(lTheOpenFileName) == -1) {
+	if(!rom_file_name || LoadRomFile(rom_file_name) == -1) {
 		paused = true;
 #ifdef TINYFILEDIALOGS_H
-		if(lTheOpenFileName) {
+		if(rom_file_name) {
 			tinyfd_notifyPopup("Alert",
 			"No ROM was loaded",
 			"warning");
