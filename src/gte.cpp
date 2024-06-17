@@ -101,31 +101,48 @@ void SaveModifiedFlash() {
 	file_out.open(flashFileFullPath.c_str(), ios_base::out | ios_base::binary | ios_base::trunc);
 	while(file_in) {
 		file_in.read((char*) buf, 256);
-		for(int i = 0; i < 256; ++i) {
-			buf[i] ^= *(rom_cursor++);
+		size_t bytesRead = file_in.gcount();
+		if(bytesRead) {
+			for(int i = 0; i < bytesRead; ++i) {
+				buf[i] ^= *(rom_cursor++);
+			}
+			file_out.write((char*) buf, bytesRead);
 		}
-		file_out.write((char*) buf, 256);
 	}
 	file_in.close();
 	file_out.close();
+#ifdef WASM_BUILD
+	EM_ASM(
+		FS.syncfs(false, function (err) {
+			assert(!err);
+			});
+	);
+#endif
 }
 
+fstream orig_rom, xor_file;
 void LoadModifiedFlash() {
-	fstream orig_rom, xor_file;
 	uint8_t* rom_cursor = cartridge_state.rom;
 	uint8_t buf[256];
 	uint8_t bufx[256];
+	size_t bytes_read = 0;
+	std::cout << "opening " << lTheOpenFileName << " and " << flashFileFullPath << "\n";
 	orig_rom.open(lTheOpenFileName, ios_base::in | ios_base::binary);
 	xor_file.open(flashFileFullPath, ios_base::in | ios_base::binary);
+	std::cout << "XORing files together... \n";
 	while(orig_rom && xor_file) {
 		orig_rom.read((char*) buf, 256);
 		xor_file.read((char*) bufx, 256); 
 		for(int i = 0; i < 256; ++i) {
 			*(rom_cursor++) = buf[i] ^ bufx[i];
 		}
+		bytes_read += 256;
 	}
+	std::cout << bytes_read << " bytes read from xor file\n";
+#ifndef WASM_BUILD
 	orig_rom.close();
 	xor_file.close();
+#endif
 }
 
 const uint8_t VIA_ORB    = 0x0;
@@ -548,8 +565,12 @@ extern "C" {
 	int LoadRomFile(const char* filename) {
 		std::filesystem::path filepath(filename);
 		filenameNoPath = filepath.string();
-		
+#ifdef WASM_BUILD
+		std::filesystem::path nvramPath("/idbfs");
+		nvramPath /= std::filesystem::path(filenameNoPath).filename();
+#else
 		std::filesystem::path nvramPath(filename);
+#endif
 		nvramPath.replace_extension("sav");
 		nvramFileFullPath = nvramPath.string();
 		nvramPath.replace_extension("xor");
@@ -608,7 +629,10 @@ extern "C" {
 		if(loadedRomType == RomType::FLASH2M) {
 
 			if(std::filesystem::exists(flashFileFullPath.c_str())) {
+				std::cout << "Loading flash save from " << flashFileFullPath << "\n";
 				LoadModifiedFlash();
+			} else {
+				std::cout << "Couldn't find " << flashFileFullPath << "\n";
 			}
 
 			if(
@@ -1022,6 +1046,9 @@ EM_BOOL mainloop(double time, void* userdata) {
 int main(int argC, char* argV[]) {
 	srand(time(NULL));
 
+#ifdef WASM_BUILD
+	lTheOpenFileName = EMBED_ROM_FILE;
+#else
 	for(int argIdx = 1; argIdx < argC; ++argIdx) {
 		if((argV[argIdx])[0] == '-') {
 			EmulatorConfig::parseArg(argV[argIdx]);
@@ -1029,6 +1056,7 @@ int main(int argC, char* argV[]) {
 			lTheOpenFileName = argV[argIdx];
 		}
 	}
+#endif
 
 	if(!lTheOpenFileName || LoadRomFile(lTheOpenFileName) == -1) {
 		paused = true;
@@ -1094,6 +1122,7 @@ int main(int argC, char* argV[]) {
 	randomize_vram();
 
 #ifdef WASM_BUILD
+
 	emscripten_request_animation_frame_loop(mainloop, 0);
 #else
 	SDL_RaiseWindow(mainWindow);

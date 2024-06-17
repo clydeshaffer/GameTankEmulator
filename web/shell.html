@@ -158,7 +158,20 @@
       var spinnerElement = document.getElementById('spinner');
 
       var Module = {
-        preRun: [],
+        preRun: [()=>{
+          addRunDependency('syncfs');
+          FS.mkdir('/idbfs');
+          try {
+            FS.mount(IDBFS, {
+            }, '/idbfs');
+            FS.syncfs(true, function (err) {
+              assert(!err);
+              removeRunDependency('syncfs');
+            });
+          } catch(e) {
+            console.error(e.message);
+          }
+        }],
         postRun: [],
         print: (function() {
           var element = document.getElementById('output');
