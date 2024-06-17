@@ -1,6 +1,6 @@
 #include <string>
 #include <vector>
-
+#pragma once
 typedef struct BinFileBinding {
     uint16_t address;
     uint8_t bank;

@@ -1,3 +1,4 @@
+#pragma once
 #include "SDL_inc.h"
 class EmulatorConfig {
 public:
