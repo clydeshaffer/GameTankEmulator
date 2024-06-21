@@ -724,7 +724,59 @@ void togglePatchingWindow() {
 	}
 }
 
+void doRamDump() {
+	soundcard->dump_ram("audio_debug.dat");
+	ofstream dumpfile ("ram_debug.dat", ios::out | ios::binary);
+	dumpfile.write((char*) system_state.ram, RAMSIZE);
+	dumpfile.close();
+}
+
+void takeScreenShot() {
+	SDL_Surface *screenshot = SDL_CreateRGBSurface(0, SCREEN_WIDTH, SCREEN_HEIGHT, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
+	SDL_RenderReadPixels(mainRenderer, NULL, SDL_PIXELFORMAT_ARGB8888, screenshot->pixels, screenshot->pitch);
+	SDL_SaveBMP(screenshot, "screenshot.bmp");
+	SDL_FreeSurface(screenshot);
+}
+
 #endif
+
+void toggleFullScreen() {
+	if(isFullScreen) {
+		SDL_SetWindowFullscreen(mainWindow, 0);
+		isFullScreen = false;
+	} else {
+		SDL_SetWindowFullscreen(mainWindow, SDL_WINDOW_FULLSCREEN_DESKTOP);
+		isFullScreen = true;
+	}
+	timekeeper.scaling_increment = INITIAL_SCALING_INCREMENT;
+}
+
+typedef struct HotkeyAssignment {
+	void (*func)();
+	SDL_Keycode  key;
+} HotkeyAssignment;
+
+HotkeyAssignment hotkeys[] = {
+	{&toggleFullScreen, SDLK_F11},
+#ifndef WASM_BUILD
+	{&doRamDump, SDLK_F6},
+	{&toggleSteppingWindow, SDLK_F7},
+	{&takeScreenShot, SDLK_F8},
+	{&toggleMemBrowserWindow, SDLK_F9},
+	{&toggleVRAMWindow, SDLK_F10},
+	{&toggleProfilerWindow, SDLK_F12},
+#endif
+};
+
+bool checkHotkey(SDL_Keycode  key) {
+	for(HotkeyAssignment assignment : hotkeys) {
+		if(assignment.key == key) {
+			assignment.func();
+			return true;
+		}
+	}
+	return false;
+}
 
 #ifndef EM_BOOL
 #define EM_BOOL int
@@ -765,16 +817,16 @@ void refreshScreen() {
 			ImGui::EndMenu();
 		}
 		if(ImGui::BeginMenu("Tools")) {
-			if(ImGui::MenuItem("Profiler")) {
+			if(ImGui::MenuItem("Profiler (F12)")) {
 				toggleProfilerWindow();
 			}
-			if(ImGui::MenuItem("Memory Browser")) {
+			if(ImGui::MenuItem("Memory Browser (F9)")) {
 				toggleMemBrowserWindow();
 			}
-			if(ImGui::MenuItem("VRAM Viewer")) {
+			if(ImGui::MenuItem("VRAM Viewer (F10)")) {
 				toggleVRAMWindow();
 			}
-			if(ImGui::MenuItem("Code Stepper")) {
+			if(ImGui::MenuItem("Code Stepper (F7)")) {
 				toggleSteppingWindow();
 			}
 			if(ImGui::MenuItem("Patching Window")) {
@@ -782,6 +834,9 @@ void refreshScreen() {
 			}
 			if(ImGui::MenuItem("Update Patches")) {
 				gameconfig->UpdateAllPatches(cartridge_state.rom);
+			}
+			if(ImGui::MenuItem("Dump RAM to file (F6)")) {
+				doRamDump();
 			}
 			ImGui::Separator();
 			ImGui::MenuItem("Instant Blits", NULL, &(blitter->instant_mode));
@@ -933,77 +988,50 @@ EM_BOOL mainloop(double time, void* userdata) {
 						running = false;
 					}
 				}
-			} else if((e.key.repeat == 0) && (e.type == SDL_KEYDOWN || e.type == SDL_KEYUP)) {  
-            	switch(e.key.keysym.sym) {
-					case SDLK_LSHIFT:
-						lshift = (e.type == SDL_KEYDOWN);
-						break;
-					case SDLK_RSHIFT:
-						rshift = (e.type == SDL_KEYDOWN);
-						break;
-            		case SDLK_ESCAPE:
-            			running = false;
-            			break;
-            		case SDLK_BACKQUOTE:
-            			gofast = (e.type == SDL_KEYDOWN);
-            			break;
-            		case SDLK_r:
-						//TODO add menu item for reset
-            			paused = false;
-						if(lshift || rshift) {
-							randomize_memory();
-							randomize_vram();
-						}
-            			cpu_core->Reset();
-						cartridge_state.write_mode = false;
-            			break;
-            		case SDLK_o:
-            			if(e.type == SDL_KEYDOWN) {
-            				const char* rom_file_name = open_rom_dialog();
-	            			if(rom_file_name) {
-								LoadRomFile(rom_file_name);
-							} else {
+			} else if((e.key.repeat == 0) && (e.type == SDL_KEYDOWN || e.type == SDL_KEYUP)) {
+				if((e.type == SDL_KEYUP) || !checkHotkey(e.key.keysym.sym)) {
+					switch(e.key.keysym.sym) {
+						case SDLK_LSHIFT:
+							lshift = (e.type == SDL_KEYDOWN);
+							break;
+						case SDLK_RSHIFT:
+							rshift = (e.type == SDL_KEYDOWN);
+							break;
+						case SDLK_ESCAPE:
+							running = false;
+							break;
+						case SDLK_BACKQUOTE:
+							gofast = (e.type == SDL_KEYDOWN);
+							break;
+						case SDLK_r:
+							//TODO add menu item for reset
+							paused = false;
+							if(lshift || rshift) {
+								randomize_memory();
+								randomize_vram();
+							}
+							cpu_core->Reset();
+							cartridge_state.write_mode = false;
+							break;
+						case SDLK_o:
+							if(e.type == SDL_KEYDOWN) {
+								const char* rom_file_name = open_rom_dialog();
+								if(rom_file_name) {
+									LoadRomFile(rom_file_name);
+								} else {
 #ifdef TINYFILEDIALOGS_H
-								tinyfd_notifyPopup("Alert",
-								"No ROM was loaded",
-								"warning");
+									tinyfd_notifyPopup("Alert",
+									"No ROM was loaded",
+									"warning");
 #endif
+								}
 							}
-	            		}
-            			break;
-					case SDLK_F8:
-						if(e.type == SDL_KEYDOWN) {
-							SDL_Surface *screenshot = SDL_CreateRGBSurface(0, SCREEN_WIDTH, SCREEN_HEIGHT, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
-							SDL_RenderReadPixels(mainRenderer, NULL, SDL_PIXELFORMAT_ARGB8888, screenshot->pixels, screenshot->pitch);
-							SDL_SaveBMP(screenshot, "screenshot.bmp");
-							SDL_FreeSurface(screenshot);
-						}
-						break;
-					case SDLK_F11:
-						if(e.type == SDL_KEYDOWN) {
-							if(isFullScreen) {
-								SDL_SetWindowFullscreen(mainWindow, 0);
-								isFullScreen = false;
-							} else {
-								SDL_SetWindowFullscreen(mainWindow, SDL_WINDOW_FULLSCREEN_DESKTOP);
-								isFullScreen = true;
-							}
-							timekeeper.scaling_increment = INITIAL_SCALING_INCREMENT;
-						}
-						break;
-					case SDLK_F12:
-						//TODO move to function and add menu item
-						if(e.type == SDL_KEYDOWN) {
-							soundcard->dump_ram("audio_debug.dat");
-							ofstream dumpfile ("ram_debug.dat", ios::out | ios::binary);
-							dumpfile.write((char*) system_state.ram, RAMSIZE);
-							dumpfile.close();
-						}
-						break;
-            		default:
-            			joysticks->update(&e);
-            			break;
-            	}
+							break;
+						default:
+							joysticks->update(&e);
+							break;
+					}
+				}
             } else if(e.key.repeat == 0) {
 				joysticks->update(&e);
 			}
