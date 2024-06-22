@@ -2,8 +2,16 @@
 #include "emulator_config.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <vector>
+
+std::vector<InputBinding> bindings;
+
+void load_joystick_defaults(std::vector<InputBinding> &bindings);
 
 JoystickAdapter::JoystickAdapter() {
+
+	load_joystick_defaults(bindings);
+
 	if(!EmulatorConfig::noJoystick) {
 		SDL_InitSubSystem(SDL_INIT_JOYSTICK);
 		if(SDL_NumJoysticks() > 0) {
@@ -54,21 +62,14 @@ uint8_t button_press_counts[BUTTON_COUNT*2] = {
 	0, 0, 0, 0, 0, 0, 0, 0,
 };
 uint16_t button_masks[BUTTON_COUNT] = {
-	GAMEPAD_MASK_UP,
-	GAMEPAD_MASK_DOWN,
-	GAMEPAD_MASK_LEFT,
-	GAMEPAD_MASK_RIGHT,
-	GAMEPAD_MASK_A,
-	GAMEPAD_MASK_B,
-	GAMEPAD_MASK_C,
-	GAMEPAD_MASK_START
-};
-
-enum ButtonId {
-	P1_UP = 0, P1_DOWN = 1, P1_LEFT = 2, P1_RIGHT = 3,
-	P1_A = 4, P1_B = 5, P1_C = 6, P1_START = 7,
-	P2_UP = 8, P2_DOWN = 9, P2_LEFT = 10, P2_RIGHT = 11,
-	P2_A = 12, P2_B = 13, P2_C = 14, P2_START = 15, NO_BUTTON = 16
+	GameTankButtons::UP,
+	GameTankButtons::DOWN,
+	GameTankButtons::LEFT,
+	GameTankButtons::RIGHT,
+	GameTankButtons::A,
+	GameTankButtons::B,
+	GameTankButtons::C,
+	GameTankButtons::START
 };
 
 void JoystickAdapter::update(SDL_Event *e) {
@@ -84,129 +85,109 @@ void JoystickAdapter::update(SDL_Event *e) {
 		select status - bit 7
 	*/
 	uint16_t buttonMask = 0;
-	ButtonId buttonId = NO_BUTTON;
-	if(e->type == SDL_KEYDOWN || e->type == SDL_KEYUP) {
-		switch(e->key.keysym.sym) {
-			case SDLK_UP:
-				buttonId = P1_UP;
-				break;
-			case SDLK_DOWN:
-				buttonId = P1_DOWN;
-				break;
-			case SDLK_LEFT:
-				buttonId = P1_LEFT;
-				break;
-			case SDLK_RIGHT:
-				buttonId = P1_RIGHT;
-				break;
-			case SDLK_z:
-			case SDLK_b:
-			case SDLK_j:
-				buttonId = P1_A;
-				break;
-			case SDLK_x:
-			case SDLK_n:
-			case SDLK_k:
-				buttonId = P1_B;
-				break;
-			case SDLK_c:
-			case SDLK_m:
-			case SDLK_l:
-				buttonId = P1_C;
-				break;
-			case SDLK_RETURN:
-				buttonId = P1_START;
-				break;
-			case SDLK_t:
-				buttonId = P2_UP;
-				break;
-			case SDLK_g:
-				buttonId = P2_DOWN;
-				break;
-			case SDLK_f:
-				buttonId = P2_LEFT;
-				break;
-			case SDLK_h:
-				buttonId = P2_RIGHT;
-				break;
-			case SDLK_LSHIFT:
-			case SDLK_TAB:
-				buttonId = P2_A;
-				break;
-			case SDLK_a:
-			case SDLK_q:
-				buttonId = P2_B;
-				break;
-			case SDLK_s:
-			case SDLK_w:
-				buttonId = P2_C;
-				break;
-			case SDLK_1:
-				buttonId = P2_START;
-				break;
-			default:
-				buttonId = NO_BUTTON;
-				break;
-		}
-		if(buttonId != NO_BUTTON) {
-			if(e->type == SDL_KEYDOWN) {
-				++button_press_counts[buttonId];
-			} else if(e->type == SDL_KEYUP) {
-				--button_press_counts[buttonId];
-			}
+	GameTankButtons::ButtonId buttonId = GameTankButtons::NO_BUTTON;
+	for (InputBinding binding : bindings) {
+		if((binding.type == BindingTypes::KEYBOARD) && (e->type == SDL_KEYDOWN || e->type == SDL_KEYUP)) {
+			if(binding.host_input.key == e->key.keysym.sym) {
+				buttonId = binding.button;
+				if(e->type == SDL_KEYDOWN) {
+					++button_press_counts[buttonId];
+				} else if(e->type == SDL_KEYUP) {
+					--button_press_counts[buttonId];
+				}
 
-			if(button_press_counts[buttonId] > 0) {
-				if(buttonId < BUTTON_COUNT) {
-					pad1Mask |= button_masks[buttonId];
+				if(button_press_counts[buttonId] > 0) {
+					if(buttonId < BUTTON_COUNT) {
+						pad1Mask |= button_masks[buttonId];
+					} else {
+						pad2Mask |= button_masks[buttonId - BUTTON_COUNT];
+					}
 				} else {
-					pad2Mask |= button_masks[buttonId - BUTTON_COUNT];
+					if(buttonId < BUTTON_COUNT) {
+						pad1Mask &= ~button_masks[buttonId];
+					} else {
+						pad2Mask &= ~button_masks[buttonId - BUTTON_COUNT];
+					}
 				}
-			} else {
-				if(buttonId < BUTTON_COUNT) {
-					pad1Mask &= ~button_masks[buttonId];
+			}
+		} else if (binding.type == BindingTypes::JOYSTICK_HAT) {
+			if(e->type == SDL_JOYHATMOTION) {
+				//clockwise from the top, cardinal directions go 1, 2, 4, 8
+				buttonMask = 0;
+				if(e->jhat.value & 1) {
+					buttonMask |= GameTankButtons::UP;
+				}
+				if(e->jhat.value & 2) {
+					buttonMask |= GameTankButtons::RIGHT;
+				}
+				if(e->jhat.value & 4) {
+					buttonMask |= GameTankButtons::DOWN;
+				}
+				if(e->jhat.value & 8) {
+					buttonMask |= GameTankButtons::LEFT;
+				}
+
+				if(binding.button < BUTTON_COUNT) {
+					pad1Mask &= ~GameTankButtons::ALLDIRS;
+					pad1Mask |= buttonMask;
 				} else {
-					pad2Mask &= ~button_masks[buttonId - BUTTON_COUNT];
+					pad2Mask &= ~GameTankButtons::ALLDIRS;
+					pad2Mask |= buttonMask;
 				}
 			}
-		}
-	} else {
-		if(e->type == SDL_JOYHATMOTION) {
-			//clockwise from the top, cardinal directions go 1, 2, 4, 8
-			pad2Mask &= ~GAMEPAD_MASK_ALLDIRS;
-			if(e->jhat.value & 1) {
-				pad2Mask |= GAMEPAD_MASK_UP;
+		} else if (binding.type == BindingTypes::JOYSTICK_BUTTON) {
+			if(e->type == SDL_JOYBUTTONDOWN || e->type == SDL_JOYBUTTONUP) {
+				if(binding.host_input.joy_button == e->jbutton.button) {
+					buttonId = binding.button;
+					if(e->type == SDL_JOYBUTTONDOWN) {
+						++button_press_counts[buttonId];
+					} else if(e->type == SDL_JOYBUTTONUP) {
+						--button_press_counts[buttonId];
+					}
+
+					if(button_press_counts[buttonId] > 0) {
+						if(buttonId < BUTTON_COUNT) {
+							pad1Mask |= button_masks[buttonId];
+						} else {
+							pad2Mask |= button_masks[buttonId - BUTTON_COUNT];
+						}
+					} else {
+						if(buttonId < BUTTON_COUNT) {
+							pad1Mask &= ~button_masks[buttonId];
+						} else {
+							pad2Mask &= ~button_masks[buttonId - BUTTON_COUNT];
+						}
+					}
+				}
 			}
-			if(e->jhat.value & 2) {
-				pad2Mask |= GAMEPAD_MASK_RIGHT;
-			}
-			if(e->jhat.value & 4) {
-				pad2Mask |= GAMEPAD_MASK_DOWN;
-			}
-			if(e->jhat.value & 8) {
-				pad2Mask |= GAMEPAD_MASK_LEFT;
-			}
-		} else if(e->type == SDL_JOYAXISMOTION) {
-			printf("Joystick axis %x %x\n", e->jaxis.axis, e->jaxis.value);
-		} else if(e->type == SDL_JOYBUTTONDOWN || e->type == SDL_JOYBUTTONUP) {
-			switch(e->jbutton.button) {
-				case 0:
-					buttonMask = GAMEPAD_MASK_A;
-					break;
-				case 1:
-					buttonMask = GAMEPAD_MASK_B;
-					break;
-				case 2:
-					buttonMask = GAMEPAD_MASK_C;
-					break;
-				case 6:
-					buttonMask = GAMEPAD_MASK_START;
-					break;
-			}
-			if(e->jbutton.state) {
-				pad2Mask |= buttonMask;
-			} else {
-				pad2Mask &= ~buttonMask;
-			}
+		} else if (binding.type == BindingTypes::JOYSTICK_AXIS) {
+			if(e->type == SDL_JOYAXISMOTION) {
+				if(e->jaxis.axis == binding.host_input.axis.axis) {
+					uint16_t clearMask = 0;
+					buttonMask = 0;
+					if(binding.host_input.axis.negative) {
+						if(e->jaxis.value < -16384) {
+							buttonMask = button_masks[binding.button % BUTTON_COUNT];
+						} else {
+							clearMask = button_masks[binding.button % BUTTON_COUNT];
+						}
+					} else {
+						if(e->jaxis.value > 16384) {
+							buttonMask = button_masks[binding.button % BUTTON_COUNT];
+						} else {
+							clearMask = button_masks[binding.button % BUTTON_COUNT];
+						}
+					}
+					if(binding.button < BUTTON_COUNT) {
+						pad1Mask |= buttonMask;
+						pad1Mask &= ~clearMask;
+					} else {
+						pad2Mask |= buttonMask;
+						pad2Mask &= ~clearMask;
+					}
+				}
+				printf("Joystick axis %x %x\n", e->jaxis.axis, e->jaxis.value);
+			}	
 		}
 	}
 }
