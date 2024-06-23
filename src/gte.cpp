@@ -41,6 +41,7 @@
 #include "devtools/vram_window.h"
 #include "devtools/stepping_window.h"
 #include "devtools/patching_window.h"
+#include "devtools/controller_options_window.h"
 #include "imgui.h"
 #include "implot.h"
 #include "imgui/backends/imgui_impl_sdl2.h"
@@ -738,6 +739,14 @@ void takeScreenShot() {
 	SDL_FreeSurface(screenshot);
 }
 
+void toggleControllerOptionsWindow() {
+	if(!toolTypeIsOpen<ControllerOptionsWindow>()) {
+		toolWindows.push_back(new ControllerOptionsWindow(joysticks));
+	} else {
+		closeToolByType<ControllerOptionsWindow>();
+	}
+}
+
 #endif
 
 void toggleFullScreen() {
@@ -813,6 +822,12 @@ void refreshScreen() {
 				if(rom_file_name) {
 					LoadRomFile(rom_file_name);
 				}	
+			}
+			ImGui::EndMenu();
+		}
+		if(ImGui::BeginMenu("Settings")) {
+			if(ImGui::MenuItem("Controllers")) {
+				toggleControllerOptionsWindow();
 			}
 			ImGui::EndMenu();
 		}
