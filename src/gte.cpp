@@ -829,6 +829,8 @@ void refreshScreen() {
 			if(ImGui::MenuItem("Controllers")) {
 				toggleControllerOptionsWindow();
 			}
+			ImGui::MenuItem("Toggle Instant Blits", NULL, &(blitter->instant_mode));
+			ImGui::SliderInt("Volume", &AudioCoprocessor::singleton_acp_state->volume, 0, 256);
 			ImGui::EndMenu();
 		}
 		if(ImGui::BeginMenu("Tools")) {
@@ -853,8 +855,6 @@ void refreshScreen() {
 			if(ImGui::MenuItem("Dump RAM to file (F6)")) {
 				doRamDump();
 			}
-			ImGui::Separator();
-			ImGui::MenuItem("Instant Blits", NULL, &(blitter->instant_mode));
 			ImGui::EndMenu();
 		}
 		ImGui::EndMainMenuBar();
