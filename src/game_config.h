@@ -1,5 +1,7 @@
 #include <string>
 #include <vector>
+#pragma once
+#include <stdint.h>
 
 typedef struct BinFileBinding {
     uint16_t address;
