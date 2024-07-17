@@ -90,14 +90,14 @@ DEFINES += -D CPU_6502_STATIC -D CPU_6502_USE_LOCAL_HEADER -D CMOS_INDIRECT_JMP_
 
 #This is the target that compiles our executable
 .PHONY: all bin dist install
-all : bin dist
+all: bin dist
 
 bin: $(OUT_DIR)/$(BIN_NAME)
-dist : $(OUT_DIR)/$(ZIP_NAME)
+dist: $(OUT_DIR)/$(ZIP_NAME)
 	@mkdir -p $(DIST_DIR)
 	cp $^ $(DIST_DIR)
 
-install : bin
+install: bin
 	@mkdir -p $(INSTALL_DIR)/bin
 	install -t $(INSTALL_DIR)/bin $(OUT_DIR)/$(BIN_NAME)
 ifeq ($(OS), Windows_NT)
@@ -109,7 +109,7 @@ ifeq ($(OS), wasm)
 	install -t $(INSTALL_DIR)/bin $(OUT_DIR)/index.wasm
 endif
 
-$(OUT_DIR)/$(ZIP_NAME) : bin commit_hash.txt
+$(OUT_DIR)/$(ZIP_NAME): bin commit_hash.txt
 	@mkdir -p $(@D)/img
 ifeq ($(OS), Windows_NT)
 	cp $(SDL_ROOT)/bin/SDL2.dll $(OUT_DIR)
@@ -120,18 +120,18 @@ else
 	cd $(OUT_DIR); zip -9 -y -r -q $(ZIP_NAME) $(BIN_NAME) SDL2.dll img commit_hash.txt
 endif
 
-commit_hash.txt :
+commit_hash.txt:
 	git rev-parse HEAD > $(OUT_DIR)/commit_hash.txt
 
-$(OUT_DIR)/%.cpp.o : %.cpp
+$(OUT_DIR)/%.cpp.o: %.cpp
 	@mkdir -p $(@D)
 	$(CPPC) -c $< -o $@ $(INCLUDE_PATHS) $(COMPILER_FLAGS) $(DEFINES) -std=c++17
 
-$(OUT_DIR)/%.c.o : %.c
+$(OUT_DIR)/%.c.o: %.c
 	@mkdir -p $(@D)
 	$(CC) -c $< -o $@ $(INCLUDE_PATHS) $(COMPILER_FLAGS) $(DEFINES)
 
-$(OUT_DIR)/$(BIN_NAME) : $(OBJS)
+$(OUT_DIR)/$(BIN_NAME): $(OBJS)
 	$(CPPC) $(COMPILER_FLAGS) -o $@ $^ $(LIBRARY_PATHS) $(LINKER_FLAGS) -std=c++17
 
 clean:
