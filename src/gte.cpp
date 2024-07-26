@@ -572,8 +572,12 @@ extern "C" {
 #endif
 		nvramPath.replace_extension("sav");
 		nvramFileFullPath = nvramPath.string();
-		nvramPath.replace_extension("xor");
-		flashFileFullPath = nvramPath.string();
+		if (EmulatorConfig::xorFile != NULL) {
+		  flashFileFullPath = std::string(EmulatorConfig::xorFile);
+		} else {
+		    nvramPath.replace_extension("xor");
+		    flashFileFullPath = nvramPath.string();
+		}
 		nvramPath.replace_extension("gtrcfg");
 
 		gameconfig = new GameConfig(nvramPath.string().c_str());
