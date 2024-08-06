@@ -130,7 +130,7 @@ commit_hash.txt:
 ifeq ($(origin MANUAL_COMMIT_HASH), undefined)
 	git rev-parse HEAD > $(OUT_DIR)/commit_hash.txt
 else
-	echo $MANUAL_COMMIT_HASH > $(OUT_DIR)/commit_hash.txt
+	echo $(MANUAL_COMMIT_HASH) > $(OUT_DIR)/commit_hash.txt
 endif
 
 $(OUT_DIR)/%.cpp.o: %.cpp
