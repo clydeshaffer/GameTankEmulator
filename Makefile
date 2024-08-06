@@ -69,11 +69,7 @@ ifeq ($(OS), Windows_NT)
 
 	#LINKER_FLAGS specifies the libraries we're linking against
 	LINKER_FLAGS = -lmingw32 -lSDL2main -lSDL2 -Wl,-Bstatic -mwindows -lm -ldinput8 -ldxguid -ldxerr8 -luser32 -lgdi32 -lwinmm -limm32 -lcomdlg32 -lole32 -loleaut32 -lshell32 -lversion -luuid -static-libgcc -lsetupapi
-else
-	COMPILER_FLAGS = -g `sdl2-config --cflags` $(IMGUI_INCLUDES)
-	LINKER_FLAGS = `sdl2-config --libs`
-endif
-ifeq ($(OS), wasm)
+else ifeq ($(OS), wasm)
 	CC = emcc
 	CPPC = emcc
 	COMPILER_FLAGS += -s USE_SDL=2 -D WASM_BUILD -D EMBED_ROM_FILE='"$(ROMFILE)"'
@@ -83,6 +79,8 @@ ifeq ($(OS), wasm)
 	SRCS := $(filter-out %window.cpp, $(SRCS))
 else
 	OBJS += $(NATIVE_OBJS)
+	COMPILER_FLAGS = -g `sdl2-config --cflags` $(IMGUI_INCLUDES)
+	LINKER_FLAGS = `sdl2-config --libs`
 endif
 
 
