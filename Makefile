@@ -115,16 +115,19 @@ ifeq ($(OS), wasm)
 	install -t $(INSTALL_DIR)/bin $(OUT_DIR)/index.wasm
 endif
 
-$(OUT_DIR)/$(ZIP_NAME): bin
+$(OUT_DIR)/$(ZIP_NAME): bin commit_hash.txt
 	@mkdir -p $(@D)/img
 ifeq ($(OS), Windows_NT)
 	cp $(SDL_ROOT)/bin/SDL2.dll $(OUT_DIR)
 endif
 ifeq ($(OS), wasm)
-	cd $(OUT_DIR); zip -9 -y -r -q $(ZIP_NAME) $(BIN_NAME) gamepad.png index.js index.wasm
+	cd $(OUT_DIR); zip -9 -y -r -q $(ZIP_NAME) $(BIN_NAME) gamepad.png index.js index.wasm commit_hash.txt
 else
-	cd $(OUT_DIR); zip -9 -y -r -q $(ZIP_NAME) $(BIN_NAME) SDL2.dll img
+	cd $(OUT_DIR); zip -9 -y -r -q $(ZIP_NAME) $(BIN_NAME) SDL2.dll img commit_hash.txt
 endif
+
+commit_hash.txt:
+	git rev-parse HEAD > $(OUT_DIR)/commit_hash.txt
 
 $(OUT_DIR)/%.cpp.o: %.cpp
 	@mkdir -p $(@D)
