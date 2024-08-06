@@ -127,6 +127,9 @@ else
 	cd $(OUT_DIR); zip -9 -y -r -q $(ZIP_NAME) $(BIN_NAME) SDL2.dll img commit_hash.txt
 endif
 
+# Allow manually setting a commit hash
+# If MANUAL_COMMIT_HASH is set, it will be used instead of actually querying git
+# This is done for Nix reasons :/
 commit_hash.txt:
 ifeq ($(origin MANUAL_COMMIT_HASH), undefined)
 	git rev-parse HEAD > $(OUT_DIR)/commit_hash.txt
