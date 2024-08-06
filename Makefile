@@ -76,8 +76,8 @@ else ifeq ($(OS), wasm)
 	#Only run this if $PRELOAD_ROM is set
 	#This should only be required when building for Nix for now
 	ifneq ($(origin PRELOAD_ROM), undefined)
-	    COMPILER_FLAGS += --preload-file $PRELOAD_ROM
-	    LINKER_FLAGS += --preload-file $PRELOAD_ROM
+	    COMPILER_FLAGS += --preload-file $(PRELOAD_ROM)
+	    LINKER_FLAGS += --preload-file $(PRELOAD_ROM)
 	endif
 
 	COMPILER_FLAGS += -s USE_SDL=2 -D WASM_BUILD -D EMBED_ROM_FILE='"$(ROMFILE)"'
