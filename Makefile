@@ -121,7 +121,8 @@ ifeq ($(OS), Windows_NT)
 	cp $(SDL_ROOT)/bin/SDL2.dll $(OUT_DIR)
 endif
 ifeq ($(OS), wasm)
-	cd $(OUT_DIR); zip -9 -y -r -q $(ZIP_NAME) $(BIN_NAME) ../web/gamepad.png index.js index.wasm commit_hash.txt
+	cp web/gamepad.png $(OUT_DIR)
+	cd $(OUT_DIR); zip -9 -y -r -q $(ZIP_NAME) $(BIN_NAME) gamepad.png index.js index.wasm commit_hash.txt
 else
 	cd $(OUT_DIR); zip -9 -y -r -q $(ZIP_NAME) $(BIN_NAME) SDL2.dll img commit_hash.txt
 endif
