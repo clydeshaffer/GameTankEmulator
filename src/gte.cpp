@@ -998,7 +998,9 @@ EM_BOOL mainloop(double time, void* userdata) {
 							rshift = (e.type == SDL_KEYDOWN);
 							break;
 						case SDLK_ESCAPE:
-							running = false;
+							#ifndef DISABLE_ESC
+								running = false;
+							#endif
 							break;
 						case SDLK_BACKQUOTE:
 							gofast = (e.type == SDL_KEYDOWN);
