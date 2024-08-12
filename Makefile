@@ -33,7 +33,7 @@ NATIVE_OBJS = $(NATIVE_SRCS:%=$(OUT_DIR)/%.o)
 BIN_NAME = GameTankEmulator
 ZIP_NAME = GTE_$(OS).zip
 
-WEB_SHELL = shell.html
+WEB_SHELL ?= shell.html
 
 IMGUI_INCLUDES = -Isrc/imgui -Isrc/imgui/backends -Isrc/imgui/ext/implot
 
@@ -41,9 +41,7 @@ ifeq ($(NIGHTLY), yes)
 	TAG = _$(shell date '+%Y%m%d')
 endif
 
-ifndef OS
-	OS=$(shell uname)
-endif
+OS ?= $(shell uname)
 
 ifeq ($(OS), Windows_NT)
 	ifeq ($(XCOMP), yes)
@@ -108,8 +106,7 @@ install: bin
 	install -t $(INSTALL_DIR)/bin $(OUT_DIR)/$(BIN_NAME)
 ifeq ($(OS), Windows_NT)
 	install -t $(INSTALL_DIR)/bin $(SDL_ROOT)/bin/SDL2.dll
-endif
-ifeq ($(OS), wasm)
+else ifeq ($(OS), wasm)
 	install -t $(INSTALL_DIR)/bin web/gamepad.png
 	install -t $(INSTALL_DIR)/bin $(OUT_DIR)/index.js
 	install -t $(INSTALL_DIR)/bin $(OUT_DIR)/index.wasm
@@ -119,8 +116,7 @@ $(OUT_DIR)/$(ZIP_NAME): bin commit_hash.txt
 	@mkdir -p $(@D)/img
 ifeq ($(OS), Windows_NT)
 	cp $(SDL_ROOT)/bin/SDL2.dll $(OUT_DIR)
-endif
-ifeq ($(OS), wasm)
+else ifeq ($(OS), wasm)
 	cp web/gamepad.png $(OUT_DIR)
 	cd $(OUT_DIR); zip -9 -y -r -q $(ZIP_NAME) $(BIN_NAME) gamepad.png index.js index.wasm commit_hash.txt
 else
