@@ -123,7 +123,7 @@ else ifeq ($(OS), wasm)
 	echo $(OUT_DIR)
 	ls $(OUT_DIR)
 	cd $(OUT_DIR)
-	zip -9 -y -r -q $(ZIP_NAME) $(BIN_NAME) gamepad.png index.js index.wasm commit_hash.txt
+	zip -9 -y -r -q $(ZIP_NAME) $(BIN_NAME) static index.js index.wasm commit_hash.txt
 else
 	cd $(OUT_DIR); zip -9 -y -r -q $(ZIP_NAME) $(BIN_NAME) SDL2.dll img commit_hash.txt
 endif
@@ -148,6 +148,10 @@ $(OUT_DIR)/%.c.o: %.c
 
 $(OUT_DIR)/$(BIN_NAME): $(OBJS)
 	$(CPPC) $(COMPILER_FLAGS) -o $@ $^ $(LIBRARY_PATHS) $(LINKER_FLAGS) -std=c++17
+ifeq ($(OS), wasm)
+	cp -r $(WEB_ASSETS) $(OUT_DIR)/static
+endif
+
 
 clean:
 	rm -rf $(OUT_DIR)
