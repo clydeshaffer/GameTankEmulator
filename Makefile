@@ -34,6 +34,7 @@ BIN_NAME = GameTankEmulator
 ZIP_NAME = GTE_$(OS).zip
 
 WEB_SHELL ?= web/shell.html
+WEB_ASSETS ?= web/static/
 
 IMGUI_INCLUDES = -Isrc/imgui -Isrc/imgui/backends -Isrc/imgui/ext/implot
 
@@ -108,7 +109,8 @@ install: bin
 ifeq ($(OS), Windows_NT)
 	install -t $(INSTALL_DIR)/bin $(SDL_ROOT)/bin/SDL2.dll
 else ifeq ($(OS), wasm)
-	install -t $(INSTALL_DIR)/bin web/gamepad.png
+	@mkdir -p $(INSTALL_DIR)/bin/static
+	cp -r $(WEB_ASSETS) $(INSTALL_DIR)/bin/static
 	install -t $(INSTALL_DIR)/bin $(OUT_DIR)/index.js
 	install -t $(INSTALL_DIR)/bin $(OUT_DIR)/index.wasm
 endif
@@ -118,8 +120,10 @@ $(OUT_DIR)/$(ZIP_NAME): bin commit_hash.txt
 ifeq ($(OS), Windows_NT)
 	cp $(SDL_ROOT)/bin/SDL2.dll $(OUT_DIR)
 else ifeq ($(OS), wasm)
-	cp web/gamepad.png $(OUT_DIR)
-	cd $(OUT_DIR); zip -9 -y -r -q $(ZIP_NAME) $(BIN_NAME) gamepad.png index.js index.wasm commit_hash.txt
+	echo $(OUT_DIR)
+	ls $(OUT_DIR)
+	cd $(OUT_DIR)
+	zip -9 -y -r -q $(ZIP_NAME) $(BIN_NAME) gamepad.png index.js index.wasm commit_hash.txt
 else
 	cd $(OUT_DIR); zip -9 -y -r -q $(ZIP_NAME) $(BIN_NAME) SDL2.dll img commit_hash.txt
 endif
