@@ -8,6 +8,28 @@
 
 SDL_Texture* controller_outline = NULL;
 
+const ImVec2 controller_button_positions[] = {
+    {173, 92},
+    {173, 207},
+    {118, 156},
+    {226, 156},
+    {349, 101},
+    {519, 207},
+    {570, 150},
+    {471, 103}
+};
+
+const char* controller_button_strings[] = {
+    "UP",
+    "DOWN",
+    "LEFT",
+    "RIGHT",
+    "START",
+    "A",
+    "B",
+    "C"
+};
+
 ControllerOptionsWindow::ControllerOptionsWindow(JoystickAdapter* inputAdapter) {
     int width, height, channels;
     this->inputAdapter = inputAdapter;
@@ -33,14 +55,16 @@ ImVec2 ControllerOptionsWindow::Render() {
     ImGui::Begin("Controller Options", NULL, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoResize);
     ImGui::SetWindowSize({659, 333});
     ImGui::SetWindowPos({0, 0});
-
+    ImGui::Text("WIP - NOT FUNCTIONAL YET");
     if(controller_outline) {
         //ImGui::GetBackgroundDrawList()->AddImage(controller_outline, {0, 0},{659,333}, {0, 0}, {1, 1});
         ImGui::Image(controller_outline,{659,333});
     }
 
-    ImGui::SetCursorPos({173, 92});
-    ImGui::Button("UP");
+    for(int i = 0; i < 8; ++i) {
+        ImGui::SetCursorPos(controller_button_positions[i]);
+        ImGui::Button(controller_button_strings[i]);
+    }
 
     ImGui::End();
     return {659, 333};
