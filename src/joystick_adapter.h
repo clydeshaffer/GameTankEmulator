@@ -63,4 +63,5 @@ public:
 	void update(SDL_Event *e);
 	void SetHeldButtons(uint16_t heldMask);
 	std::vector<InputBinding> bindings;
+	void SaveBindings();
 };

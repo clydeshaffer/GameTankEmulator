@@ -1177,6 +1177,7 @@ int main(int argC, char* argV[]) {
 	while(running) {
 		mainloop(0, NULL);
 	}
+	joysticks->SaveBindings();
 #endif
 	return 0;
 }

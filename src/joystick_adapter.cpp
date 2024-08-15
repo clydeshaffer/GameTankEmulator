@@ -3,12 +3,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <vector>
-
-void load_joystick_defaults(std::vector<InputBinding> &bindings);
+#include "joystick_config.h"
 
 JoystickAdapter::JoystickAdapter() {
 
-	load_joystick_defaults(this->bindings);
+	load_joystick_config(this->bindings);
 
 	if(!EmulatorConfig::noJoystick) {
 		SDL_InitSubSystem(SDL_INIT_JOYSTICK);
@@ -69,6 +68,10 @@ uint16_t button_masks[BUTTON_COUNT] = {
 	GameTankButtons::C,
 	GameTankButtons::START
 };
+
+void JoystickAdapter::SaveBindings() {
+	save_joystick_config(this->bindings);
+}
 
 void JoystickAdapter::update(SDL_Event *e) {
 	/*
