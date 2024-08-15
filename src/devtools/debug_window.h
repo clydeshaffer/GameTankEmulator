@@ -6,11 +6,11 @@
 
 class DebugWindow : public BaseWindow {
 private:
-    SDL_Renderer* renderer;
     ImGuiContext* ctx;
     ImPlotContext* plot_ctx;
     bool size_dirty = true;
 protected:
+    SDL_Renderer* renderer;
     virtual ImVec2 Render() = 0;
 public:
     DebugWindow();

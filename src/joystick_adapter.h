@@ -1,5 +1,6 @@
-#include "SDL_inc.h"
 #pragma once
+#include "SDL_inc.h"
+#include <vector>
 namespace GameTankButtons {
 	enum GamepadButtonMask {
 		UP = 0b0000100000001000,
@@ -61,4 +62,5 @@ public:
 	uint8_t read(uint8_t portNum, bool stateful);
 	void update(SDL_Event *e);
 	void SetHeldButtons(uint16_t heldMask);
+	std::vector<InputBinding> bindings;
 };

@@ -4,13 +4,11 @@
 #include <stdlib.h>
 #include <vector>
 
-std::vector<InputBinding> bindings;
-
 void load_joystick_defaults(std::vector<InputBinding> &bindings);
 
 JoystickAdapter::JoystickAdapter() {
 
-	load_joystick_defaults(bindings);
+	load_joystick_defaults(this->bindings);
 
 	if(!EmulatorConfig::noJoystick) {
 		SDL_InitSubSystem(SDL_INIT_JOYSTICK);
@@ -86,7 +84,7 @@ void JoystickAdapter::update(SDL_Event *e) {
 	*/
 	uint16_t buttonMask = 0;
 	GameTankButtons::ButtonId buttonId = GameTankButtons::NO_BUTTON;
-	for (InputBinding binding : bindings) {
+	for (InputBinding binding : this->bindings) {
 		if((binding.type == BindingTypes::KEYBOARD) && (e->type == SDL_KEYDOWN || e->type == SDL_KEYUP)) {
 			if(binding.host_input.key == e->key.keysym.sym) {
 				buttonId = binding.button;
