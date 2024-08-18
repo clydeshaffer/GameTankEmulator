@@ -100,10 +100,6 @@ void load_joystick_defaults(std::vector<InputBinding> &bindings) {
 	b.button = GameTankButtons::P1_A;
 	bindings.push_back(b);
 
-	b.host_input.key = SDLK_b;
-	b.button = GameTankButtons::P1_A;
-	bindings.push_back(b);
-
 	b.host_input.key = SDLK_j;
 	b.button = GameTankButtons::P1_A;
 	bindings.push_back(b);
@@ -112,19 +108,11 @@ void load_joystick_defaults(std::vector<InputBinding> &bindings) {
 	b.button = GameTankButtons::P1_B;
 	bindings.push_back(b);
 
-	b.host_input.key = SDLK_n;
-	b.button = GameTankButtons::P1_B;
-	bindings.push_back(b);
-
 	b.host_input.key = SDLK_k;
 	b.button = GameTankButtons::P1_B;
 	bindings.push_back(b);
 
 	b.host_input.key = SDLK_c;
-	b.button = GameTankButtons::P1_C;
-	bindings.push_back(b);
-
-	b.host_input.key = SDLK_m;
 	b.button = GameTankButtons::P1_C;
 	bindings.push_back(b);
 
