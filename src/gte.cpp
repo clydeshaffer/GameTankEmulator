@@ -764,6 +764,10 @@ void toggleFullScreen() {
 	timekeeper.scaling_increment = INITIAL_SCALING_INCREMENT;
 }
 
+void toggleMute() {
+	AudioCoprocessor::singleton_acp_state->isMuted = !AudioCoprocessor::singleton_acp_state->isMuted;
+}
+
 typedef struct HotkeyAssignment {
 	void (*func)();
 	SDL_Keycode  key;
@@ -771,6 +775,7 @@ typedef struct HotkeyAssignment {
 
 HotkeyAssignment hotkeys[] = {
 	{&toggleFullScreen, SDLK_F11},
+	{&toggleMute, SDLK_m},
 #ifndef WASM_BUILD
 	{&doRamDump, SDLK_F6},
 	{&toggleSteppingWindow, SDLK_F7},
@@ -835,6 +840,7 @@ void refreshScreen() {
 			}
 			ImGui::MenuItem("Toggle Instant Blits", NULL, &(blitter->instant_mode));
 			ImGui::SliderInt("Volume", &AudioCoprocessor::singleton_acp_state->volume, 0, 256);
+			ImGui::Checkbox("Mute", &AudioCoprocessor::singleton_acp_state->isMuted);
 			ImGui::EndMenu();
 		}
 		if(ImGui::BeginMenu("Tools")) {
