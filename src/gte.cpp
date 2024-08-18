@@ -840,6 +840,7 @@ void refreshScreen() {
 			}
 			ImGui::MenuItem("Toggle Instant Blits", NULL, &(blitter->instant_mode));
 			ImGui::SliderInt("Volume", &AudioCoprocessor::singleton_acp_state->volume, 0, 256);
+			ImGui::Checkbox("Mute", &AudioCoprocessor::singleton_acp_state->isMuted);
 			ImGui::EndMenu();
 		}
 		if(ImGui::BeginMenu("Tools")) {
