@@ -195,6 +195,7 @@ SDL_Renderer* mainRenderer = NULL;
 SDL_Texture* framebufferTexture = NULL;
 
 bool isFullScreen = false;
+bool isMuted = false;
 
 bool profiler_open = false;
 bool buffers_open = false;
@@ -764,6 +765,10 @@ void toggleFullScreen() {
 	timekeeper.scaling_increment = INITIAL_SCALING_INCREMENT;
 }
 
+void toggleMute() {
+	isMuted = !isMuted;
+}
+
 typedef struct HotkeyAssignment {
 	void (*func)();
 	SDL_Keycode  key;
@@ -771,6 +776,7 @@ typedef struct HotkeyAssignment {
 
 HotkeyAssignment hotkeys[] = {
 	{&toggleFullScreen, SDLK_F11},
+	{&toggleMute, SDLK_m},
 #ifndef WASM_BUILD
 	{&doRamDump, SDLK_F6},
 	{&toggleSteppingWindow, SDLK_F7},
@@ -979,7 +985,7 @@ EM_BOOL mainloop(double time, void* userdata) {
 		refreshScreen();
 		SDL_UpdateWindowSurface(mainWindow);
 
-		if(EmulatorConfig::noSound) {
+		if(EmulatorConfig::noSound || isMuted) {
 			AudioCoprocessor::fill_audio(AudioCoprocessor::singleton_acp_state, NULL, intended_cycles / AudioCoprocessor::singleton_acp_state->cycles_per_sample);
 		}
 
