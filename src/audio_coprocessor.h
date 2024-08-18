@@ -25,6 +25,7 @@ typedef struct ACPState {
 	uint64_t cycle_counter;
 	SDL_AudioDeviceID device;
 	int volume;
+	bool isMuted;
 } ACPState;
 
 class AudioCoprocessor {

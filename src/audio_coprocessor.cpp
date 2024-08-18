@@ -45,6 +45,7 @@ void AudioCoprocessor::fill_audio(void *udata, uint8_t *stream, int len) {
             stream16[i] = state->dacReg;
             stream16[i] -= 128;
             stream16[i] *= state->volume;
+            stream16[i] *= state->isMuted ? 0 : 1;
         }
         state->irqCounter -= state->clksPerHostSample;
         if(state->irqCounter < 0) {
@@ -149,6 +150,7 @@ AudioCoprocessor::AudioCoprocessor() {
     state.cycles_per_sample = 1024;
     state.last_irq_cycles = 0;
     state.volume = 256;
+    state.isMuted = false;
     state.clkMult = 4;
 
 	for(int i = 0; i < AUDIO_RAM_SIZE; i ++) {
