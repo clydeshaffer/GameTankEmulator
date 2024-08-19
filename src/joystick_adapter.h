@@ -62,6 +62,7 @@ public:
 	uint8_t read(uint8_t portNum, bool stateful);
 	void update(SDL_Event *e);
 	void SetHeldButtons(uint16_t heldMask);
+	uint16_t GetHeldButtons(uint8_t port);
 	std::vector<InputBinding> bindings;
 	void SaveBindings();
 };

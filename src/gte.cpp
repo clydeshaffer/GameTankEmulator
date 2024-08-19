@@ -17,6 +17,7 @@
 #endif
 
 #include "joystick_adapter.h"
+#include "input_recorder.h"
 #include "audio_coprocessor.h"
 #include "blitter.h"
 #include "palette.h"
@@ -59,6 +60,7 @@ mos6502 *cpu_core;
 Blitter *blitter;
 AudioCoprocessor *soundcard;
 JoystickAdapter *joysticks;
+InputRecordingSession *input_recorder = NULL;
 SystemState system_state;
 CartridgeState cartridge_state;
 
@@ -865,6 +867,27 @@ void refreshScreen() {
 			if(ImGui::MenuItem("Dump RAM to file (F6)")) {
 				doRamDump();
 			}
+#ifdef TINYFILEDIALOGS_H
+			if(input_recorder) {
+				if(ImGui::MenuItem("Stop input recording")) {
+					input_recorder->Close();
+					delete input_recorder;
+					input_recorder = NULL;
+				}
+			} else {
+				if(ImGui::MenuItem("Start input recording...")) {
+					char* recordFile = tinyfd_saveFileDialog(
+					"Provide a filename to save the input recording",
+					"",
+					0,
+					NULL,
+					"");
+					if(recordFile) {
+						input_recorder = new InputRecordingSession(std::string(recordFile));
+					}
+				}
+			}
+#endif
 			ImGui::EndMenu();
 		}
 		ImGui::EndMainMenuBar();
@@ -971,6 +994,9 @@ EM_BOOL mainloop(double time, void* userdata) {
 				timekeeper.cycles_since_vsync -= timekeeper.cycles_per_vsync;
 				if(system_state.dma_control & DMA_VSYNC_NMI_BIT) {
 					cpu_core->NMI();
+				}
+				if(input_recorder) {
+					input_recorder->RecordFrame(joysticks->GetHeldButtons(0));
 				}
 				if(!profiler.measure_by_frameflip) {
 					profiler.ResetTimers();

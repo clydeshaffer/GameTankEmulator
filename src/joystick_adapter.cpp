@@ -196,3 +196,8 @@ void JoystickAdapter::update(SDL_Event *e) {
 void JoystickAdapter::SetHeldButtons(uint16_t heldMask) {
 	held1Mask = heldMask;
 }
+
+uint16_t JoystickAdapter::GetHeldButtons(uint8_t port) {
+	if(port & 1) return pad2Mask;
+	return pad1Mask;
+}
