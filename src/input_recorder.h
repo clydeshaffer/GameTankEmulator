@@ -10,6 +10,6 @@ private:
     std::string save_path;
 public:
     InputRecordingSession(std::string path);
-    void RecordFrame(uint16_t buttons_down_mask);
+    void RecordFrame(uint16_t buttons_down_mask_p1, uint16_t buttons_down_mask_p2);
     void Close();
 };

@@ -19,26 +19,38 @@ InputRecordingSession::InputRecordingSession(std::string path) {
     save_path = path;
 }
 
-#define CHECK_TAS_BUTTON(x) if(GameTankButtons::GamepadButtonMask::x & buttons_down_mask) { \
+#define CHECK_TAS_BUTTON(mask, x) if(GameTankButtons::GamepadButtonMask::x & mask) { \
         newframe |= TAS_BUTTON_##x; \
     }
 
-void InputRecordingSession::RecordFrame(uint16_t buttons_down_mask) {
+void InputRecordingSession::RecordFrame(uint16_t buttons_down_mask_p1, uint16_t buttons_down_mask_p2) {
     uint8_t newframe = 0;
-    CHECK_TAS_BUTTON(UP)
-    CHECK_TAS_BUTTON(DOWN)
-    CHECK_TAS_BUTTON(LEFT)
-    CHECK_TAS_BUTTON(RIGHT)
-    CHECK_TAS_BUTTON(A)
-    CHECK_TAS_BUTTON(B)
-    CHECK_TAS_BUTTON(C)
-    CHECK_TAS_BUTTON(START)
+    CHECK_TAS_BUTTON(buttons_down_mask_p1, UP)
+    CHECK_TAS_BUTTON(buttons_down_mask_p1, DOWN)
+    CHECK_TAS_BUTTON(buttons_down_mask_p1, LEFT)
+    CHECK_TAS_BUTTON(buttons_down_mask_p1, RIGHT)
+    CHECK_TAS_BUTTON(buttons_down_mask_p1, A)
+    CHECK_TAS_BUTTON(buttons_down_mask_p1, B)
+    CHECK_TAS_BUTTON(buttons_down_mask_p1, C)
+    CHECK_TAS_BUTTON(buttons_down_mask_p1, START)
     inputs_list[input_frames++] = newframe;
+    newframe = 0;
+    CHECK_TAS_BUTTON(buttons_down_mask_p2, UP)
+    CHECK_TAS_BUTTON(buttons_down_mask_p2, DOWN)
+    CHECK_TAS_BUTTON(buttons_down_mask_p2, LEFT)
+    CHECK_TAS_BUTTON(buttons_down_mask_p2, RIGHT)
+    CHECK_TAS_BUTTON(buttons_down_mask_p2, A)
+    CHECK_TAS_BUTTON(buttons_down_mask_p2, B)
+    CHECK_TAS_BUTTON(buttons_down_mask_p2, C)
+    CHECK_TAS_BUTTON(buttons_down_mask_p2, START)
+    inputs_list[input_frames++] = newframe;
+    inputs_list[input_frames++] = 0;
+    inputs_list[input_frames++] = 0;
 }
 
 void InputRecordingSession::Close() {
     std::fstream outfile;
-    outfile.open(save_path, std::ios_base::out | std::ios_base::trunc);
+    outfile.open(save_path, std::ios_base::out | std::ios_base::trunc | std::ios_base::binary);
     outfile.write(reinterpret_cast<char*>(inputs_list), input_frames);
     outfile.close();
 }

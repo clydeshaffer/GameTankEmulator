@@ -331,7 +331,15 @@ uint8_t MemoryReadResolve(const uint16_t address, bool stateful) {
 		}
 		return *GetRAM(address);
 	} else if((address == 0x2008) || (address == 0x2009)) {
-		return joysticks->read((uint8_t) address, stateful);
+		uint8_t joysticks_value = joysticks->read((uint8_t) address, stateful);
+		if((address == 0x2008) && (~joysticks_value & 0x80)) {
+			if(input_recorder) {
+				input_recorder->RecordFrame(
+					joysticks->GetHeldButtons(0),
+					joysticks->GetHeldButtons(1));
+			}
+		}
+		return joysticks_value;
 	}
 	if(stateful) {
 		printf("Attempted to read write-only device, may be unintended? %x\n", address);
@@ -995,9 +1003,7 @@ EM_BOOL mainloop(double time, void* userdata) {
 				if(system_state.dma_control & DMA_VSYNC_NMI_BIT) {
 					cpu_core->NMI();
 				}
-				if(input_recorder) {
-					input_recorder->RecordFrame(joysticks->GetHeldButtons(0));
-				}
+				
 				if(!profiler.measure_by_frameflip) {
 					profiler.ResetTimers();
 					profiler.last_blitter_activity = blitter->pixels_this_frame;

@@ -33,6 +33,7 @@ uint8_t JoystickAdapter::read(uint8_t portNum, bool stateful) {
 			outbyte = (uint8_t) (pad2Mask >> 8);
 		} else {
 			outbyte = (uint8_t) pad2Mask;
+			outbyte |= 0x80;
 		}
 		if(stateful) {
 			pad1State = false;
@@ -44,6 +45,7 @@ uint8_t JoystickAdapter::read(uint8_t portNum, bool stateful) {
 			outbyte = (uint8_t) ((pad1Mask | held1Mask) >> 8);
 		} else {
 			outbyte = (uint8_t) (pad1Mask | held1Mask);
+			outbyte |= 0x80;
 		}
 		if(stateful) {
 			pad2State = false;
