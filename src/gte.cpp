@@ -47,6 +47,10 @@
 #include "imgui/backends/imgui_impl_sdlrenderer2.h"
 #endif
 
+#ifndef WINDOW_TITLE
+#define WINDOW_TITLE "GameTank Emulator"
+#endif
+
 using namespace std;
 
 const int GT_WIDTH = 128;
@@ -909,7 +913,7 @@ EM_BOOL mainloop(double time, void* userdata) {
 				if(timekeeper.lastTicks != 0) {
 					int time_error = (timekeeper.currentTicks - timekeeper.lastTicks) - (1000 * timekeeper.actual_cycles/timekeeper.system_clock);
 					if(timekeeper.frameCount == 100) {
-						sprintf(titlebuf, "GameTank Emulator | %s | s: %.1f inc: %.1f err: %d\n", currentRomFilePath.c_str(), timekeeper.time_scaling, timekeeper.scaling_increment, time_error);
+					  sprintf(titlebuf, "%s | %s | s: %.1f inc: %.1f err: %d\n", WINDOW_TITLE, currentRomFilePath.c_str(), timekeeper.time_scaling, timekeeper.scaling_increment, time_error);
 						SDL_SetWindowTitle(mainWindow, titlebuf);
 						profiler.fps = profiler.bufferFlipCount * 60 / 100;
 						timekeeper.frameCount = 0;
@@ -1123,7 +1127,7 @@ int main(int argC, char* argV[]) {
 	SDL_SetColorKey(vRAM_Surface, SDL_FALSE, 0);
 	SDL_SetColorKey(gRAM_Surface, SDL_FALSE, 0);
 
-	mainWindow = SDL_CreateWindow( "GameTank Emulator", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+	mainWindow = SDL_CreateWindow(WINDOW_TITLE, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 	mainRenderer = SDL_CreateRenderer(mainWindow, -1, EmulatorConfig::defaultRendererFlags);
 	framebufferTexture = SDL_CreateTexture(mainRenderer, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING, GT_WIDTH, GT_HEIGHT * 2);
 

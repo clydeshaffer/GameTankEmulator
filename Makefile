@@ -44,6 +44,10 @@ endif
 
 OS ?= $(shell uname)
 
+ifneq ($(origin WINDOW_TITLE), undefined)
+	DEFINES = -D WINDOW_TITLE="\"$(WINDOW_TITLE)\""
+endif
+
 ifeq ($(OS), Windows_NT)
 	ifeq ($(XCOMP), yes)
 		CC = i686-w64-mingw32-gcc-posix
@@ -64,7 +68,7 @@ ifeq ($(OS), Windows_NT)
 	# -Wl,-subsystem,windows gets rid of the console window
 	# change subsystem,windows to subsystem,console to get printfs on command line
 	COMPILER_FLAGS = -Wl,-subsystem,windows
-	DEFINES = -D _WIN32
+	DEFINES += -D _WIN32
 
 	#LINKER_FLAGS specifies the libraries we're linking against
 	LINKER_FLAGS = -lmingw32 -lSDL2main -lSDL2 -Wl,-Bstatic -mwindows -lm -ldinput8 -ldxguid -ldxerr8 -luser32 -lgdi32 -lwinmm -limm32 -lcomdlg32 -lole32 -loleaut32 -lshell32 -lversion -luuid -static-libgcc -lsetupapi
@@ -80,7 +84,7 @@ else ifeq ($(OS), wasm)
 	endif
 
 	COMPILER_FLAGS += -s USE_SDL=2 -D WASM_BUILD -D EMBED_ROM_FILE='"$(ROMFILE)"'
-	DEFINES = -D DISABLE_ESC
+	DEFINES += -D DISABLE_ESC
 	BIN_NAME = index.html
 	LINKER_FLAGS += --embed-file $(ROMFILE) --shell-file $(WEB_SHELL) -s EXPORTED_FUNCTIONS='["_LoadRomFile", "_main", "_SetButtons"]' -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]' -lidbfs.js
 	SRCS :=  $(filter-out $(foreach src,$(SRCS),$(if $(findstring imgui,$(src)), $(src))),$(SRCS))
