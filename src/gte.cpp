@@ -61,6 +61,7 @@ Blitter *blitter;
 AudioCoprocessor *soundcard;
 JoystickAdapter *joysticks;
 InputRecordingSession *input_recorder = NULL;
+char replay_buffer[INPUT_RECORDING_LENGTH];
 SystemState system_state;
 CartridgeState cartridge_state;
 
@@ -892,6 +893,23 @@ void refreshScreen() {
 					"");
 					if(recordFile) {
 						input_recorder = new InputRecordingSession(std::string(recordFile));
+					}
+				}
+				if(ImGui::MenuItem("Load input recording")) {
+					char* recordFile = tinyfd_openFileDialog(
+						"Load an input recording",
+						"",
+						0,
+						NULL,
+						"",
+						0);
+					if(recordFile) {
+						std::fstream replayFile;
+						replayFile.open(std::string(recordFile), std::ios_base::in | std::ios_base::binary);
+						replayFile.read(replay_buffer, INPUT_RECORDING_LENGTH);
+						uint32_t replaySize = replayFile.gcount();
+						replayFile.close();
+						joysticks->StartReplay(replay_buffer, replaySize);
 					}
 				}
 			}

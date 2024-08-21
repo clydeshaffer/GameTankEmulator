@@ -13,6 +13,22 @@
 #define TAS_BUTTON_C 64
 #define TAS_BUTTON_START 128
 
+#define CHECK_TAS_FRAME(mask, x) if(TAS_BUTTON_##x & mask) { \
+        frame |= GameTankButtons::GamepadButtonMask::x; \
+    }
+
+uint16_t convert_tas_frame_to_gamepad_mask(uint8_t tas_frame) {
+    uint16_t frame = 0;
+    CHECK_TAS_FRAME(tas_frame, UP);
+    CHECK_TAS_FRAME(tas_frame, DOWN);
+    CHECK_TAS_FRAME(tas_frame, LEFT);
+    CHECK_TAS_FRAME(tas_frame, RIGHT);
+    CHECK_TAS_FRAME(tas_frame, A);
+    CHECK_TAS_FRAME(tas_frame, B);
+    CHECK_TAS_FRAME(tas_frame, C);
+    CHECK_TAS_FRAME(tas_frame, START);
+    return frame;
+}
 
 InputRecordingSession::InputRecordingSession(std::string path) {
     input_frames = 0;

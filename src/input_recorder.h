@@ -3,6 +3,8 @@
 //just make an hour-long buffer for now
 #define INPUT_RECORDING_LENGTH 216000
 
+uint16_t convert_tas_frame_to_gamepad_mask(uint8_t tas_frame);
+
 class InputRecordingSession {
 private:
     uint32_t input_frames;

@@ -4,9 +4,10 @@
 #include <stdlib.h>
 #include <vector>
 #include "joystick_config.h"
+#include "input_recorder.h"
 
 JoystickAdapter::JoystickAdapter() {
-
+	replay_ptr = NULL;
 	load_joystick_config(this->bindings);
 
 	if(!EmulatorConfig::noJoystick) {
@@ -43,6 +44,14 @@ uint8_t JoystickAdapter::read(uint8_t portNum, bool stateful) {
 		
 		if(pad1State) {
 			outbyte = (uint8_t) ((pad1Mask | held1Mask) >> 8);
+			if(replay_ptr) {
+				pad1Mask = convert_tas_frame_to_gamepad_mask(replay_ptr[replay_index++]);
+				pad2Mask = convert_tas_frame_to_gamepad_mask(replay_ptr[replay_index++]);
+				replay_index += 2;
+				if(replay_index == replay_total_bytes) {
+					replay_ptr = NULL;
+				}
+			}
 		} else {
 			outbyte = (uint8_t) (pad1Mask | held1Mask);
 			outbyte |= 0x80;
@@ -87,6 +96,9 @@ void JoystickAdapter::update(SDL_Event *e) {
 		Start - DB9 pin 9 (select LOW) - bit 5
 		select status - bit 7
 	*/
+	if(replay_ptr) {
+		return;
+	}
 	uint16_t buttonMask = 0;
 	GameTankButtons::ButtonId buttonId = GameTankButtons::NO_BUTTON;
 	for (InputBinding binding : this->bindings) {
@@ -202,4 +214,17 @@ void JoystickAdapter::SetHeldButtons(uint16_t heldMask) {
 uint16_t JoystickAdapter::GetHeldButtons(uint8_t port) {
 	if(port & 1) return pad2Mask;
 	return pad1Mask;
+}
+
+void JoystickAdapter::StartReplay(char* replay_data, uint32_t replay_length) {
+	if(replay_length < 4) return;
+	replay_ptr = replay_data;
+	replay_total_bytes = replay_length;
+	replay_index = 0;
+	pad1Mask = convert_tas_frame_to_gamepad_mask(replay_ptr[replay_index++]);
+	pad2Mask = convert_tas_frame_to_gamepad_mask(replay_ptr[replay_index++]);
+	replay_index += 2;
+	if(replay_index == replay_length) {
+		replay_ptr = NULL;
+	}
 }

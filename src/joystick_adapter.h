@@ -56,6 +56,9 @@ private:
 	uint16_t pad2Mask = 0;
 	uint16_t held1Mask = 0;
 	SDL_Joystick* gGameController = NULL;
+	char* replay_ptr;
+	uint32_t replay_index;
+	uint32_t replay_total_bytes;
 public:
 	JoystickAdapter();
 	~JoystickAdapter();
@@ -65,4 +68,5 @@ public:
 	uint16_t GetHeldButtons(uint8_t port);
 	std::vector<InputBinding> bindings;
 	void SaveBindings();
+	void StartReplay(char* replay_data, uint32_t replay_lengh);
 };
