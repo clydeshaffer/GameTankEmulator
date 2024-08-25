@@ -33,7 +33,8 @@ NATIVE_OBJS = $(NATIVE_SRCS:%=$(OUT_DIR)/%.o)
 BIN_NAME = GameTankEmulator
 ZIP_NAME = GTE_$(OS).zip
 
-WEB_SHELL = shell.html
+WEB_SHELL ?= web/shell.html
+WEB_ASSETS ?= web/static/
 
 IMGUI_INCLUDES = -Isrc/imgui -Isrc/imgui/backends -Isrc/imgui/ext/implot
 
@@ -41,8 +42,10 @@ ifeq ($(NIGHTLY), yes)
 	TAG = _$(shell date '+%Y%m%d')
 endif
 
-ifndef OS
-	OS=$(shell uname)
+OS ?= $(shell uname)
+
+ifneq ($(origin WINDOW_TITLE), undefined)
+	DEFINES = -D WINDOW_TITLE="\"$(WINDOW_TITLE)\""
 endif
 
 ifeq ($(OS), Windows_NT)
@@ -61,28 +64,37 @@ ifeq ($(OS), Windows_NT)
 	#LIBRARY_PATHS specifies the additional library paths we'll need
 	LIBRARY_PATHS = -L$(SDL_ROOT)/lib
 
+	OBJS += $(NATIVE_OBJS)
+
 	#COMPILER_FLAGS specifies the additional compilation options we're using
 	# -Wl,-subsystem,windows gets rid of the console window
 	# change subsystem,windows to subsystem,console to get printfs on command line
 	COMPILER_FLAGS = -Wl,-subsystem,windows
-	DEFINES = -D _WIN32
+	DEFINES += -D _WIN32
 
 	#LINKER_FLAGS specifies the libraries we're linking against
 	LINKER_FLAGS = -lmingw32 -lSDL2main -lSDL2 -Wl,-Bstatic -mwindows -lm -ldinput8 -ldxguid -ldxerr8 -luser32 -lgdi32 -lwinmm -limm32 -lcomdlg32 -lole32 -loleaut32 -lshell32 -lversion -luuid -static-libgcc -lsetupapi
-else
-	COMPILER_FLAGS = -g `sdl2-config --cflags` $(IMGUI_INCLUDES)
-	LINKER_FLAGS = `sdl2-config --libs`
-endif
-ifeq ($(OS), wasm)
+else ifeq ($(OS), wasm)
 	CC = emcc
 	CPPC = emcc
+
+	#Only run this if $PRELOAD_ROM is set
+	#This should only be required when building for Nix for now
+	ifneq ($(origin PRELOAD_ROM), undefined)
+	    COMPILER_FLAGS += --preload-file $(PRELOAD_ROM)
+	    LINKER_FLAGS += --preload-file $(PRELOAD_ROM)
+	endif
+
 	COMPILER_FLAGS += -s USE_SDL=2 -D WASM_BUILD -D EMBED_ROM_FILE='"$(ROMFILE)"'
+	DEFINES += -D DISABLE_ESC
 	BIN_NAME = index.html
-	LINKER_FLAGS += --embed-file $(ROMFILE) --shell-file web/$(WEB_SHELL) -s EXPORTED_FUNCTIONS='["_LoadRomFile", "_main", "_SetButtons"]' -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]' -lidbfs.js
+	LINKER_FLAGS += --embed-file $(ROMFILE) --shell-file $(WEB_SHELL) -s EXPORTED_FUNCTIONS='["_LoadRomFile", "_main", "_SetButtons"]' -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]' -lidbfs.js
 	SRCS :=  $(filter-out $(foreach src,$(SRCS),$(if $(findstring imgui,$(src)), $(src))),$(SRCS))
 	SRCS := $(filter-out %window.cpp, $(SRCS))
 else
 	OBJS += $(NATIVE_OBJS)
+	COMPILER_FLAGS = -g `sdl2-config --cflags` $(IMGUI_INCLUDES)
+	LINKER_FLAGS = `sdl2-config --libs`
 endif
 
 
@@ -102,9 +114,9 @@ install: bin
 	install -t $(INSTALL_DIR)/bin $(OUT_DIR)/$(BIN_NAME)
 ifeq ($(OS), Windows_NT)
 	install -t $(INSTALL_DIR)/bin $(SDL_ROOT)/bin/SDL2.dll
-endif
-ifeq ($(OS), wasm)
-	install -t $(INSTALL_DIR)/bin web/gamepad.png
+else ifeq ($(OS), wasm)
+	@mkdir -p $(INSTALL_DIR)/bin/static
+	cp -r $(WEB_ASSETS) $(INSTALL_DIR)/bin/static
 	install -t $(INSTALL_DIR)/bin $(OUT_DIR)/index.js
 	install -t $(INSTALL_DIR)/bin $(OUT_DIR)/index.wasm
 endif
@@ -114,14 +126,21 @@ $(OUT_DIR)/$(ZIP_NAME): bin commit_hash.txt
 ifeq ($(OS), Windows_NT)
 	cp $(SDL_ROOT)/bin/SDL2.dll $(OUT_DIR)
 endif
-ifeq ($(OS), wasm)
-	cd $(OUT_DIR); zip -9 -y -r -q $(ZIP_NAME) $(BIN_NAME) gamepad.png index.js index.wasm commit_hash.txt
+ifeq ($(OS), wasm) #separate ifblock on purpose
+	cd $(OUT_DIR); zip -9 -y -r -q $(ZIP_NAME) $(BIN_NAME) static index.js index.wasm commit_hash.txt
 else
 	cd $(OUT_DIR); zip -9 -y -r -q $(ZIP_NAME) $(BIN_NAME) SDL2.dll img commit_hash.txt
 endif
 
+# Allow manually setting a commit hash
+# If MANUAL_COMMIT_HASH is set, it will be used instead of actually querying git
+# This is done for Nix reasons :/
 commit_hash.txt:
+ifeq ($(origin MANUAL_COMMIT_HASH), undefined)
 	git rev-parse HEAD > $(OUT_DIR)/commit_hash.txt
+else
+	echo $(MANUAL_COMMIT_HASH) > $(OUT_DIR)/commit_hash.txt
+endif
 
 $(OUT_DIR)/%.cpp.o: %.cpp
 	@mkdir -p $(@D)
@@ -133,6 +152,10 @@ $(OUT_DIR)/%.c.o: %.c
 
 $(OUT_DIR)/$(BIN_NAME): $(OBJS)
 	$(CPPC) $(COMPILER_FLAGS) -o $@ $^ $(LIBRARY_PATHS) $(LINKER_FLAGS) -std=c++17
+ifeq ($(OS), wasm)
+	cp -r $(WEB_ASSETS) $(OUT_DIR)/static
+endif
+
 
 clean:
 	rm -rf $(OUT_DIR)
