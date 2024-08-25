@@ -64,6 +64,8 @@ ifeq ($(OS), Windows_NT)
 	#LIBRARY_PATHS specifies the additional library paths we'll need
 	LIBRARY_PATHS = -L$(SDL_ROOT)/lib
 
+	OBJS += $(NATIVE_OBJS)
+
 	#COMPILER_FLAGS specifies the additional compilation options we're using
 	# -Wl,-subsystem,windows gets rid of the console window
 	# change subsystem,windows to subsystem,console to get printfs on command line
