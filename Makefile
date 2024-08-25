@@ -68,6 +68,7 @@ ifeq ($(OS), Windows_NT)
 
 	#LINKER_FLAGS specifies the libraries we're linking against
 	LINKER_FLAGS = -lmingw32 -lSDL2main -lSDL2 -Wl,-Bstatic -mwindows -lm -ldinput8 -ldxguid -ldxerr8 -luser32 -lgdi32 -lwinmm -limm32 -lcomdlg32 -lole32 -loleaut32 -lshell32 -lversion -luuid -static-libgcc -lsetupapi
+	OBJS += $(NATIVE_OBJS)
 else ifeq ($(OS), wasm)
 	CC = emcc
 	CPPC = emcc
@@ -119,7 +120,8 @@ $(OUT_DIR)/$(ZIP_NAME): bin commit_hash.txt
 	@mkdir -p $(@D)/img
 ifeq ($(OS), Windows_NT)
 	cp $(SDL_ROOT)/bin/SDL2.dll $(OUT_DIR)
-else ifeq ($(OS), wasm)
+endif
+ifeq ($(OS), wasm) #separate ifblock on purpose
 	cd $(OUT_DIR); zip -9 -y -r -q $(ZIP_NAME) $(BIN_NAME) static index.js index.wasm commit_hash.txt
 else
 	cd $(OUT_DIR); zip -9 -y -r -q $(ZIP_NAME) $(BIN_NAME) SDL2.dll img commit_hash.txt
