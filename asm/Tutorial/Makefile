@@ -5,9 +5,12 @@ SRCS = $(wildcard *.asm)
 
 PROGS = $(patsubst %.asm,%.gtr,$(SRCS))
 
-all: $(PROGS)
+all: $(PROGS) asset_bins
 
-05_audio.gtr: 05_audio.asm assets/square.o
+05_audio.gtr: 05_audio.asm asset_bins
+
+asset_bins:
+	cd assets && '$(MAKE)'
 
 %.gtr: %.asm
 
