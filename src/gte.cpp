@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <vector>
 #include <thread>
+#include <algorithm>
 #ifdef WASM_BUILD
 #include "emscripten.h"
 #include <emscripten/html5.h>
