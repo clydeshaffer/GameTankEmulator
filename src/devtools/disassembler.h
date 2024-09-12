@@ -8,6 +8,12 @@
 using std::vector;
 using std::string;
 
+typedef struct AsmLine {
+    string disassembledLine;
+    uint16_t address;
+    bool isLabel;
+} AsmLine;
+
 class Disassembler {
 private:
     enum AddressMode {
@@ -29,9 +35,9 @@ private:
     static vector<string> opcodeNames;
     static AddressMode opcodeModes[256];
     static ArgIsLabel opcodeTakesLabels[256];
-    static vector<string> lastDecode;
+    static vector<AsmLine> lastDecode;
 public:
 
-    static vector<string> Decode(const std::function<uint8_t(uint16_t, bool)> mem_read, MemoryMap* mem_map, uint16_t address, size_t instruction_count);
-    static vector<string> GetLastDecode();
+    static vector<AsmLine> Decode(const std::function<uint8_t(uint16_t, bool)> mem_read, MemoryMap* mem_map, uint16_t address, size_t instruction_count);
+    static vector<AsmLine> GetLastDecode();
 };

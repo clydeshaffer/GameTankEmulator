@@ -8,7 +8,7 @@
 #define MAX_INSTRUCTION_NAME_LEN 4
 #define ARG_PAD_LEN 20
 
-vector<string> Disassembler::lastDecode;
+vector<AsmLine> Disassembler::lastDecode;
 
 vector<string> Disassembler::opcodeNames = {
     "BRK", "ORA", "???", "???", "TSB", "ORA", "ASL", "RMB0", "PHP", "ORA", "ASL", "???", "TSB", "ORA", "ASL", "BBR0",
@@ -176,8 +176,8 @@ void Disassembler::FormatArgBytes(std::stringstream& ss, MemoryMap* mem_map, uin
     ss << std::setw(ARG_PAD_LEN) << std::left << argstream.str();
 }
 
-vector<string> Disassembler::Decode(const std::function<uint8_t(uint16_t, bool)> mem_read, MemoryMap* mem_map, uint16_t address, size_t instruction_count) {
-    vector<string>& output = lastDecode;
+vector<AsmLine> Disassembler::Decode(const std::function<uint8_t(uint16_t, bool)> mem_read, MemoryMap* mem_map, uint16_t address, size_t instruction_count) {
+    vector<AsmLine>& output = lastDecode;
     output.clear();
 
     while(instruction_count--) {
@@ -187,9 +187,11 @@ vector<string> Disassembler::Decode(const std::function<uint8_t(uint16_t, bool)>
         if(mem_map) {
             Symbol sym;
             if(mem_map->FindAddress(address, &sym)) {
-                string name = sym.name;
-                name += ':';
-                output.push_back(name);
+                AsmLine labelLine;
+                labelLine.disassembledLine = sym.name + ':';
+                labelLine.address = address;
+                labelLine.isLabel = true;
+                output.push_back(labelLine);
             }
         }
         uint8_t opcode = mem_read(address, false);
@@ -224,12 +226,17 @@ vector<string> Disassembler::Decode(const std::function<uint8_t(uint16_t, bool)>
             ss << ' ' << std::hex << std::setw(2) << std::setfill('0') << std::right << (uint32_t) instructionBytes[i];
         }
 
-        output.push_back(ss.str());
+        AsmLine line;
+        line.disassembledLine = ss.str();
+        line.address = address;
+        line.isLabel = false;
+
+        output.push_back(line);
     }
 
     return output;
 }
 
-vector<string> Disassembler::GetLastDecode() {
+vector<AsmLine> Disassembler::GetLastDecode() {
     return lastDecode;
 }

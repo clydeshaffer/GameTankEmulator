@@ -75,7 +75,11 @@ ImVec2 SteppingWindow::Render() {
     ImGui::NewLine();
     if(timekeeper.clock_mode == CLOCKMODE_STOPPED) {
         for(auto& line : Disassembler::GetLastDecode()) {
-            ImGui::Text("%s", line.c_str());
+            if(line.isLabel) {
+                ImGui::Text("%s", line.disassembledLine.c_str());
+            } else {
+                ImGui::Text("%04x %s", line.address, line.disassembledLine.c_str());
+            }
         }
     }
 
