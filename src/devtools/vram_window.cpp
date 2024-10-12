@@ -42,9 +42,9 @@ void VRAMWindow::Draw() {
     src.h = 512;
     dest.h = 512;
     for(int i = 0; i < 8; i++) {
-    dest.x = (i+1) * 128;
-    src.y = i * 512;
-    SDL_BlitSurface(gRAM_Surface, &src, surface, &dest);
+	dest.x = (i+1) * 128;
+	src.y = i * 512;
+	SDL_BlitSurface(gRAM_Surface, &src, surface, &dest);
     }
 
     char buf[128];
