@@ -23,13 +23,7 @@ VRAMWindow::VRAMWindow(
 void VRAMWindow::Draw() {
     SDL_Rect src, dest;
 
-    // Clear the surface before re-rendering
-    dest.x = 0;
-    dest.y = 0;
-    dest.w = 128*9;
-    dest.h = 512;
-    SDL_FillRect(surface, &dest, 0);
-
+    // Render VRAM
     dest.x = 0;
     dest.y = 0;
     dest.w = 128;
@@ -39,13 +33,24 @@ void VRAMWindow::Draw() {
     src.w = 128;
     src.h = 256;
     SDL_BlitSurface(vRAM_Surface, &src, surface, &dest);
+
     src.h = 512;
     dest.h = 512;
+
+    // Render GRAM
     for(int i = 0; i < 8; i++) {
 	dest.x = (i+1) * 128;
 	src.y = i * 512;
 	SDL_BlitSurface(gRAM_Surface, &src, surface, &dest);
     }
+
+    // Render text
+    // Clear the text area before re-rendering as not all text is always rendered
+    dest.x = 0;
+    dest.y = 256;
+    dest.w = 128;
+    dest.h = 256;
+    SDL_FillRect(surface, &dest, 0);
 
     char buf[128];
 
