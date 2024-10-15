@@ -109,16 +109,47 @@ void VRAMWindow::WriteDataUnderMouse(char *buf, int bufSize) {
 
     if (x < 128) {
 	// The user is hovering over VRAM
-	const int vram_start = 0;
-	int addr = vram_start + (128*y) + x;
+	int vram_start = 0x4000;
+	int hovered_pixel = (128*y) + x;
+	int addr = vram_start + (128*(y % 128)) + x;
 
-	snprintf(buf, bufSize - 1, "VRAM\nADDR: 0x%X\nVAL: 0x%02X", addr, system_state->vram[addr]);
+	int framebuffer = y >> 7;
+
+	snprintf(
+	  buf,
+	  bufSize - 1,
+	  "VRAM\nFRAMEBUFFER: %d\nADDR: 0x%X\nVAL: 0x%02X",
+	  framebuffer,
+	  addr,
+	  system_state->vram[hovered_pixel]
+	);
     } else {
 	// The user is hovering over GRAM
+        // Correct for the fact that GRAM starts at position 128 in the viewer
 	x -= 128;
-	const int gram_start = 0;
-	int addr = gram_start + ((x >> 7) * 128 * 512) + (128*y) + (x % 128);
 
-	snprintf(buf, bufSize - 1, "GRAM\nADDR: 0x%X\nVAL: 0x%02X", addr, system_state->gram[addr]);
+	int hovered_pixel = ((x >> 7) * 128 * 512) + (128*y) + (x % 128);
+
+	int gram_start = 0x4000;
+	int quadrant = y >> 7;
+	int line_in_quadrant = y % 128;
+	int addr = gram_start + (128*line_in_quadrant) + (x % 128);
+
+	const char *quadrant_names[4] = {
+	  "NW",
+	  "NE",
+	  "SW",
+	  "SE"
+	};
+
+	snprintf(
+	  buf,
+	  bufSize - 1,
+	  "GRAM\nBANK: %d\nQUADRANT: %s\nADDR: 0x%X\nVAL: 0x%02X",
+	  x >> 7,
+	  quadrant_names[quadrant],
+	  addr,
+	  system_state->gram[hovered_pixel]
+        );
     }
 }
