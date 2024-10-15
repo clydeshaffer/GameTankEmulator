@@ -1,4 +1,5 @@
 #pragma once
+
 #include "base_window.h"
 #include "../system_state.h"
 #include "../mos6502/mos6502.h"
@@ -11,6 +12,8 @@ private:
     SystemState* system_state;
     mos6502* cpu_core;
     CartridgeState* cartridge_state;
+
+    void WriteDataUnderMouse(char *buf, int bufSize);
 public:
     VRAMWindow(SDL_Surface* vram, SDL_Surface* gram, SystemState* system, mos6502* cpu, CartridgeState* cartridge);
     void Draw();
