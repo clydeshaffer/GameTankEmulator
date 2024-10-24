@@ -20,7 +20,9 @@ class MemoryMap {
         MemoryMap();
         MemoryMap(const std::string& mapfile);
         void forEach(const std::function<void(const Symbol&)>& func) const;
-        int GetCount();
-        Symbol& GetAt(int i);
-        bool FindAddress(uint16_t address, Symbol* result);
+        int GetCount() const;
+        int size() const;
+        const Symbol& GetAt(int i) const;
+        bool FindAddress(uint16_t address, Symbol* result) const;
+        bool FindName(uint16_t &address, std::string name) const;
 };

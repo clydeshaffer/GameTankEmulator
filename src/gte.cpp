@@ -703,7 +703,7 @@ void toggleProfilerWindow() {
 
 void toggleMemBrowserWindow() {
 	if(!toolTypeIsOpen<MemBrowserWindow>()) {
-		toolWindows.push_back(new MemBrowserWindow(loadedMemoryMap, MemoryReadResolve, GetRAM));
+		toolWindows.push_back(new MemBrowserWindow(loadedMemoryMap, MemoryReadResolve, GetRAM, *gameconfig));
 	} else {
 		closeToolByType<MemBrowserWindow>();
 	}

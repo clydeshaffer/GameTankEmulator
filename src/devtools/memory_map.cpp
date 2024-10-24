@@ -59,15 +59,19 @@ void MemoryMap::forEach(const std::function<void(const Symbol&)>& func) const {
         }
 }
 
-int MemoryMap::GetCount() {
+int MemoryMap::GetCount() const {
     return symbols.size();
 }
 
-Symbol& MemoryMap::GetAt(int i) {
+int MemoryMap::size() const {
+    return symbols.size();
+}
+
+const Symbol& MemoryMap::GetAt(int i) const {
     return symbols.at(i);
 }
 
-bool MemoryMap::FindAddress(uint16_t address, Symbol* result) {
+bool MemoryMap::FindAddress(uint16_t address, Symbol* result) const {
     for(auto sym : symbols) {
         if(sym.address == address) {
             if(result != NULL) {
@@ -77,4 +81,14 @@ bool MemoryMap::FindAddress(uint16_t address, Symbol* result) {
         }
     }
     return false;
+}
+
+bool MemoryMap::FindName(uint16_t &address, std::string name) const {
+    for(auto sym : symbols) {
+        if(sym.name == name) {
+            address = sym.address;
+            return true;
+        }
+    }
+    return false;   
 }

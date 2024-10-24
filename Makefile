@@ -144,14 +144,14 @@ endif
 
 $(OUT_DIR)/%.cpp.o: %.cpp
 	@mkdir -p $(@D)
-	$(CPPC) -c $< -o $@ $(INCLUDE_PATHS) $(COMPILER_FLAGS) $(DEFINES) -std=c++17
+	$(CPPC) -c $< -o $@ $(INCLUDE_PATHS) $(COMPILER_FLAGS) $(DEFINES) -std=c++20
 
 $(OUT_DIR)/%.c.o: %.c
 	@mkdir -p $(@D)
 	$(CC) -c $< -o $@ $(INCLUDE_PATHS) $(COMPILER_FLAGS) $(DEFINES)
 
 $(OUT_DIR)/$(BIN_NAME): $(OBJS)
-	$(CPPC) $(COMPILER_FLAGS) -o $@ $^ $(LIBRARY_PATHS) $(LINKER_FLAGS) -std=c++17
+	$(CPPC) $(COMPILER_FLAGS) -o $@ $^ $(LIBRARY_PATHS) $(LINKER_FLAGS) -std=c++20
 ifeq ($(OS), wasm)
 	cp -r $(WEB_ASSETS) $(OUT_DIR)/static
 endif
