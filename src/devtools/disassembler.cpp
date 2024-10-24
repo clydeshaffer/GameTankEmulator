@@ -83,94 +83,125 @@ void Disassembler::FormatArgBytes(std::stringstream& ss, MemoryMap* mem_map, uin
 
     AddressMode mode = opcodeModes[opcode];
     uint8_t argCount = opBytes[mode] - 1;
+    bool isAbsolute = false;
 
     switch(mode) {
         case AB:
-            //Absolute
-            //Check to see if the we're jumping
-            if (mem_map && opcodeTakesLabels[opcode] == AL) {
-                Symbol sym;
-                //Check to see if the jump target is a named label
-                if(mem_map->FindAddress(argBytes, &sym)) {
-                    string name = sym.name;
-                    argstream << name;
-                    break;
-                }
-            }
-
-            argstream << "$" << FMT_ARG;
-            break;
         case JX:
-            //Absolute Indexed Indirect (Indexed JMP)
-            argstream << "($" << FMT_ARG << ", x)";
-            break;
         case AX:
-            //Absolute Indexed X
-            argstream << "$" << FMT_ARG << ", x";
-            break;
         case AY:
-            //Absolute Indexed Y
-            argstream << "$" << FMT_ARG << ", y";
-            break;
         case AI:
-            //Absolute Indirect
-            argstream << "($" << FMT_ARG << ")";
+            isAbsolute = true;
             break;
-        case AC:
-            //Accumulator
+        default:
             break;
-        case NO:
-            //Immediate (NO for Number)
-            argstream << "#$" << FMT_ARG;
-            break;
-        case IM:
-            //Implied
-            break;
-        case PR:
-            //Program Counter Relative
-            //Check to see if the we're branching
-            if (mem_map && opcodeTakesLabels[opcode] == DL) {
-                Symbol sym;
-                //Check to see if the branch target is a named label
-                if(mem_map->FindAddress(address + (char) argBytes, &sym)) {
-                    string name = sym.name;
-                    argstream << name;
-                    break;
-                }
-            }
+    }
 
-            argstream << "$" << FMT_ARG;
-            break;
-        case ST:
-            //Stack
-            break;
-        case ZP:
-            //Zero page
-            argstream << "$" << FMT_ARG;
-            break;
-        case IX:
-            //Zero Page Indexed Indirect X
-            argstream << "($" << FMT_ARG << ", x)";
-            break;
-        case ZX:
-            //Zero Page Indexed X
-            argstream << "($" << FMT_ARG << ", x)";
-            break;
-        case ZY:
-            //Zero Page Indexed Y
-            argstream << "$" << FMT_ARG << ", y";
-            break;
-        case ZI:
-            //Zero Page Indirect
-            argstream << "($" << FMT_ARG << ")";
-            break;
-        case IY:
-            //Zero Page Indirect Indexed Y
-            argstream << "($" << FMT_ARG << "), y";
-            break;
-        case XX:
-            //Treat invalid opcode as no bytes
-            break;
+    Symbol sym;
+    if(isAbsolute && mem_map->FindAddress(argBytes, &sym)) {
+        string name = sym.name;
+        switch(mode) {
+            case AB:
+                //Absolute
+                argstream << "$" << name;
+                break;
+            case JX:
+                //Absolute Indexed Indirect (Indexed JMP)
+                argstream << "($" << name << ", x)";
+                break;
+            case AX:
+                //Absolute Indexed X
+                argstream << "$" << name << ", x";
+                break;
+            case AY:
+                //Absolute Indexed Y
+                argstream << "$" << name << ", y";
+                break;
+            case AI:
+                //Absolute Indirect
+                argstream << "($" << name << ")";
+                break;
+            default:
+                break;
+        }
+    } else {
+        switch(mode) {
+            case AB:
+                //Absolute
+                argstream << "$" << FMT_ARG;
+                break;
+            case JX:
+                //Absolute Indexed Indirect (Indexed JMP)
+                argstream << "($" << FMT_ARG << ", x)";
+                break;
+            case AX:
+                //Absolute Indexed X
+                argstream << "$" << FMT_ARG << ", x";
+                break;
+            case AY:
+                //Absolute Indexed Y
+                argstream << "$" << FMT_ARG << ", y";
+                break;
+            case AI:
+                //Absolute Indirect
+                argstream << "($" << FMT_ARG << ")";
+                break;
+            case AC:
+                //Accumulator
+                break;
+            case NO:
+                //Immediate (NO for Number)
+                argstream << "#$" << FMT_ARG;
+                break;
+            case IM:
+                //Implied
+                break;
+            case PR:
+                //Program Counter Relative
+                //Check to see if the we're branching
+                if (mem_map && opcodeTakesLabels[opcode] == DL) {
+                    Symbol sym;
+                    //Check to see if the branch target is a named label
+                    if(mem_map->FindAddress(address + (char) argBytes, &sym)) {
+                        string name = sym.name;
+                        argstream << name;
+                        break;
+                    }
+                }
+
+                argstream << "$" << FMT_ARG;
+                break;
+            case ST:
+                //Stack
+                break;
+            case ZP:
+                //Zero page
+                argstream << "$" << FMT_ARG;
+                break;
+            case IX:
+                //Zero Page Indexed Indirect X
+                argstream << "($" << FMT_ARG << ", x)";
+                break;
+            case ZX:
+                //Zero Page Indexed X
+                argstream << "($" << FMT_ARG << ", x)";
+                break;
+            case ZY:
+                //Zero Page Indexed Y
+                argstream << "$" << FMT_ARG << ", y";
+                break;
+            case ZI:
+                //Zero Page Indirect
+                argstream << "($" << FMT_ARG << ")";
+                break;
+            case IY:
+                //Zero Page Indirect Indexed Y
+                argstream << "($" << FMT_ARG << "), y";
+                break;
+            case XX:
+                //Treat invalid opcode as no bytes
+                break;
+        }
     }
 
     ss << std::setw(ARG_PAD_LEN) << std::left << argstream.str();
@@ -206,6 +237,9 @@ vector<AsmLine> Disassembler::Decode(const std::function<uint8_t(uint16_t, bool)
 
         ss << "\t" << std::setw(MAX_INSTRUCTION_NAME_LEN + 1) << std::left << opcodeName;
 
+        AsmLine line;
+        line.num_args = instructionSize - 1;
+
         if(instructionSize == 1) {
             // We don't have any arguments for this instruction
             ss << std::setw(ARG_PAD_LEN) << "";
@@ -219,6 +253,7 @@ vector<AsmLine> Disassembler::Decode(const std::function<uint8_t(uint16_t, bool)
                 instructionBytes[2] = secondArg;
             }
             FormatArgBytes(ss, mem_map, address, opcode, args);
+            line.args = args;
         }
 
         for (size_t i = 0; i < instructionSize; i++) {
@@ -226,10 +261,11 @@ vector<AsmLine> Disassembler::Decode(const std::function<uint8_t(uint16_t, bool)
             ss << ' ' << std::hex << std::setw(2) << std::setfill('0') << std::right << (uint32_t) instructionBytes[i];
         }
 
-        AsmLine line;
+        
         line.disassembledLine = ss.str();
         line.address = address;
         line.isLabel = false;
+        line.opcode = opcode;
 
         output.push_back(line);
     }

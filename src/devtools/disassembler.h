@@ -12,6 +12,10 @@ typedef struct AsmLine {
     string disassembledLine;
     uint16_t address;
     bool isLabel;
+    string opcode_name;
+    uint8_t opcode;
+    uint8_t num_args;
+    uint16_t args;
 } AsmLine;
 
 class Disassembler {
