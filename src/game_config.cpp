@@ -13,6 +13,7 @@ GameConfig::GameConfig(const char* path) {
     if(std::filesystem::exists(this->cfg_path)) {
         toml::table config = toml::parse_file(this->cfg_path);
         if(config.contains("patch_binds")) {
+            bin_bindings.clear();
             auto bindArray = *config.get_as<toml::array>("patch_binds");
             for(auto&& bindEntry : bindArray) {
                 BinFileBinding bind;
@@ -25,6 +26,7 @@ GameConfig::GameConfig(const char* path) {
         }
 
         if(config.contains("memory_watches")) {
+            watch_locations.clear();
             auto watchArray = *config.get_as<toml::array>("memory_watches");
             for(auto&& watchEntry : watchArray) {
                 MemoryWatch watch;
@@ -40,6 +42,7 @@ GameConfig::GameConfig(const char* path) {
         }
 
         if(config.contains("breakpoints")) {
+            Breakpoints::breakpoints.clear();
             auto breakpArray = *config.get_as<toml::array>("breakpoints");
             for(auto&& breakpEntry : breakpArray) {
                 Breakpoint breakp;

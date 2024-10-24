@@ -67,6 +67,23 @@ ImVec2 SteppingWindow::Render() {
         ImGui::EndPopup();
     }
 
+    if(ImGui::Button("Clear breakpoints")) {
+        ImGui::OpenPopup("clearbreakpoints");
+    }
+
+    if(ImGui::BeginPopup("clearbreakpoints")) {
+        ImGui::Text("Are you sure?");
+        if(ImGui::Button("Yes##clear")) {
+            Breakpoints::breakpoints.clear();
+            gameconfig.Save();
+            ImGui::CloseCurrentPopup();
+        }
+        if(ImGui::Button("No##clear")) {
+             ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
+
     int index = 0;
     int delete_index = -1;
     bool should_save = false;

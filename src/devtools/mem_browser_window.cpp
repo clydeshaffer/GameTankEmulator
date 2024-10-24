@@ -131,6 +131,23 @@ ImVec2 MemBrowserWindow::Render() {
                     gameconfig.Save();
                 }
             }
+
+            if(ImGui::Button("Clear watches")) {
+                ImGui::OpenPopup("clearwatches");
+            }
+
+            if(ImGui::BeginPopup("clearwatches")) {
+                ImGui::Text("Are you sure?");
+                if(ImGui::Button("Yes##clear")) {
+                    gameconfig.watch_locations.clear();
+                    gameconfig.Save();
+                    ImGui::CloseCurrentPopup();
+                }
+                if(ImGui::Button("No##clear")) {
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::EndPopup();
+            }
             
             ImGui::Checkbox("Decimal", &decimal);
             if(ImGui::BeginTable("watchtable",5, ImGuiTableFlags_SizingFixedFit, ImVec2(480, 200))) {
