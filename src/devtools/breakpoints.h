@@ -11,7 +11,6 @@ typedef struct Breakpoint {
     bool bank_set;
     std::string name;
     bool by_address;
-    bool word;
     bool enabled;
     //not persisted below:
     bool linked; //flag for whether the var name has been searched and refreshed

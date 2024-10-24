@@ -714,7 +714,7 @@ void toggleVRAMWindow() {
 
 void toggleSteppingWindow() {
 	if(!toolTypeIsOpen<SteppingWindow>()) {
-		toolWindows.push_back(new SteppingWindow(timekeeper, loadedMemoryMap, cpu_core));
+		toolWindows.push_back(new SteppingWindow(timekeeper, loadedMemoryMap, cpu_core, *gameconfig));
 	} else {
 		closeToolByType<SteppingWindow>();
 	}

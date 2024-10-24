@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <iostream>
 #include <fstream>
+#include "devtools/breakpoints.h"
 
 using namespace std::string_view_literals;
 
@@ -37,14 +38,34 @@ GameConfig::GameConfig(const char* path) {
                 watch_locations.emplace_back(watch);
             }
         }
+
+        if(config.contains("breakpoints")) {
+            auto breakpArray = *config.get_as<toml::array>("breakpoints");
+            for(auto&& breakpEntry : breakpArray) {
+                Breakpoint breakp;
+                toml::table *tbl = breakpEntry.as_table();
+                breakp.address = (int64_t) (*tbl->get_as<int64_t>("addr"));
+                if(tbl->contains("bank")) {
+                    breakp.bank = (int64_t) (*tbl->get_as<int64_t>("bank"));
+                    breakp.bank_set = true;
+                } else {
+                    breakp.bank_set = false;
+                }
+                breakp.name = (*tbl)["name"].value_or(""sv);
+                breakp.by_address = (bool) (*tbl->get_as<bool>("by_addr"));
+                breakp.enabled = (bool) (*tbl->get_as<bool>("enabled"));
+                breakp.linked = false;
+                breakp.linkFailed = false;
+                Breakpoints::breakpoints.emplace_back(breakp);
+            }
+        }
     }
 }
 
 void GameConfig::Save() {
     toml::table config = toml::table();
-    toml::array bindArray = toml::array();
-    toml::array watchArray = toml::array();
 
+    toml::array bindArray = toml::array(); 
     for(auto& bindEntry : bin_bindings) {
         toml::table bindTomlEntry = toml::table();
         bindTomlEntry.emplace("addr", bindEntry.address);
@@ -52,9 +73,9 @@ void GameConfig::Save() {
         bindTomlEntry.emplace("path", bindEntry.path);
         bindArray.push_back(bindTomlEntry);
     }
-
     config.emplace("patch_binds", bindArray);
 
+    toml::array watchArray = toml::array();
     for(auto& watchEntry : watch_locations) {
         toml::table watchTomlEntry = toml::table();
         watchTomlEntry.emplace("addr", watchEntry.address);
@@ -64,6 +85,20 @@ void GameConfig::Save() {
         watchArray.push_back(watchTomlEntry);
     }
     config.emplace("memory_watches", watchArray);
+
+    toml::array breakArray = toml::array();
+    for(auto& breakEntry : Breakpoints::breakpoints) {
+        toml::table breakTomlEntry = toml::table();
+        breakTomlEntry.emplace("addr", breakEntry.address);
+        if(breakEntry.bank_set) {
+            breakTomlEntry.emplace("bank", breakEntry.bank);
+        }
+        breakTomlEntry.emplace("name", breakEntry.name);
+        breakTomlEntry.emplace("enabled", breakEntry.enabled);
+        breakTomlEntry.emplace("by_addr", breakEntry.by_address);
+        breakArray.push_back(breakTomlEntry);
+    }
+    config.emplace("breakpoints", breakArray);
 
     std::fstream outFile;
     outFile.open(cfg_path, std::ios_base::out | std::ios_base::trunc);

@@ -20,82 +20,89 @@ ImVec2 SteppingWindow::Render() {
     
     ImGui::Separator();
 
-    if (ImGui::TreeNode("Set Breakpoints")) {
-        ImGui::Checkbox("Enabled", &Breakpoints::enabled);
+    ImGui::Checkbox("Enable breakpoints", &Breakpoints::enabled);
 
-        int selected_item = -1;
-        if(memorymap != NULL) {
-            if(ImGui::ComboFilter("##label names", selected_item, *memorymap, memory_map_getter, ImGuiComboFlags_HeightRegular )) {
-                Symbol sym = memorymap->GetAt(selected_item);
-                Breakpoint bp;
-                bp.address = memorymap->GetAt(selected_item).address;
-                bp.name = memorymap->GetAt(selected_item).name;
-                bp.by_address = false;
-                bp.bank_set = false;
-                bp.enabled = true;
-                bp.linked = true;
-                bp.linkFailed = false;
-                Breakpoints::breakpoints.push_back(bp);
-            }
+    int selected_item = -1;
+    if(memorymap != NULL) {
+        if(ImGui::ComboFilter("##label names", selected_item, *memorymap, memory_map_getter, ImGuiComboFlags_HeightRegular )) {
+            Symbol sym = memorymap->GetAt(selected_item);
+            Breakpoint bp;
+            bp.address = memorymap->GetAt(selected_item).address;
+            bp.name = memorymap->GetAt(selected_item).name;
+            bp.by_address = false;
+            bp.bank_set = false;
+            bp.enabled = true;
+            bp.linked = true;
+            bp.linkFailed = false;
+            Breakpoints::breakpoints.push_back(bp);
+            gameconfig.Save();
         }
-
-        if(ImGui::Button("Add by address")) {
-            ImGui::OpenPopup("Add Manual Breakpoint");
-        }
-
-        if(ImGui::BeginPopup("Add Manual Breakpoint")) {
-            static uint16_t manual_addr = 0;
-            static uint8_t manual_bank = 0;
-            static bool set_bank = false;
-            ImGui::InputScalar("Address", ImGuiDataType_U16, &manual_addr, NULL, NULL, "%x", ImGuiInputTextFlags_CharsHexadecimal);
-            ImGui::InputScalar("Bank", ImGuiDataType_U8, &manual_bank, NULL, NULL, "%x", ImGuiInputTextFlags_CharsHexadecimal);
-            ImGui::Checkbox("Set bank", &set_bank);
-            if(ImGui::Button("Add")) {
-                Symbol sym = memorymap->GetAt(selected_item);
-                Breakpoint bp;
-                bp.name = std::string("N/A");
-                bp.address = manual_addr;
-                bp.by_address = true;
-                bp.bank_set = set_bank;
-                bp.bank = manual_bank;
-                bp.enabled = true;
-                bp.linked = true;
-                bp.linkFailed = false;
-                Breakpoints::breakpoints.push_back(bp);
-            }
-            ImGui::EndPopup();
-        }
-
-        int index = 0;
-        int delete_index = -1;
-        for(auto& man : Breakpoints::breakpoints) {
-            if(man.by_address) {
-                if(man.bank_set) {
-                    ImGui::Text("%04x:%02x", man.address, man.bank);
-                } else {
-                    ImGui::Text("%04x", man.address);
-                }
-            } else {
-                if(man.bank_set) {
-                    ImGui::Text("%s@%04x:%02x", man.name.c_str(), man.address, man.bank);
-                } else {
-                    ImGui::Text("%s@%04x", man.name.c_str(), man.address);
-                }
-            }
-            ImGui::SameLine();
-            ImGui::Checkbox("##enable breakpoint", &man.enabled);
-            ImGui::SameLine();
-            if(ImGui::Button("x##delete breakpoint")) {
-                delete_index = index;
-            }
-            ++index;
-        }
-        if(delete_index != -1) {
-            Breakpoints::breakpoints.erase(std::next(Breakpoints::breakpoints.begin(), delete_index));
-        }
-
-        ImGui::TreePop();
     }
+
+    if(ImGui::Button("Add by address")) {
+        ImGui::OpenPopup("Add Manual Breakpoint");
+    }
+
+    if(ImGui::BeginPopup("Add Manual Breakpoint")) {
+        static uint16_t manual_addr = 0;
+        static uint8_t manual_bank = 0;
+        static bool set_bank = false;
+        ImGui::InputScalar("Address", ImGuiDataType_U16, &manual_addr, NULL, NULL, "%x", ImGuiInputTextFlags_CharsHexadecimal);
+        ImGui::InputScalar("Bank", ImGuiDataType_U8, &manual_bank, NULL, NULL, "%x", ImGuiInputTextFlags_CharsHexadecimal);
+        ImGui::Checkbox("Set bank", &set_bank);
+        if(ImGui::Button("Add")) {
+            Symbol sym = memorymap->GetAt(selected_item);
+            Breakpoint bp;
+            bp.name = std::string("N/A");
+            bp.address = manual_addr;
+            bp.by_address = true;
+            bp.bank_set = set_bank;
+            bp.bank = manual_bank;
+            bp.enabled = true;
+            bp.linked = true;
+            bp.linkFailed = false;
+            Breakpoints::breakpoints.push_back(bp);
+            gameconfig.Save();
+        }
+        ImGui::EndPopup();
+    }
+
+    int index = 0;
+    int delete_index = -1;
+    bool should_save = false;
+    for(auto& man : Breakpoints::breakpoints) {
+        if(man.by_address) {
+            if(man.bank_set) {
+                ImGui::Text("%04x:%02x", man.address, man.bank);
+            } else {
+                ImGui::Text("%04x", man.address);
+            }
+        } else {
+            if(man.bank_set) {
+                ImGui::Text("%s@%04x:%02x", man.name.c_str(), man.address, man.bank);
+            } else {
+                ImGui::Text("%s@%04x", man.name.c_str(), man.address);
+            }
+        }
+        ImGui::SameLine();
+        if(ImGui::Checkbox("##enable breakpoint", &man.enabled)) {
+            should_save = true;
+        }
+        ImGui::SameLine();
+        if(ImGui::Button("x##delete breakpoint")) {
+            delete_index = index;
+            should_save = true;
+        }
+        ++index;
+    }
+    if(delete_index != -1) {
+        Breakpoints::breakpoints.erase(std::next(Breakpoints::breakpoints.begin(), delete_index));
+    }
+
+    if(should_save) {
+        gameconfig.Save();
+    }
+
 
     ImGui::Separator();
 
