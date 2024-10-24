@@ -2,6 +2,8 @@
 #include "stepping_window.h"
 #include "breakpoints.h"
 #include "disassembler.h"
+#include "imgui-combo-filter.h"
+#include <string>
 
 ImVec2 SteppingWindow::Render() {
      ImVec2 sizeOut = {0, 0};
@@ -20,25 +22,21 @@ ImVec2 SteppingWindow::Render() {
 
     if (ImGui::TreeNode("Set Breakpoints")) {
         ImGui::Checkbox("Enabled", &Breakpoints::enabled);
-        if (ImGui::BeginListBox(""))
-        {
-            if(memorymap != NULL) {
-                int symCount = memorymap->GetCount();
-                for (int n = 0; n < symCount; ++n)
-                {
-                    Symbol sym = memorymap->GetAt(n);
-                    if(sym.address >= 0x8000) {
-                        if (ImGui::Selectable(sym.name.c_str(), Breakpoints::addresses.count(sym.address) != 0)) {
-                            if(Breakpoints::addresses.count(sym.address) != 0) {
-                                Breakpoints::addresses.erase(sym.address);
-                            } else {
-                                Breakpoints::addresses.insert(sym.address);
-                            }
-                        }
-                    }
-                }
+
+        int selected_item = -1;
+        if(memorymap != NULL) {
+            if(ImGui::ComboFilter("##label names", selected_item, *memorymap, memory_map_getter, ImGuiComboFlags_HeightRegular )) {
+                Symbol sym = memorymap->GetAt(selected_item);
+                Breakpoint bp;
+                bp.address = memorymap->GetAt(selected_item).address;
+                bp.name = memorymap->GetAt(selected_item).name;
+                bp.by_address = false;
+                bp.bank_set = false;
+                bp.enabled = true;
+                bp.linked = true;
+                bp.linkFailed = false;
+                Breakpoints::breakpoints.push_back(bp);
             }
-            ImGui::EndListBox();
         }
 
         if(ImGui::Button("Add by address")) {
@@ -47,21 +45,53 @@ ImVec2 SteppingWindow::Render() {
 
         if(ImGui::BeginPopup("Add Manual Breakpoint")) {
             static uint16_t manual_addr = 0;
-            ImGui::InputScalar("##", ImGuiDataType_U16, &manual_addr, NULL, NULL, "%x", ImGuiInputTextFlags_CharsHexadecimal);
+            static uint8_t manual_bank = 0;
+            static bool set_bank = false;
+            ImGui::InputScalar("Address", ImGuiDataType_U16, &manual_addr, NULL, NULL, "%x", ImGuiInputTextFlags_CharsHexadecimal);
+            ImGui::InputScalar("Bank", ImGuiDataType_U8, &manual_bank, NULL, NULL, "%x", ImGuiInputTextFlags_CharsHexadecimal);
+            ImGui::Checkbox("Set bank", &set_bank);
             if(ImGui::Button("Add")) {
-                Breakpoints::addresses.insert(manual_addr);
-                Breakpoints::manual_breakpoints.insert(manual_addr);
+                Symbol sym = memorymap->GetAt(selected_item);
+                Breakpoint bp;
+                bp.name = std::string("N/A");
+                bp.address = manual_addr;
+                bp.by_address = true;
+                bp.bank_set = set_bank;
+                bp.bank = manual_bank;
+                bp.enabled = true;
+                bp.linked = true;
+                bp.linkFailed = false;
+                Breakpoints::breakpoints.push_back(bp);
             }
             ImGui::EndPopup();
         }
 
-        for(auto& man : Breakpoints::manual_breakpoints) {
-            ImGui::Text("%04x", man);
-            ImGui::SameLine();
-            if(ImGui::Button("x")) {
-                Breakpoints::addresses.erase(man);
-                Breakpoints::manual_breakpoints.erase(man);
+        int index = 0;
+        int delete_index = -1;
+        for(auto& man : Breakpoints::breakpoints) {
+            if(man.by_address) {
+                if(man.bank_set) {
+                    ImGui::Text("%04x:%02x", man.address, man.bank);
+                } else {
+                    ImGui::Text("%04x", man.address);
+                }
+            } else {
+                if(man.bank_set) {
+                    ImGui::Text("%s@%04x:%02x", man.name.c_str(), man.address, man.bank);
+                } else {
+                    ImGui::Text("%s@%04x", man.name.c_str(), man.address);
+                }
             }
+            ImGui::SameLine();
+            ImGui::Checkbox("##enable breakpoint", &man.enabled);
+            ImGui::SameLine();
+            if(ImGui::Button("x##delete breakpoint")) {
+                delete_index = index;
+            }
+            ++index;
+        }
+        if(delete_index != -1) {
+            Breakpoints::breakpoints.erase(std::next(Breakpoints::breakpoints.begin(), delete_index));
         }
 
         ImGui::TreePop();

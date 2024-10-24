@@ -5,6 +5,13 @@
 #include "memory_map.h"
 #include <cstdint>
 
+const char* memory_map_getter(const MemoryMap& items, int index) {
+    if (index >= 0 && index < (int)items.GetCount()) {
+        return items.GetAt(index).name.c_str();
+    }
+    return "N/A";
+}
+
 void MemoryMap::parse() {
     std::ifstream file(filename);
     std::string line;

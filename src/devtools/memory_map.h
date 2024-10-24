@@ -26,3 +26,5 @@ class MemoryMap {
         bool FindAddress(uint16_t address, Symbol* result) const;
         bool FindName(uint16_t &address, std::string name) const;
 };
+
+const char* memory_map_getter(const MemoryMap& items, int index);

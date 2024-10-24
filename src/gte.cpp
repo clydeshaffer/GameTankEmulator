@@ -347,17 +347,11 @@ uint8_t MemoryRead(uint16_t address) {
 }
 
 uint8_t MemorySync(uint16_t address) {
-	if(Breakpoints::enabled && (timekeeper.clock_mode == CLOCKMODE_NORMAL)) {
-		if(Breakpoints::breakCooldown == 0) {
-			if(Breakpoints::addresses.find(address) != Breakpoints::addresses.end()) {
-				timekeeper.clock_mode = CLOCKMODE_STOPPED;
-				Disassembler::Decode(MemoryReadResolve, loadedMemoryMap, address, 32);
-				cpu_core->Freeze();
-				Breakpoints::breakCooldown = 16;
-			}
-		}
-		else {
-			Breakpoints::breakCooldown--;
+	if(timekeeper.clock_mode == CLOCKMODE_NORMAL) {
+		if(Breakpoints::checkBreakpoint(address, cartridge_state.bank_mask)) {
+			timekeeper.clock_mode = CLOCKMODE_STOPPED;
+			Disassembler::Decode(MemoryReadResolve, loadedMemoryMap, address, 32);
+			cpu_core->Freeze();
 		}
 	}
 	return MemoryRead(address);

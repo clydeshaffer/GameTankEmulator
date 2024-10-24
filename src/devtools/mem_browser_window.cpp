@@ -18,13 +18,6 @@ static const char* var_headers[3] = {
 
 static char const * mapFilterPatterns[1] = {"*.map"};
 
-static const char* memory_map_getter(const MemoryMap& items, int index) {
-    if (index >= 0 && index < (int)items.GetCount()) {
-        return items.GetAt(index).name.c_str();
-    }
-    return "N/A";
-}
-
 ImVec2 MemBrowserWindow::Render() {
     ImVec2 sizeOut = {0, 0};
     ImGui::Begin("Mem Browser", NULL, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar);
@@ -77,7 +70,7 @@ ImVec2 MemBrowserWindow::Render() {
         } else {
             static int selected_search_item = -1;
             bool searched = false;
-            if(ImGui::ComboFilter("variable names", selected_search_item, *memorymap, memory_map_getter, ImGuiComboFlags_HeightSmall )) {
+            if(ImGui::ComboFilter("##variable names", selected_search_item, *memorymap, memory_map_getter, ImGuiComboFlags_HeightRegular )) {
                 searched = true;
             }
             ImGui::Checkbox("Decimal", &decimal);
@@ -126,7 +119,7 @@ ImVec2 MemBrowserWindow::Render() {
     if(ImGui::BeginTabItem("Watch")) {
         static int selected_item = -1;
         if(memorymap != NULL) {
-            if(ImGui::ComboFilter("variable names", selected_item, *memorymap, memory_map_getter, ImGuiComboFlags_HeightSmall )) {
+            if(ImGui::ComboFilter("##variable names", selected_item, *memorymap, memory_map_getter, ImGuiComboFlags_HeightRegular )) {
                 if(selected_item != -1) {
                     MemoryWatch watch;
                     watch.address = memorymap->GetAt(selected_item).address;
