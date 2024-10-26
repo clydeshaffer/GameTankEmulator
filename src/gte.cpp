@@ -587,7 +587,9 @@ extern "C" {
 		if(std::filesystem::exists(defaultMapFilePath)) {
 			printf("found default memory map file location %s\n", defaultMapFilePath.c_str());
 			loadedMemoryMap = new MemoryMap(defaultMapFilePath.string());
+			Breakpoints::linkBreakpoints(*loadedMemoryMap);
 		} else {
+			loadedMemoryMap = new MemoryMap();
 			printf("default memory map file %s not found\n", defaultMapFilePath.c_str());
 		}
 
@@ -923,7 +925,7 @@ EM_BOOL mainloop(double time, void* userdata) {
 
 #ifndef WASM_BUILD
 			if(!gofast) {
-				SDL_Delay(timekeeper.time_scaling * timekeeper.actual_cycles/timekeeper.system_clock);
+				SDL_Delay(timekeeper.time_scaling * intended_cycles/timekeeper.system_clock);
 			} else {
 				timekeeper.lastTicks = 0;
 			}
@@ -931,7 +933,7 @@ EM_BOOL mainloop(double time, void* userdata) {
 
 			if(timekeeper.clock_mode == CLOCKMODE_NORMAL) {
 				if(timekeeper.lastTicks != 0) {
-					int time_error = (timekeeper.currentTicks - timekeeper.lastTicks) - (1000 * timekeeper.actual_cycles/timekeeper.system_clock);
+					int time_error = (timekeeper.currentTicks - timekeeper.lastTicks) - (1000 * intended_cycles/timekeeper.system_clock);
 					if(timekeeper.frameCount == 100) {
 					  sprintf(titlebuf, "%s | %s | s: %.1f inc: %.1f err: %d\n", WINDOW_TITLE, currentRomFilePath.c_str(), timekeeper.time_scaling, timekeeper.scaling_increment, time_error);
 						SDL_SetWindowTitle(mainWindow, titlebuf);
@@ -965,6 +967,8 @@ EM_BOOL mainloop(double time, void* userdata) {
 				timekeeper.frameCount++;
 			}
 #endif
+			timekeeper.totalCyclesCount -= timekeeper.actual_cycles;
+			timekeeper.totalCyclesCount += intended_cycles;
 			timekeeper.cycles_since_vsync += intended_cycles;
 			if(timekeeper.cycles_since_vsync >= timekeeper.cycles_per_vsync) {
 				timekeeper.cycles_since_vsync -= timekeeper.cycles_per_vsync;
