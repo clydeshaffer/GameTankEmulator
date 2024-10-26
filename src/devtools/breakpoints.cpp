@@ -22,3 +22,18 @@ bool Breakpoints::checkBreakpoint(uint16_t address, uint8_t bank) {
     }
     return breakCooldown == BREAKPOINT_COOLDOWN;;
 }
+
+//Scan memory map for 
+void Breakpoints::linkBreakpoints(MemoryMap& memorymap) {
+    for(auto& bp : breakpoints) {
+        if(!bp.by_address) {
+            if((!bp.linked) && (!bp.linkFailed)) {
+                if(memorymap.FindName(bp.address, bp.name)) {
+                    bp.linked = true;
+                } else {
+                    bp.linkFailed = true;
+                }
+            }
+        }
+    }
+}

@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <vector>
 #include <string>
+#include "memory_map.h"
 
 using std::vector;
 
@@ -23,4 +24,5 @@ public:
     static bool enabled;
     static vector<Breakpoint> breakpoints;
     static bool checkBreakpoint(uint16_t address, uint8_t bank);
+    static void linkBreakpoints(MemoryMap& memorymap);
 };

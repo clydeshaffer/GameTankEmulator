@@ -51,7 +51,6 @@ ImVec2 SteppingWindow::Render() {
         ImGui::InputScalar("Bank", ImGuiDataType_U8, &manual_bank, NULL, NULL, "%x", ImGuiInputTextFlags_CharsHexadecimal);
         ImGui::Checkbox("Set bank", &set_bank);
         if(ImGui::Button("Add")) {
-            Symbol sym = memorymap->GetAt(selected_item);
             Breakpoint bp;
             bp.name = std::string("N/A");
             bp.address = manual_addr;
@@ -88,17 +87,20 @@ ImVec2 SteppingWindow::Render() {
     int delete_index = -1;
     bool should_save = false;
     for(auto& man : Breakpoints::breakpoints) {
+        ImGui::PushID(index);
+        auto color = man.linkFailed ? ImVec4(1, 0, 0, 1) : ImVec4(1, 1, 1, 1);
+
         if(man.by_address) {
             if(man.bank_set) {
-                ImGui::Text("%04x:%02x", man.address, man.bank);
+                ImGui::TextColored(color, "%04x:%02x", man.address, man.bank);
             } else {
-                ImGui::Text("%04x", man.address);
+                ImGui::TextColored(color, "%04x", man.address);
             }
         } else {
             if(man.bank_set) {
-                ImGui::Text("%s@%04x:%02x", man.name.c_str(), man.address, man.bank);
+                ImGui::TextColored(color, "%s@%04x:%02x", man.name.c_str(), man.address, man.bank);
             } else {
-                ImGui::Text("%s@%04x", man.name.c_str(), man.address);
+                ImGui::TextColored(color, "%s@%04x", man.name.c_str(), man.address);
             }
         }
         ImGui::SameLine();
@@ -111,6 +113,7 @@ ImVec2 SteppingWindow::Render() {
             should_save = true;
         }
         ++index;
+        ImGui::PopID();
     }
     if(delete_index != -1) {
         Breakpoints::breakpoints.erase(std::next(Breakpoints::breakpoints.begin(), delete_index));
