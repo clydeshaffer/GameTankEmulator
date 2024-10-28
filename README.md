@@ -45,7 +45,7 @@ Other utility keys are:
 
 * Press F10 to open a window that displays some system state info such as the CPU status register or the contents of video/graphics memory.
 
-For Windows users, I've set up an automated [nightly build](https://clydeshaffer.com/builds/GameTankEmulator/latest.php) that contains the latest features... and of course the latest bugs.
+For Windows users, I've set up an automated [nightly build](https://gametank.zone/emulator/win/latest.php) that contains the latest features... and of course the latest bugs.
 
 _For now I'm listing the differences between the emulator and the real hardware; stopping short of writing a programming manual for the GameTank which will be a separate wiki-like document to come later_
 
