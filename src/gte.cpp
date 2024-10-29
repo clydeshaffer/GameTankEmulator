@@ -880,16 +880,20 @@ char titlebuf[256];
 int32_t intended_cycles = 0;
 
 #ifdef WASM_BUILD
+double target_frame_period_ms = 1000.0 / 60.0;
 double last_raf_time = 0;
+double frame_time_accumulator = 0;
 #endif
 
 EM_BOOL mainloop(double time, void* userdata) {
-
 #ifdef WASM_BUILD
-	if((time - last_raf_time) < 16.666666666) {
-		return true;
-	}
-	last_raf_time = time;
+        double delta_time = time - last_raf_time;
+        frame_time_accumulator += delta_time;
+        last_raf_time = time;
+        if(frame_time_accumulator < target_frame_period_ms) {
+                return true;
+        }
+        frame_time_accumulator -= target_frame_period_ms;
 #endif
 
 	if(!paused) {
