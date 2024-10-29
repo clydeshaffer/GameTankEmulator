@@ -1012,6 +1012,10 @@ EM_BOOL mainloop(double time, void* userdata) {
 			for (auto toolWindow : toolWindows) {
 				toolWindow->HandleEvent(e);
 			}
+
+			if(ImGui::GetIO().WantCaptureKeyboard && ((e.type == SDL_KEYDOWN) || (e.type == SDL_KEYUP))) {
+				continue;
+			}
 #endif
             //User requests quit
             if( e.type == SDL_QUIT )
