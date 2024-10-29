@@ -877,9 +877,20 @@ void refreshScreen() {
 }
 
 char titlebuf[256];
-uint64_t total_frames_ever = 0;
 int32_t intended_cycles = 0;
+
+#ifdef WASM_BUILD
+double last_raf_time = 0;
+#endif
+
 EM_BOOL mainloop(double time, void* userdata) {
+
+#ifdef WASM_BUILD
+	if((time - last_raf_time) < 16.666666666) {
+		return true;
+	}
+	last_raf_time = time;
+#endif
 
 	if(!paused) {
 			timekeeper.actual_cycles = timekeeper.totalCyclesCount;
@@ -903,9 +914,7 @@ EM_BOOL mainloop(double time, void* userdata) {
 				cpu_core->Run(intended_cycles, timekeeper.totalCyclesCount);
 			}
 #else
-			++total_frames_ever;
-			double average_per_frame = time / ((double) total_frames_ever);
-			intended_cycles = timekeeper.cycles_per_vsync * average_per_frame * 0.06;
+			intended_cycles = timekeeper.cycles_per_vsync;
 			cpu_core->Run(intended_cycles, timekeeper.totalCyclesCount);
 #endif
 			timekeeper.actual_cycles = timekeeper.totalCyclesCount - timekeeper.actual_cycles;
