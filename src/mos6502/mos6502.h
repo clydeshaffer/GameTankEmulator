@@ -179,6 +179,10 @@ private:
 	uint32_t irq_timer;
 	bool irq_line = false;
 
+	//Specific hack for the GameTank's Blit IRQ enable
+	//If not null, this is checked before actually sending IRQ
+	bool *irq_gate;
+
 public:
 	bool freeze = false;
 	bool illegalOpcode = false;
@@ -206,7 +210,7 @@ public:
 	mos6502(BusRead r, BusWrite w, CPUEvent stp, BusRead sync = NULL);
 	void NMI();
 	void IRQ();
-	void ScheduleIRQ(uint32_t cycles);
+	void ScheduleIRQ(uint32_t cycles, bool *gate);
 	void ClearIRQ();
 	void Reset();
 	void Run(

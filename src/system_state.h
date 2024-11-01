@@ -24,6 +24,7 @@ enum RomType {
 
 struct SystemState {
     uint8_t dma_control;
+    bool dma_control_irq;
     uint8_t banking;
 
     uint8_t ram[RAMSIZE];

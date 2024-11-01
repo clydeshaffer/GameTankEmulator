@@ -25,7 +25,7 @@ void Blitter::SetParam(uint8_t address, uint8_t value) {
         cpu_core->ClearIRQ();
         if(trigger) {
             uint32_t cycles = ((params[Blitter::PARAM_HEIGHT] & 0x7F) * (params[Blitter::PARAM_WIDTH] & 0x7F));
-            cpu_core->ScheduleIRQ(cycles);
+            cpu_core->ScheduleIRQ(cycles, &(system_state->dma_control_irq));
             if(instant_mode) {
                 CatchUp(cycles);
             }

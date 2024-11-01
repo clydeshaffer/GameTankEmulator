@@ -992,10 +992,12 @@ void mos6502::IRQ()
 	return;
 }
 
-void mos6502::ScheduleIRQ(uint32_t cycles) {
+void mos6502::ScheduleIRQ(uint32_t cycles, bool *gate) {
 	irq_timer = cycles;
+	irq_gate = gate;
 	if(cycles == 0) {
-		IRQ();
+		if((irq_gate == NULL) || (*irq_gate)) 
+			IRQ();
 	}
 }
 
@@ -1038,12 +1040,14 @@ void mos6502::Run(
 				waiting = false;
 				IRQ();
 			} else if(irq_timer > 0) {
-				if(cyclesRemaining > irq_timer) {
+				if(cyclesRemaining >= irq_timer) {
 					cycleCount += irq_timer;
 					cyclesRemaining -= irq_timer;
 					irq_timer = 0;
-					irq_line = true;
-					IRQ();
+					if((irq_gate == NULL) || (*irq_gate)) {
+						irq_line = true;
+						IRQ();
+					}
 				} else {
 					irq_timer -= cyclesRemaining;
 					cycleCount += cyclesRemaining;
@@ -1088,7 +1092,10 @@ void mos6502::Run(
 				irq_timer -= instr.cycles;
 			}
 			if(irq_timer == 0) {
-				IRQ();
+				if((irq_gate == NULL) || (*irq_gate)) {
+					IRQ();
+					irq_line = true;
+				}
 			}
 		}
 	}

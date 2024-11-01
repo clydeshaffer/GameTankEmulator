@@ -472,6 +472,7 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 					}
 				}
 				system_state.dma_control = value;
+				system_state.dma_control_irq = (system_state.dma_control & DMA_COPY_IRQ_BIT) != 0;
 				if(system_state.dma_control & DMA_TRANSPARENCY_BIT) {
 					SDL_SetColorKey(gRAM_Surface, SDL_TRUE, SDL_MapRGB(gRAM_Surface->format, 0, 0, 0));
 				} else {
@@ -528,6 +529,7 @@ void randomize_memory() {
 	}
 	
 	system_state.dma_control = rand() % 256;
+	system_state.dma_control_irq = (system_state.dma_control & DMA_COPY_IRQ_BIT) != 0;
 	system_state.banking = rand() % 256;
 	blitter->gram_mid_bits = rand() % 4;
 }
