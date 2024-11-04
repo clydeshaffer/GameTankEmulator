@@ -300,6 +300,15 @@
       }
 
       Module.onRuntimeInitialized = function() {
+        document.addEventListener("visibilitychange", () => {
+          if (document.hidden) {
+            Module.ccall('PauseEmulation');
+          } else {
+            // NOTE if in the future we have other means of pausing emulation, we should not assume that we always
+            // want to resume on the page becoming visible again
+            Module.ccall('ResumeEmulation');
+          }
+        });
 
         var urlRomName = getParameterByName('rom');
         if(urlRomName != null) {
