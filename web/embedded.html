@@ -281,6 +281,18 @@
         body.addEventListener('keydown', preventScroll, false);
         body.addEventListener('click', activateCanvas, false);
         canvas.addEventListener('mousedown', handleMouseDown, false);
+
+	// Automatically suspend and resume emulation when page loses focus
+	// NOTE this shell is intended for use in an iframe.  iframes inherit visibility status from their containing document
+        document.addEventListener("visibilitychange", () => {
+          if (document.hidden) {
+            Module.ccall('PauseEmulation');
+          } else {
+            // NOTE if in the future we have other means of pausing emulation, we should not assume that we always
+            // want to resume on the page becoming visible again
+            Module.ccall('ResumeEmulation');
+          }
+        });
       }
 
     </script>
