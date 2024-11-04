@@ -534,6 +534,20 @@ void randomize_memory() {
 	blitter->gram_mid_bits = rand() % 4;
 }
 
+extern "C" {
+void PauseEmulation() {
+  paused = true;
+
+  AudioCoprocessor::singleton_acp_state->isEmulationPaused = true;
+}
+
+void ResumeEmulation() {
+  paused = false;
+
+  AudioCoprocessor::singleton_acp_state->isEmulationPaused = false;
+}
+}
+
 void CPUStopped() {
 	paused = true;
 	printf("CPU stopped");
