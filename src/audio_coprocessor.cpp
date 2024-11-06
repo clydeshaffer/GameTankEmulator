@@ -40,6 +40,18 @@ void AudioCoprocessor::register_write(uint16_t address, uint8_t value) {
 void AudioCoprocessor::fill_audio(void *udata, uint8_t *stream, int len) {
     ACPState *state = (ACPState*) udata;
     uint16_t *stream16 = (uint16_t*) stream;
+
+    // If emulation is paused, just fill buffer with zeroes without advancing the apu
+    if (state->isEmulationPaused) {
+	for(int i = 0; i < len/sizeof(uint16_t); i++) {
+	    if(stream16 != NULL) {
+		stream16[i] = 0;
+	    }
+	}
+
+	return;
+    }
+
     for(int i = 0; i < len/sizeof(uint16_t); i++) {
         if(stream16 != NULL) {
             stream16[i] = state->dacReg;
@@ -151,6 +163,7 @@ AudioCoprocessor::AudioCoprocessor() {
     state.last_irq_cycles = 0;
     state.volume = 256;
     state.isMuted = false;
+    state.isEmulationPaused = false;
     state.clkMult = 4;
 
 	for(int i = 0; i < AUDIO_RAM_SIZE; i ++) {

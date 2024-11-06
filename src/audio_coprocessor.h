@@ -26,6 +26,7 @@ typedef struct ACPState {
 	SDL_AudioDeviceID device;
 	int volume;
 	bool isMuted;
+	bool isEmulationPaused;
 } ACPState;
 
 class AudioCoprocessor {
