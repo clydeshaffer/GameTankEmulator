@@ -693,7 +693,7 @@ mos6502::AddrRes mos6502::Addr_ABI()
 
 	addr = effL + 0x100 * effH;
 
-	return AddrRes { 5, addr };
+	return AddrRes { 6, addr };
 }
 
 mos6502::AddrRes mos6502::Addr_ZEX()
@@ -1282,12 +1282,11 @@ uint8_t mos6502::Op_INY(uint16_t src)
 	return 2;
 }
 
-// FIXME JMP should take one *less* cycle if in ABS mode
 uint8_t mos6502::Op_JMP(uint16_t src)
 {
 	pc = src;
 
-	return 0;
+	return -1;
 }
 
 uint8_t mos6502::Op_JSR(uint16_t src)
