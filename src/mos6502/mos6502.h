@@ -42,118 +42,122 @@ using namespace std;
 class mos6502
 {
 private:
-	
+	struct AddrRes
+	{
+		uint8_t cycles;
+		uint16_t addr;
+	};
 
-	typedef void (mos6502::*CodeExec)(uint16_t);
-	typedef uint16_t (mos6502::*AddrExec)();
+	typedef uint8_t (mos6502::*CodeExec)(uint16_t);
+	typedef AddrRes (mos6502::*AddrExec)();
 
 	struct Instr
 	{
 		AddrExec addr;
 		CodeExec code;
-		uint8_t cycles;
 	};
 
 	Instr InstrTable[256];
 
-	void Exec(Instr i);
+	uint8_t Exec(Instr i);
 
 	// addressing modes
-	uint16_t Addr_ACC(); // ACCUMULATOR
-	uint16_t Addr_IMM(); // IMMEDIATE
-	uint16_t Addr_ABS(); // ABSOLUTE
-	uint16_t Addr_ZER(); // ZERO PAGE
-	uint16_t Addr_ZEX(); // INDEXED-X ZERO PAGE
-	uint16_t Addr_ZEY(); // INDEXED-Y ZERO PAGE
-	uint16_t Addr_ABX(); // INDEXED-X ABSOLUTE
-	uint16_t Addr_ABY(); // INDEXED-Y ABSOLUTE
-	uint16_t Addr_IMP(); // IMPLIED
-	uint16_t Addr_REL(); // RELATIVE
-	uint16_t Addr_INX(); // INDEXED-X INDIRECT
-	uint16_t Addr_INY(); // INDEXED-Y INDIRECT
-	uint16_t Addr_ABI(); // ABSOLUTE INDIRECT
-	uint16_t Addr_ZPI(); // ZERO PAGE INDIRECT
+	AddrRes Addr_ACC(); // ACCUMULATOR
+	AddrRes Addr_IMM(); // IMMEDIATE
+	AddrRes Addr_ABS(); // ABSOLUTE
+	AddrRes Addr_ZER(); // ZERO PAGE
+	AddrRes Addr_ZEX(); // INDEXED-X ZERO PAGE
+	AddrRes Addr_ZEY(); // INDEXED-Y ZERO PAGE
+	AddrRes Addr_ABX(); // INDEXED-X ABSOLUTE
+	AddrRes Addr_ABY(); // INDEXED-Y ABSOLUTE
+	AddrRes Addr_IMP(); // IMPLIED
+	AddrRes Addr_REL(); // RELATIVE
+	AddrRes Addr_INX(); // INDEXED-X INDIRECT
+	AddrRes Addr_INY(); // INDEXED-Y INDIRECT
+	AddrRes Addr_ABI(); // ABSOLUTE INDIRECT
+	AddrRes Addr_ZPI(); // ZERO PAGE INDIRECT
+	AddrRes Addr_AXI(); // INDEXED-X ABSOLUTE INDIRECT
 
 	// opcodes (grouped as per datasheet)
-	void Op_ADC(uint16_t src);
-	void Op_AND(uint16_t src);
-	void Op_ASL(uint16_t src); 	void Op_ASL_ACC(uint16_t src);
-	void Op_BCC(uint16_t src);
-	void Op_BCS(uint16_t src);
+	uint8_t Op_ADC(uint16_t src);
+	uint8_t Op_AND(uint16_t src);
+	uint8_t Op_ASL(uint16_t src); 	uint8_t Op_ASL_ACC(uint16_t src);
+	uint8_t Op_BCC(uint16_t src);
+	uint8_t Op_BCS(uint16_t src);
 
-	void Op_BEQ(uint16_t src);
-	void Op_BIT(uint16_t src);
-	void Op_BMI(uint16_t src);
-	void Op_BNE(uint16_t src);
-	void Op_BPL(uint16_t src);
+	uint8_t Op_BEQ(uint16_t src);
+	uint8_t Op_BIT(uint16_t src);
+	uint8_t Op_BMI(uint16_t src);
+	uint8_t Op_BNE(uint16_t src);
+	uint8_t Op_BPL(uint16_t src);
 
-	void Op_BRK(uint16_t src);
-	void Op_BVC(uint16_t src);
-	void Op_BVS(uint16_t src);
-	void Op_CLC(uint16_t src);
-	void Op_CLD(uint16_t src);
+	uint8_t Op_BRK(uint16_t src);
+	uint8_t Op_BVC(uint16_t src);
+	uint8_t Op_BVS(uint16_t src);
+	uint8_t Op_CLC(uint16_t src);
+	uint8_t Op_CLD(uint16_t src);
 
-	void Op_CLI(uint16_t src);
-	void Op_CLV(uint16_t src);
-	void Op_CMP(uint16_t src);
-	void Op_CPX(uint16_t src);
-	void Op_CPY(uint16_t src);
+	uint8_t Op_CLI(uint16_t src);
+	uint8_t Op_CLV(uint16_t src);
+	uint8_t Op_CMP(uint16_t src);
+	uint8_t Op_CPX(uint16_t src);
+	uint8_t Op_CPY(uint16_t src);
 
-	void Op_DEC(uint16_t src);	void Op_DEC_ACC(uint16_t src);
-	void Op_DEX(uint16_t src);
-	void Op_DEY(uint16_t src);
-	void Op_EOR(uint16_t src);
-	void Op_INC(uint16_t src);	void Op_INC_ACC(uint16_t src);
+	uint8_t Op_DEC(uint16_t src);	uint8_t Op_DEC_ACC(uint16_t src);
+	uint8_t Op_DEX(uint16_t src);
+	uint8_t Op_DEY(uint16_t src);
+	uint8_t Op_EOR(uint16_t src);
+	uint8_t Op_INC(uint16_t src);	uint8_t Op_INC_ACC(uint16_t src);
 
-	void Op_INX(uint16_t src);
-	void Op_INY(uint16_t src);
-	void Op_JMP(uint16_t src);
-	void Op_JSR(uint16_t src);
-	void Op_LDA(uint16_t src);
+	uint8_t Op_INX(uint16_t src);
+	uint8_t Op_INY(uint16_t src);
+	uint8_t Op_JMP(uint16_t src);
+	uint8_t Op_JSR(uint16_t src);
+	uint8_t Op_LDA(uint16_t src);
 
-	void Op_LDX(uint16_t src);
-	void Op_LDY(uint16_t src);
-	void Op_LSR(uint16_t src); 	void Op_LSR_ACC(uint16_t src);
-	void Op_NOP(uint16_t src);
-	void Op_ORA(uint16_t src);
+	uint8_t Op_LDX(uint16_t src);
+	uint8_t Op_LDY(uint16_t src);
+	uint8_t Op_LSR(uint16_t src); 	uint8_t Op_LSR_ACC(uint16_t src);
+	uint8_t Op_NOP(uint16_t src);
+	uint8_t Op_ORA(uint16_t src);
 
-	void Op_PHA(uint16_t src);
-	void Op_PHP(uint16_t src);
-	void Op_PHX(uint16_t src);
-	void Op_PHY(uint16_t src);
-	void Op_PLA(uint16_t src);
-	void Op_PLP(uint16_t src);
-	void Op_PLX(uint16_t src);
-	void Op_PLY(uint16_t src);
-	void Op_ROL(uint16_t src); 	void Op_ROL_ACC(uint16_t src);
+	uint8_t Op_PHA(uint16_t src);
+	uint8_t Op_PHP(uint16_t src);
+	uint8_t Op_PHX(uint16_t src);
+	uint8_t Op_PHY(uint16_t src);
+	uint8_t Op_PLA(uint16_t src);
+	uint8_t Op_PLP(uint16_t src);
+	uint8_t Op_PLX(uint16_t src);
+	uint8_t Op_PLY(uint16_t src);
+	uint8_t Op_ROL(uint16_t src); 	uint8_t Op_ROL_ACC(uint16_t src);
 
-	void Op_ROR(uint16_t src);	void Op_ROR_ACC(uint16_t src);
-	void Op_RTI(uint16_t src);
-	void Op_RTS(uint16_t src);
-	void Op_SBC(uint16_t src);
-	void Op_SEC(uint16_t src);
-	void Op_SED(uint16_t src);
+	uint8_t Op_ROR(uint16_t src);	uint8_t Op_ROR_ACC(uint16_t src);
+	uint8_t Op_RTI(uint16_t src);
+	uint8_t Op_RTS(uint16_t src);
+	uint8_t Op_SBC(uint16_t src);
+	uint8_t Op_SEC(uint16_t src);
+	uint8_t Op_SED(uint16_t src);
 
-	void Op_SEI(uint16_t src);
-	void Op_STA(uint16_t src);
-	void Op_STZ(uint16_t src);
-	void Op_STX(uint16_t src);
-	void Op_STY(uint16_t src);
-	void Op_TAX(uint16_t src);
+	uint8_t Op_SEI(uint16_t src);
+	uint8_t Op_STA(uint16_t src);
+	uint8_t Op_STZ(uint16_t src);
+	uint8_t Op_STX(uint16_t src);
+	uint8_t Op_STY(uint16_t src);
+	uint8_t Op_TAX(uint16_t src);
 
-	void Op_TAY(uint16_t src);
-	void Op_TSX(uint16_t src);
-	void Op_TXA(uint16_t src);
-	void Op_TXS(uint16_t src);
-	void Op_TYA(uint16_t src);
+	uint8_t Op_TAY(uint16_t src);
+	uint8_t Op_TSX(uint16_t src);
+	uint8_t Op_TXA(uint16_t src);
+	uint8_t Op_TXS(uint16_t src);
+	uint8_t Op_TYA(uint16_t src);
 
-	void Op_WAI(uint16_t src);
-	void Op_STP(uint16_t src);
-	void Op_BRA(uint16_t src);
-	void Op_TRB(uint16_t src);
-	void Op_TSB(uint16_t src);
+	uint8_t Op_WAI(uint16_t src);
+	uint8_t Op_STP(uint16_t src);
+	uint8_t Op_BRA(uint16_t src);
+	uint8_t Op_TRB(uint16_t src);
+	uint8_t Op_TSB(uint16_t src);
 
-	void Op_ILLEGAL(uint16_t src);
+	uint8_t Op_ILLEGAL(uint16_t src);
 
 	// IRQ, reset, NMI vectors
 	static const uint16_t irqVectorH = 0xFFFF;
