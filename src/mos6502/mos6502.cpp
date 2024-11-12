@@ -1188,6 +1188,8 @@ void mos6502::Op_BCC(uint16_t src)
 	if (!IF_CARRY())
 	{
 		pc = src;
+		// TODO take an additional cycle if jumping across page boundries
+		opExtraCycles = 1;
 	}
 	return;
 }
@@ -1198,6 +1200,8 @@ void mos6502::Op_BCS(uint16_t src)
 	if (IF_CARRY())
 	{
 		pc = src;
+		// TODO take an additional cycle if jumping across page boundries
+		opExtraCycles = 1;
 	}
 	return;
 }
@@ -1207,6 +1211,8 @@ void mos6502::Op_BEQ(uint16_t src)
 	if (IF_ZERO())
 	{
 		pc = src;
+		// TODO take an additional cycle if jumping across page boundries
+		opExtraCycles = 1;
 	}
 	return;
 }
@@ -1226,6 +1232,8 @@ void mos6502::Op_BMI(uint16_t src)
 	if (IF_NEGATIVE())
 	{
 		pc = src;
+		// TODO take an additional cycle if jumping across page boundries
+		opExtraCycles = 1;
 	}
 	return;
 }
@@ -1235,6 +1243,8 @@ void mos6502::Op_BNE(uint16_t src)
 	if (!IF_ZERO())
 	{
 		pc = src;
+		// TODO take an additional cycle if jumping across page boundries
+		opExtraCycles = 1;
 	}
 	return;
 }
@@ -1244,6 +1254,8 @@ void mos6502::Op_BPL(uint16_t src)
 	if (!IF_NEGATIVE())
 	{
 		pc = src;
+		// TODO take an additional cycle if jumping across page boundries
+		opExtraCycles = 1;
 	}
 	return;
 }
@@ -1742,6 +1754,7 @@ void mos6502::Op_TYA(uint16_t src)
 
 void mos6502::Op_BRA(uint16_t src)
 {
+	// TODO take an additional cycle if jumping across page boundries
 	pc = src;
 	return;
 }
