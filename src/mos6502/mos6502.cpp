@@ -836,6 +836,10 @@ uint16_t mos6502::Addr_REL()
 	offset = (uint16_t)Read(pc++);
 	if (offset & 0x80) offset |= 0xFF00;
 	addr = pc + (int16_t)offset;
+
+	// An extra cycle is required if a page boundary is crossed
+	if (addr & 0xFF00 != pc & 0xFF00) opExtraCycles += 1;
+
 	return addr;
 }
 
@@ -1192,7 +1196,6 @@ void mos6502::Op_BCC(uint16_t src)
 	if (!IF_CARRY())
 	{
 		pc = src;
-		// TODO take an additional cycle if jumping across page boundries
 		opExtraCycles += 1;
 	}
 	return;
@@ -1204,7 +1207,6 @@ void mos6502::Op_BCS(uint16_t src)
 	if (IF_CARRY())
 	{
 		pc = src;
-		// TODO take an additional cycle if jumping across page boundries
 		opExtraCycles += 1;
 	}
 	return;
@@ -1215,7 +1217,6 @@ void mos6502::Op_BEQ(uint16_t src)
 	if (IF_ZERO())
 	{
 		pc = src;
-		// TODO take an additional cycle if jumping across page boundries
 		opExtraCycles += 1;
 	}
 	return;
@@ -1236,7 +1237,6 @@ void mos6502::Op_BMI(uint16_t src)
 	if (IF_NEGATIVE())
 	{
 		pc = src;
-		// TODO take an additional cycle if jumping across page boundries
 		opExtraCycles += 1;
 	}
 	return;
@@ -1247,7 +1247,6 @@ void mos6502::Op_BNE(uint16_t src)
 	if (!IF_ZERO())
 	{
 		pc = src;
-		// TODO take an additional cycle if jumping across page boundries
 		opExtraCycles += 1;
 	}
 	return;
@@ -1258,7 +1257,6 @@ void mos6502::Op_BPL(uint16_t src)
 	if (!IF_NEGATIVE())
 	{
 		pc = src;
-		// TODO take an additional cycle if jumping across page boundries
 		opExtraCycles += 1;
 	}
 	return;
@@ -1761,7 +1759,6 @@ void mos6502::Op_TYA(uint16_t src)
 
 void mos6502::Op_BRA(uint16_t src)
 {
-	// TODO take an additional cycle if jumping across page boundries
 	pc = src;
 	return;
 }
