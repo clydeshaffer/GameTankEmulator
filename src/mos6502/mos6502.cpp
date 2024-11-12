@@ -1128,7 +1128,7 @@ void mos6502::Op_ADC(uint16_t src)
 	if (IF_DECIMAL())
 	{
 		// An extra cycle is required if in decimal mode
-		opExtraCycles = 1;
+		opExtraCycles += 1;
 
 		if (((A & 0xF) + (m & 0xF) + (IF_CARRY() ? 1 : 0)) > 9) tmp += 6;
 		SET_NEGATIVE(tmp & 0x80);
@@ -1193,7 +1193,7 @@ void mos6502::Op_BCC(uint16_t src)
 	{
 		pc = src;
 		// TODO take an additional cycle if jumping across page boundries
-		opExtraCycles = 1;
+		opExtraCycles += 1;
 	}
 	return;
 }
@@ -1205,7 +1205,7 @@ void mos6502::Op_BCS(uint16_t src)
 	{
 		pc = src;
 		// TODO take an additional cycle if jumping across page boundries
-		opExtraCycles = 1;
+		opExtraCycles += 1;
 	}
 	return;
 }
@@ -1216,7 +1216,7 @@ void mos6502::Op_BEQ(uint16_t src)
 	{
 		pc = src;
 		// TODO take an additional cycle if jumping across page boundries
-		opExtraCycles = 1;
+		opExtraCycles += 1;
 	}
 	return;
 }
@@ -1237,7 +1237,7 @@ void mos6502::Op_BMI(uint16_t src)
 	{
 		pc = src;
 		// TODO take an additional cycle if jumping across page boundries
-		opExtraCycles = 1;
+		opExtraCycles += 1;
 	}
 	return;
 }
@@ -1248,7 +1248,7 @@ void mos6502::Op_BNE(uint16_t src)
 	{
 		pc = src;
 		// TODO take an additional cycle if jumping across page boundries
-		opExtraCycles = 1;
+		opExtraCycles += 1;
 	}
 	return;
 }
@@ -1259,7 +1259,7 @@ void mos6502::Op_BPL(uint16_t src)
 	{
 		pc = src;
 		// TODO take an additional cycle if jumping across page boundries
-		opExtraCycles = 1;
+		opExtraCycles += 1;
 	}
 	return;
 }
@@ -1653,7 +1653,7 @@ void mos6502::Op_SBC(uint16_t src)
 	if (IF_DECIMAL())
 	{
 		// An extra cycle is required if in decimal mode
-		opExtraCycles = 1;
+		opExtraCycles += 1;
 
 		if ( ((A & 0x0F) - (IF_CARRY() ? 0 : 1)) < (m & 0x0F)) tmp -= 6;
 		if (tmp > 0x99)
