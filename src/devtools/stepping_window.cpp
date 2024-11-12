@@ -3,6 +3,7 @@
 #include "breakpoints.h"
 #include "disassembler.h"
 #include "imgui-combo-filter.h"
+#include "source_map.h"
 #include <string>
 
 ImVec2 SteppingWindow::Render() {
@@ -130,7 +131,20 @@ ImVec2 SteppingWindow::Render() {
     ImGui::Text("Status: %02x Stack: %02x PC: %04x", cpu->status, cpu->sp, cpu->pc);
     ImGui::Text("Cycles Since Boot: %lu", timekeeper.totalCyclesCount);
     ImGui::NewLine();
+
     if(timekeeper.clock_mode == CLOCKMODE_STOPPED) {
+
+        if(SourceMap::singleton) {
+            SourceMapSearchResult res = SourceMap::singleton->Search(cpu->pc, cartridgestate.bank_mask);
+            if(res.found) {
+                ImGui::Text("%s:%d", res.file->name.c_str(), res.line->line);
+            } else {
+                ImGui::Text("Couldn't find source for %04x/%02x, debug num is %d", cpu->pc, cartridgestate.bank_mask, res.debug);
+            }
+        } else {
+            ImGui::Text("No source map loaded");
+        }
+
         for(auto& line : Disassembler::GetLastDecode()) {
             if(line.isLabel) {
                 ImGui::Text("%s", line.disassembledLine.c_str());
