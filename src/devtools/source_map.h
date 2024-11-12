@@ -16,7 +16,7 @@ typedef struct SourceMapFile{
     unsigned int id;
     std::string name;
     bool contents_cached;
-    char* contents;
+    std::vector<std::string> contents;
 } SourceMapFile;
 
 typedef struct SourceSpan {
@@ -51,8 +51,9 @@ private:
     std::vector<SourceMapSpan> spans;
     std::vector<SourceMapSegment> segments;
 public:
+    std::string project_root;
     static SourceMap* singleton;
-
+    void GetFileContent(SourceMapFile &sourceMapFile);
     SourceMap(std::string& dbg_file_path);
     SourceMapSearchResult Search(uint16_t addr, uint8_t bank);
 };

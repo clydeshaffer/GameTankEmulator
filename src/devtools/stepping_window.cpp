@@ -132,28 +132,59 @@ ImVec2 SteppingWindow::Render() {
     ImGui::Text("Cycles Since Boot: %lu", timekeeper.totalCyclesCount);
     ImGui::NewLine();
 
-    if(timekeeper.clock_mode == CLOCKMODE_STOPPED) {
+    ImGui::BeginTabBar("codetabs", 0);
+    if(ImGui::BeginTabItem("Disassembly")) {
 
-        if(SourceMap::singleton) {
-            SourceMapSearchResult res = SourceMap::singleton->Search(cpu->pc, cartridgestate.bank_mask);
-            if(res.found) {
-                ImGui::Text("%s:%d", res.file->name.c_str(), res.line->line);
-            } else {
-                ImGui::Text("Couldn't find source for %04x/%02x, debug num is %d", cpu->pc, cartridgestate.bank_mask, res.debug);
-            }
-        } else {
-            ImGui::Text("No source map loaded");
-        }
-
-        for(auto& line : Disassembler::GetLastDecode()) {
-            if(line.isLabel) {
-                ImGui::Text("%s", line.disassembledLine.c_str());
-            } else {
-                ImGui::Text("%04x %s", line.address, line.disassembledLine.c_str());
+        if(timekeeper.clock_mode == CLOCKMODE_STOPPED) {
+            for(auto& line : Disassembler::GetLastDecode()) {
+                if(line.isLabel) {
+                    ImGui::Text("%s", line.disassembledLine.c_str());
+                } else {
+                    ImGui::Text("%04x %s", line.address, line.disassembledLine.c_str());
+                }
             }
         }
+        ImGui::EndTabItem();
+    }
+    if(ImGui::BeginTabItem("Source")) {
+        if(timekeeper.clock_mode == CLOCKMODE_STOPPED) {
+
+            if(SourceMap::singleton) {
+                SourceMapSearchResult res = SourceMap::singleton->Search(cpu->pc, cartridgestate.bank_mask);
+                if(res.found) {
+                    SourceMap::singleton->GetFileContent(*res.file);
+                    ImGui::Text("%s:%d", res.file->name.c_str(), res.line->line);
+                    if(res.file->contents_cached) {
+                        ImGui::BeginChild("Source file");
+                        int i = 1;
+                        
+                        for(auto& line : res.file->contents) {
+                            auto color = (i == res.line->line) ? ImVec4(1, 1, 1, 1) : ImVec4(0.75, 0.75, 0.75, 1);
+                            if(i == res.line->line) {
+                                ImGui::Separator();
+                            }
+                            ImGui::TextColored(color, "%s", line.c_str());
+                            if(i == res.line->line) {
+                                ImGui::Separator();
+                                ImGui::ScrollToItem();
+                            }
+                            i++;
+                        }
+                        ImGui::EndChild();
+                    } else {
+                        ImGui::Text("Couldn't find file. %s/%s", SourceMap::singleton->project_root.c_str(), res.file->name.c_str());
+                    }
+                } else {
+                    ImGui::Text("Couldn't find source for %04x/%02x, debug num is %d", cpu->pc, cartridgestate.bank_mask, res.debug);
+                }
+            } else {
+                ImGui::Text("No source map loaded");
+            }
+        }
+        ImGui::EndTabItem();
     }
 
+    ImGui::EndTabBar();
     ImGui::SetWindowPos({0, 0});
     ImGui::SetWindowSize({480,640});
     sizeOut = ImVec2(480, 640);

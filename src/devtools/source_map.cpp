@@ -4,6 +4,7 @@
 #include <sstream>
 #include <unordered_map>
 #include <algorithm>
+#include <filesystem>
 
 SourceMap* SourceMap::singleton = nullptr;
 
@@ -58,6 +59,8 @@ bool compareSMSpans(const SourceMapSpan &a, const SourceMapSpan &b) {
 }
 
 SourceMap::SourceMap(std::string& dbg_file_path) {
+    std::filesystem::path fpath(dbg_file_path);
+    project_root = fpath.parent_path().parent_path().string();
     std::ifstream dbgfile(dbg_file_path);
     if(!dbgfile.is_open()) {
         throw std::runtime_error("Unable to open " + dbg_file_path);
@@ -97,8 +100,9 @@ SourceMap::SourceMap(std::string& dbg_file_path) {
         SourceMapFile entry;
         entry.id = std::stoi(line_map["id"]);
         entry.contents_cached = false;
-        entry.contents = nullptr;
         entry.name = line_map["name"];
+        entry.name.erase(0, 1);            // Remove the first character
+        entry.name.erase(entry.name.size() - 1);  // Remove the last character
         files.emplace_back(entry);
     }
 
@@ -221,4 +225,27 @@ SourceMapSearchResult SourceMap::Search(uint16_t addr, uint8_t bank) {
     result.found = true;
 
     return result;
+}
+
+void SourceMap::GetFileContent(SourceMapFile &sourceMapFile) {
+    // Check if contents are already cached
+    if (sourceMapFile.contents_cached) {
+        return; // Contents are already loaded, no further action required
+    }
+
+    // Open the file with the name specified in sourceMapFile.name
+    std::ifstream file(project_root + "/" + sourceMapFile.name);
+    if (!file) {
+        return;
+    }
+
+    // Clear any existing contents and read the file line-by-line
+    sourceMapFile.contents.clear();
+    std::string line;
+    while (std::getline(file, line)) {
+        sourceMapFile.contents.push_back(line);
+    }
+
+    // Update the struct to indicate the contents are cached
+    sourceMapFile.contents_cached = true;
 }
