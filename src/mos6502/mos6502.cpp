@@ -1123,9 +1123,13 @@ void mos6502::Op_ADC(uint16_t src)
 {
 	uint8_t m = Read(src);
 	unsigned int tmp = m + A + (IF_CARRY() ? 1 : 0);
+
 	SET_ZERO(!(tmp & 0xFF));
 	if (IF_DECIMAL())
 	{
+		// An extra cycle is required if in decimal mode
+		opExtraCycles = 1;
+
 		if (((A & 0xF) + (m & 0xF) + (IF_CARRY() ? 1 : 0)) > 9) tmp += 6;
 		SET_NEGATIVE(tmp & 0x80);
 		SET_OVERFLOW(!((A ^ m) & 0x80) && ((A ^ tmp) & 0x80));
@@ -1648,6 +1652,9 @@ void mos6502::Op_SBC(uint16_t src)
 
 	if (IF_DECIMAL())
 	{
+		// An extra cycle is required if in decimal mode
+		opExtraCycles = 1;
+
 		if ( ((A & 0x0F) - (IF_CARRY() ? 0 : 1)) < (m & 0x0F)) tmp -= 6;
 		if (tmp > 0x99)
 		{
