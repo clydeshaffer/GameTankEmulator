@@ -1029,6 +1029,7 @@ void mos6502::Run(
 	CycleMethod cycleMethod
 ) {
 	uint8_t opcode;
+	uint8_t elapsedCycles;
 	Instr instr;
 
 	if(freeze) return;
@@ -1081,15 +1082,20 @@ void mos6502::Run(
 		if(illegalOpcode) {
 			illegalOpcodeSrc = opcode;
 		}
-		cycleCount += instr.cycles;
+
+		elapsedCycles = instr.cycles + opExtraCycles;
+		// The ops extra cycles have been accounted for, it must now be reset
+		opExtraCycles = 0;
+
+		cycleCount += elapsedCycles;
 		cyclesRemaining -=
-			(cycleMethod == CYCLE_COUNT )       ? instr.cycles
+			(cycleMethod == CYCLE_COUNT )       ? elapsedCycles
 			/* cycleMethod == INST_COUNT */   : 1;
 		if(irq_timer > 0) {
-			if(irq_timer < instr.cycles) {
+			if(irq_timer < elapsedCycles) {
 				irq_timer = 0;
 			} else {
-				irq_timer -= instr.cycles;
+				irq_timer -= elapsedCycles;
 			}
 			if(irq_timer == 0) {
 				if((irq_gate == NULL) || (*irq_gate)) {

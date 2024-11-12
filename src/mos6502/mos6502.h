@@ -183,6 +183,10 @@ private:
 	//If not null, this is checked before actually sending IRQ
 	bool *irq_gate;
 
+	// Some ops will take extra cycles based on factors like page boundries and processor status
+	// Record the extra cycles into this value during execution
+	uint8_t opExtraCycles = 0;
+
 public:
 	bool freeze = false;
 	bool illegalOpcode = false;
