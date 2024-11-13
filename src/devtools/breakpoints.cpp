@@ -14,7 +14,7 @@ bool Breakpoints::checkBreakpoint(uint16_t address, uint8_t bank) {
     }
     //for some reason it was getting stuck so wait a number of cycles between breakpoint activations
 
-    auto matcher = [address, bank](Breakpoint i) { return (i.address == address) && (!i.bank_set || (i.bank == bank)) && i.enabled && !i.linkFailed; };
+    auto matcher = [address, bank](Breakpoint i) { return (i.address == address) && (!i.bank_set || (i.bank == bank) || (((i.bank & 127) == 127) && address >= 0xC000   )) && i.enabled && !i.linkFailed; };
     auto it = std::find_if(begin(breakpoints), end(breakpoints), matcher);
 
     if(it != std::end(breakpoints)) {

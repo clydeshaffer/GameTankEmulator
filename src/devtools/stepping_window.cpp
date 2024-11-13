@@ -6,6 +6,13 @@
 #include "source_map.h"
 #include <string>
 
+const char* source_file_getter(const std::vector<std::string> &items, int index) {
+    if (index >= 0 && index < (int)items.size()) {
+        return items[index].c_str();
+    }
+    return "N/A";
+}
+
 ImVec2 SteppingWindow::Render() {
      ImVec2 sizeOut = {0, 0};
 
@@ -51,7 +58,7 @@ ImVec2 SteppingWindow::Render() {
         ImGui::InputScalar("Address", ImGuiDataType_U16, &manual_addr, NULL, NULL, "%x", ImGuiInputTextFlags_CharsHexadecimal);
         ImGui::InputScalar("Bank", ImGuiDataType_U8, &manual_bank, NULL, NULL, "%x", ImGuiInputTextFlags_CharsHexadecimal);
         ImGui::Checkbox("Set bank", &set_bank);
-        if(ImGui::Button("Add")) {
+        if(ImGui::Button("Add##manualbreak")) {
             Breakpoint bp;
             bp.name = std::string("N/A");
             bp.address = manual_addr;
@@ -65,6 +72,39 @@ ImVec2 SteppingWindow::Render() {
             gameconfig.Save();
         }
         ImGui::EndPopup();
+    }
+
+    if(SourceMap::singleton) {
+        static int selected_file_idx;
+        static int32_t bp_line_num;
+        if(ImGui::Button("Add C Breakpoint")) {
+            ImGui::OpenPopup("Add C Breakpoint");
+        }
+
+        if(ImGui::BeginPopup("Add C Breakpoint")) {
+            if(ImGui::ComboFilter("##cfile names", selected_file_idx, SourceMap::singleton->GetFileNames(), source_file_getter, ImGuiComboFlags_HeightRegular )) {
+            }
+            ImGui::InputScalar("Line", ImGuiDataType_S32, &bp_line_num, NULL, NULL, "%x", 0);
+            if(selected_file_idx != -1) {
+                if(ImGui::Button("Add##cfilebp")) {
+                    auto searchResult = SourceMap::singleton->ReverseSearch(SourceMap::singleton->GetFileNames()[selected_file_idx], bp_line_num);
+                    if(searchResult.found) {
+                        Breakpoint bp;
+                        bp.name = SourceMap::singleton->GetFileNames()[selected_file_idx] + ":" + std::to_string(bp_line_num);
+                        bp.address = searchResult.address;
+                        bp.by_address = true;
+                        bp.bank_set = true;
+                        bp.bank = searchResult.bank;
+                        bp.enabled = true;
+                        bp.linked = true;
+                        bp.linkFailed = false;
+                        Breakpoints::breakpoints.push_back(bp);
+                        gameconfig.Save();
+                    }
+                }
+            }
+            ImGui::EndPopup();   
+        }
     }
 
     if(ImGui::Button("Clear breakpoints")) {

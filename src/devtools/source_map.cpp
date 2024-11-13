@@ -136,6 +136,10 @@ SourceMap::SourceMap(std::string& dbg_file_path) {
     std::sort(files.begin(), files.end(), compareSMFiles);
     std::sort(segments.begin(), segments.end(), compareSMSegments);
     std::sort(spans.begin(), spans.end(), compareSMSpans);
+
+    for(auto& file : files) {
+        file_names.emplace_back(file.name);
+    }
 }
 
 SourceMapSearchResult SourceMap::Search(uint16_t addr, uint8_t bank) {
@@ -248,4 +252,38 @@ void SourceMap::GetFileContent(SourceMapFile &sourceMapFile) {
 
     // Update the struct to indicate the contents are cached
     sourceMapFile.contents_cached = true;
+}
+
+SourceMapReverseSearchResult SourceMap::ReverseSearch(std::string name, int line) {
+    SourceMapReverseSearchResult result = { false, 0, 0 };
+    int file_idx = -1;
+    int line_idx = -1;
+    for(auto& smfile : files) {
+        if(smfile.name == name) {
+            file_idx = smfile.id;
+            break;
+        }
+    }
+
+    if(file_idx == -1) return result;
+
+    for(auto& smline : lines) {
+        if((smline.file == file_idx) && (smline.line == line) && (smline.has_span)) {
+            line_idx = smline.id;
+            break;
+        }
+    }
+
+    if(line_idx == -1) return result;
+
+    result.address = spans[lines[line_idx].span].start;
+    result.address += segments[spans[lines[line_idx].span].segment].start;
+    result.bank = segments[spans[lines[line_idx].span].segment].bank;
+    result.found = true;
+
+    return result;
+}
+
+std::vector<std::string>& SourceMap::GetFileNames() {
+    return file_names;    
 }

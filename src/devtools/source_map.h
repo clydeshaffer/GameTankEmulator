@@ -44,16 +44,25 @@ typedef struct SourceMapSearchResult {
     unsigned int debug;
 } SourceMapSearchResult;
 
+typedef struct SourceMapReverseSearchResult {
+    bool found;
+    uint16_t address;
+    uint8_t bank;
+} SourceMapReverseSearchResult;
+
 class SourceMap {
 private:
     std::vector<SourceMapLine> lines;
     std::vector<SourceMapFile> files;
     std::vector<SourceMapSpan> spans;
     std::vector<SourceMapSegment> segments;
+    std::vector<std::string> file_names;
 public:
     std::string project_root;
     static SourceMap* singleton;
     void GetFileContent(SourceMapFile &sourceMapFile);
     SourceMap(std::string& dbg_file_path);
     SourceMapSearchResult Search(uint16_t addr, uint8_t bank);
+    SourceMapReverseSearchResult ReverseSearch(std::string name, int line);
+    std::vector<std::string>& GetFileNames();
 };
