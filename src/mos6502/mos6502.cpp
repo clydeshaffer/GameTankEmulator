@@ -885,26 +885,38 @@ uint16_t mos6502::Addr_ZEY()
 uint16_t mos6502::Addr_ABX()
 {
 	uint16_t addr;
+	uint16_t addrBase;
 	uint16_t addrL;
 	uint16_t addrH;
 
 	addrL = Read(pc++);
 	addrH = Read(pc++);
 
-	addr = addrL + (addrH << 8) + X;
+	addrBase = addrL + (addrH << 8);
+	addr = addrBase + X;
+
+	// An extra cycle is required if a page boundary is crossed
+	if (addrBase & 0xFF00 != addr & 0xFF00) opExtraCycles += 1;
+
 	return addr;
 }
 
 uint16_t mos6502::Addr_ABY()
 {
 	uint16_t addr;
+	uint16_t addrBase;
 	uint16_t addrL;
 	uint16_t addrH;
 
 	addrL = Read(pc++);
 	addrH = Read(pc++);
 
-	addr = addrL + (addrH << 8) + Y;
+	addrBase = addrL + (addrH << 8);
+	addr = addrBase + Y;
+
+	// An extra cycle is required if a page boundary is crossed
+	if (addrBase & 0xFF00 != addr & 0xFF00) opExtraCycles += 1;
+
 	return addr;
 }
 
@@ -927,10 +939,15 @@ uint16_t mos6502::Addr_INY()
 	uint16_t zeroL;
 	uint16_t zeroH;
 	uint16_t addr;
+	uint16_t addrBase;
 
 	zeroL = Read(pc++);
 	zeroH = (zeroL + 1) % 256;
-	addr = Read(zeroL) + (Read(zeroH) << 8) + Y;
+	addrBase = Read(zeroL) + (Read(zeroH) << 8);
+	addr = addrBase + Y;
+
+	// An extra cycle is required if a page boundary is crossed
+	if (addrBase & 0xFF00 != addr & 0xFF00) opExtraCycles += 1;
 
 	return addr;
 }
