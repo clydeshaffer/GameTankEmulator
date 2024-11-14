@@ -794,6 +794,14 @@ mos6502::mos6502(BusRead r, BusWrite w, CPUEvent stp, BusRead sync)
 	return;
 }
 
+// Small helper function to test if addresses belong to the same page
+// This is useful for conditional timing as some addressing modes take additional cycles if calculated
+// addresses cross page boundaries
+inline bool mos6502::addressesSamePage(uint16_t a, uint16_t b)
+{
+	return (a & 0xFF00 == b & 0xFF00);
+}
+
 uint16_t mos6502::Addr_ACC()
 {
 	return 0; // not used
@@ -836,6 +844,7 @@ uint16_t mos6502::Addr_REL()
 	offset = (uint16_t)Read(pc++);
 	if (offset & 0x80) offset |= 0xFF00;
 	addr = pc + (int16_t)offset;
+
 	return addr;
 }
 
@@ -881,26 +890,38 @@ uint16_t mos6502::Addr_ZEY()
 uint16_t mos6502::Addr_ABX()
 {
 	uint16_t addr;
+	uint16_t addrBase;
 	uint16_t addrL;
 	uint16_t addrH;
 
 	addrL = Read(pc++);
 	addrH = Read(pc++);
 
-	addr = addrL + (addrH << 8) + X;
+	addrBase = addrL + (addrH << 8);
+	addr = addrBase + X;
+
+	// An extra cycle is required if a page boundary is crossed
+	if (!addressesSamePage(addr, addrBase)) opExtraCycles++;
+
 	return addr;
 }
 
 uint16_t mos6502::Addr_ABY()
 {
 	uint16_t addr;
+	uint16_t addrBase;
 	uint16_t addrL;
 	uint16_t addrH;
 
 	addrL = Read(pc++);
 	addrH = Read(pc++);
 
-	addr = addrL + (addrH << 8) + Y;
+	addrBase = addrL + (addrH << 8);
+	addr = addrBase + Y;
+
+	// An extra cycle is required if a page boundary is crossed
+	if (!addressesSamePage(addr, addrBase)) opExtraCycles++;
+
 	return addr;
 }
 
@@ -923,10 +944,15 @@ uint16_t mos6502::Addr_INY()
 	uint16_t zeroL;
 	uint16_t zeroH;
 	uint16_t addr;
+	uint16_t addrBase;
 
 	zeroL = Read(pc++);
 	zeroH = (zeroL + 1) % 256;
-	addr = Read(zeroL) + (Read(zeroH) << 8) + Y;
+	addrBase = Read(zeroL) + (Read(zeroH) << 8);
+	addr = addrBase + Y;
+
+	// An extra cycle is required if a page boundary is crossed
+	if (!addressesSamePage(addr, addrBase)) opExtraCycles++;
 
 	return addr;
 }
@@ -1029,6 +1055,7 @@ void mos6502::Run(
 	CycleMethod cycleMethod
 ) {
 	uint8_t opcode;
+	uint8_t elapsedCycles;
 	Instr instr;
 
 	if(freeze) return;
@@ -1081,15 +1108,20 @@ void mos6502::Run(
 		if(illegalOpcode) {
 			illegalOpcodeSrc = opcode;
 		}
-		cycleCount += instr.cycles;
+
+		elapsedCycles = instr.cycles + opExtraCycles;
+		// The ops extra cycles have been accounted for, it must now be reset
+		opExtraCycles = 0;
+
+		cycleCount += elapsedCycles;
 		cyclesRemaining -=
-			(cycleMethod == CYCLE_COUNT )       ? instr.cycles
+			(cycleMethod == CYCLE_COUNT )       ? elapsedCycles
 			/* cycleMethod == INST_COUNT */   : 1;
 		if(irq_timer > 0) {
-			if(irq_timer < instr.cycles) {
+			if(irq_timer < elapsedCycles) {
 				irq_timer = 0;
 			} else {
-				irq_timer -= instr.cycles;
+				irq_timer -= elapsedCycles;
 			}
 			if(irq_timer == 0) {
 				if((irq_gate == NULL) || (*irq_gate)) {
@@ -1117,9 +1149,13 @@ void mos6502::Op_ADC(uint16_t src)
 {
 	uint8_t m = Read(src);
 	unsigned int tmp = m + A + (IF_CARRY() ? 1 : 0);
+
 	SET_ZERO(!(tmp & 0xFF));
 	if (IF_DECIMAL())
 	{
+		// An extra cycle is required if in decimal mode
+		opExtraCycles += 1;
+
 		if (((A & 0xF) + (m & 0xF) + (IF_CARRY() ? 1 : 0)) > 9) tmp += 6;
 		SET_NEGATIVE(tmp & 0x80);
 		SET_OVERFLOW(!((A ^ m) & 0x80) && ((A ^ tmp) & 0x80));
@@ -1181,7 +1217,11 @@ void mos6502::Op_BCC(uint16_t src)
 {
 	if (!IF_CARRY())
 	{
+		// An extra cycle is required if a page boundary is crossed
+		if (!addressesSamePage(pc, src)) opExtraCycles++;
+
 		pc = src;
+		opExtraCycles++;
 	}
 	return;
 }
@@ -1191,7 +1231,11 @@ void mos6502::Op_BCS(uint16_t src)
 {
 	if (IF_CARRY())
 	{
+		// An extra cycle is required if a page boundary is crossed
+		if (!addressesSamePage(pc, src)) opExtraCycles++;
+
 		pc = src;
+		opExtraCycles++;
 	}
 	return;
 }
@@ -1200,7 +1244,11 @@ void mos6502::Op_BEQ(uint16_t src)
 {
 	if (IF_ZERO())
 	{
+		// An extra cycle is required if a page boundary is crossed
+		if (!addressesSamePage(pc, src)) opExtraCycles++;
+
 		pc = src;
+		opExtraCycles++;
 	}
 	return;
 }
@@ -1219,7 +1267,11 @@ void mos6502::Op_BMI(uint16_t src)
 {
 	if (IF_NEGATIVE())
 	{
+		// An extra cycle is required if a page boundary is crossed
+		if (!addressesSamePage(pc, src)) opExtraCycles++;
+
 		pc = src;
+		opExtraCycles++;
 	}
 	return;
 }
@@ -1228,7 +1280,11 @@ void mos6502::Op_BNE(uint16_t src)
 {
 	if (!IF_ZERO())
 	{
+		// An extra cycle is required if a page boundary is crossed
+		if (!addressesSamePage(pc, src)) opExtraCycles++;
+
 		pc = src;
+		opExtraCycles++;
 	}
 	return;
 }
@@ -1237,7 +1293,11 @@ void mos6502::Op_BPL(uint16_t src)
 {
 	if (!IF_NEGATIVE())
 	{
+		// An extra cycle is required if a page boundary is crossed
+		if (!addressesSamePage(pc, src)) opExtraCycles++;
+
 		pc = src;
+		opExtraCycles++;
 	}
 	return;
 }
@@ -1268,7 +1328,11 @@ void mos6502::Op_BVC(uint16_t src)
 {
 	if (!IF_OVERFLOW())
 	{
+		// An extra cycle is required if a page boundary is crossed
+		if (!addressesSamePage(pc, src)) opExtraCycles++;
+
 		pc = src;
+		opExtraCycles++;
 	}
 	return;
 }
@@ -1277,7 +1341,11 @@ void mos6502::Op_BVS(uint16_t src)
 {
 	if (IF_OVERFLOW())
 	{
+		// An extra cycle is required if a page boundary is crossed
+		if (!addressesSamePage(pc, src)) opExtraCycles++;
+
 		pc = src;
+		opExtraCycles++;
 	}
 	return;
 }
@@ -1630,6 +1698,9 @@ void mos6502::Op_SBC(uint16_t src)
 
 	if (IF_DECIMAL())
 	{
+		// An extra cycle is required if in decimal mode
+		opExtraCycles += 1;
+
 		if ( ((A & 0x0F) - (IF_CARRY() ? 0 : 1)) < (m & 0x0F)) tmp -= 6;
 		if (tmp > 0x99)
 		{
@@ -1736,6 +1807,9 @@ void mos6502::Op_TYA(uint16_t src)
 
 void mos6502::Op_BRA(uint16_t src)
 {
+	// An extra cycle is required if a page boundary is crossed
+	if (!addressesSamePage(pc, src)) opExtraCycles++;
+
 	pc = src;
 	return;
 }

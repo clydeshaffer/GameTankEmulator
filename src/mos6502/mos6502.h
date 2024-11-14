@@ -58,6 +58,9 @@ private:
 
 	void Exec(Instr i);
 
+	// Helper function for determining if two addresses are in the same page
+	inline bool addressesSamePage(uint16_t a, uint16_t b);
+
 	// addressing modes
 	uint16_t Addr_ACC(); // ACCUMULATOR
 	uint16_t Addr_IMM(); // IMMEDIATE
@@ -182,6 +185,10 @@ private:
 	//Specific hack for the GameTank's Blit IRQ enable
 	//If not null, this is checked before actually sending IRQ
 	bool *irq_gate;
+
+	// Some ops will take extra cycles based on factors like page boundries and processor status
+	// Record the extra cycles into this value during execution
+	uint8_t opExtraCycles = 0;
 
 public:
 	bool freeze = false;
