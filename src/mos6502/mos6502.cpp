@@ -845,9 +845,6 @@ uint16_t mos6502::Addr_REL()
 	if (offset & 0x80) offset |= 0xFF00;
 	addr = pc + (int16_t)offset;
 
-	// An extra cycle is required if a page boundary is crossed
-	if (!addressesSamePage(pc, addr)) opExtraCycles++;
-
 	return addr;
 }
 
@@ -1220,8 +1217,11 @@ void mos6502::Op_BCC(uint16_t src)
 {
 	if (!IF_CARRY())
 	{
+		// An extra cycle is required if a page boundary is crossed
+		if (!addressesSamePage(pc, src)) opExtraCycles++;
+
 		pc = src;
-		opExtraCycles += 1;
+		opExtraCycles++;
 	}
 	return;
 }
@@ -1231,8 +1231,11 @@ void mos6502::Op_BCS(uint16_t src)
 {
 	if (IF_CARRY())
 	{
+		// An extra cycle is required if a page boundary is crossed
+		if (!addressesSamePage(pc, src)) opExtraCycles++;
+
 		pc = src;
-		opExtraCycles += 1;
+		opExtraCycles++;
 	}
 	return;
 }
@@ -1241,8 +1244,11 @@ void mos6502::Op_BEQ(uint16_t src)
 {
 	if (IF_ZERO())
 	{
+		// An extra cycle is required if a page boundary is crossed
+		if (!addressesSamePage(pc, src)) opExtraCycles++;
+
 		pc = src;
-		opExtraCycles += 1;
+		opExtraCycles++;
 	}
 	return;
 }
@@ -1261,8 +1267,11 @@ void mos6502::Op_BMI(uint16_t src)
 {
 	if (IF_NEGATIVE())
 	{
+		// An extra cycle is required if a page boundary is crossed
+		if (!addressesSamePage(pc, src)) opExtraCycles++;
+
 		pc = src;
-		opExtraCycles += 1;
+		opExtraCycles++;
 	}
 	return;
 }
@@ -1271,8 +1280,11 @@ void mos6502::Op_BNE(uint16_t src)
 {
 	if (!IF_ZERO())
 	{
+		// An extra cycle is required if a page boundary is crossed
+		if (!addressesSamePage(pc, src)) opExtraCycles++;
+
 		pc = src;
-		opExtraCycles += 1;
+		opExtraCycles++;
 	}
 	return;
 }
@@ -1281,8 +1293,11 @@ void mos6502::Op_BPL(uint16_t src)
 {
 	if (!IF_NEGATIVE())
 	{
+		// An extra cycle is required if a page boundary is crossed
+		if (!addressesSamePage(pc, src)) opExtraCycles++;
+
 		pc = src;
-		opExtraCycles += 1;
+		opExtraCycles++;
 	}
 	return;
 }
@@ -1313,7 +1328,11 @@ void mos6502::Op_BVC(uint16_t src)
 {
 	if (!IF_OVERFLOW())
 	{
+		// An extra cycle is required if a page boundary is crossed
+		if (!addressesSamePage(pc, src)) opExtraCycles++;
+
 		pc = src;
+		opExtraCycles++;
 	}
 	return;
 }
@@ -1322,7 +1341,11 @@ void mos6502::Op_BVS(uint16_t src)
 {
 	if (IF_OVERFLOW())
 	{
+		// An extra cycle is required if a page boundary is crossed
+		if (!addressesSamePage(pc, src)) opExtraCycles++;
+
 		pc = src;
+		opExtraCycles++;
 	}
 	return;
 }
@@ -1784,6 +1807,9 @@ void mos6502::Op_TYA(uint16_t src)
 
 void mos6502::Op_BRA(uint16_t src)
 {
+	// An extra cycle is required if a page boundary is crossed
+	if (!addressesSamePage(pc, src)) opExtraCycles++;
+
 	pc = src;
 	return;
 }
