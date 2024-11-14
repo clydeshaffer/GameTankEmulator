@@ -58,6 +58,9 @@ private:
 
 	void Exec(Instr i);
 
+	// Helper function for determining if two addresses are in the same page
+	inline bool addressesSamePage(uint16_t a, uint16_t b);
+
 	// addressing modes
 	uint16_t Addr_ACC(); // ACCUMULATOR
 	uint16_t Addr_IMM(); // IMMEDIATE

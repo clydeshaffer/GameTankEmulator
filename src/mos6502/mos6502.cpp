@@ -794,6 +794,14 @@ mos6502::mos6502(BusRead r, BusWrite w, CPUEvent stp, BusRead sync)
 	return;
 }
 
+// Small helper function to test if addresses belong to the same page
+// This is useful for conditional timing as some addressing modes take additional cycles if calculated
+// addresses cross page boundaries
+inline bool mos6502::addressesSamePage(uint16_t a, uint16_t b)
+{
+	return (a & 0xFF00 == b & 0xFF00);
+}
+
 uint16_t mos6502::Addr_ACC()
 {
 	return 0; // not used
@@ -838,7 +846,7 @@ uint16_t mos6502::Addr_REL()
 	addr = pc + (int16_t)offset;
 
 	// An extra cycle is required if a page boundary is crossed
-	if (addr & 0xFF00 != pc & 0xFF00) opExtraCycles += 1;
+	if (!addressesSamePage(pc, addr)) opExtraCycles++;
 
 	return addr;
 }
@@ -896,7 +904,7 @@ uint16_t mos6502::Addr_ABX()
 	addr = addrBase + X;
 
 	// An extra cycle is required if a page boundary is crossed
-	if (addrBase & 0xFF00 != addr & 0xFF00) opExtraCycles += 1;
+	if (!addressesSamePage(addr, addrBase)) opExtraCycles++;
 
 	return addr;
 }
@@ -915,7 +923,7 @@ uint16_t mos6502::Addr_ABY()
 	addr = addrBase + Y;
 
 	// An extra cycle is required if a page boundary is crossed
-	if (addrBase & 0xFF00 != addr & 0xFF00) opExtraCycles += 1;
+	if (!addressesSamePage(addr, addrBase)) opExtraCycles++;
 
 	return addr;
 }
@@ -947,7 +955,7 @@ uint16_t mos6502::Addr_INY()
 	addr = addrBase + Y;
 
 	// An extra cycle is required if a page boundary is crossed
-	if (addrBase & 0xFF00 != addr & 0xFF00) opExtraCycles += 1;
+	if (!addressesSamePage(addr, addrBase)) opExtraCycles++;
 
 	return addr;
 }
