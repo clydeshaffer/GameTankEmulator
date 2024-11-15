@@ -792,6 +792,21 @@ mos6502::mos6502(BusRead r, BusWrite w, CPUEvent stp, BusRead sync)
 	instr.cycles = 5;
 	InstrTable[0x04] = instr;
 
+	// New addressing modes for BIT
+	instr.addr = &mos6502::Addr_IMM;
+	instr.code = &mos6502::Op_BIT;
+	instr.cycles = 2;
+	InstrTable[0x89] = instr;
+
+	instr.addr = &mos6502::addr_ZEX;
+	instr.code = &mos6502::op_BIT;
+	instr.cycles = 4;
+	instrtable[0x34] = instr;
+
+	instr.addr = &mos6502::Addr_ABX;
+	instr.code = &mos6502::op_BIT;
+	instr.cycles = 4;
+	instrtable[0x3C] = instr;
 
 	Reset();
 
