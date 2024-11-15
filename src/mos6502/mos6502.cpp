@@ -112,7 +112,8 @@ mos6502::mos6502(BusRead r, BusWrite w, CPUEvent stp, BusRead sync)
 	InstrTable[0x16] = instr;
 	instr.addr = &mos6502::Addr_ABX;
 	instr.code = &mos6502::Op_ASL;
-	instr.cycles = 7;
+	// 65c02 note: this instruction now takes 6+ cycles instead of 7 on the 6502
+	instr.cycles = 6;
 	InstrTable[0x1E] = instr;
 
 	instr.addr = &mos6502::Addr_REL;
@@ -475,7 +476,8 @@ mos6502::mos6502(BusRead r, BusWrite w, CPUEvent stp, BusRead sync)
 	InstrTable[0x56] = instr;
 	instr.addr = &mos6502::Addr_ABX;
 	instr.code = &mos6502::Op_LSR;
-	instr.cycles = 7;
+	// 65c02 note: this instruction now takes 6+ cycles instead of 7 on the 6502
+	instr.cycles = 6;
 	InstrTable[0x5E] = instr;
 
 	instr.addr = &mos6502::Addr_IMP;
@@ -578,7 +580,8 @@ mos6502::mos6502(BusRead r, BusWrite w, CPUEvent stp, BusRead sync)
 	InstrTable[0x36] = instr;
 	instr.addr = &mos6502::Addr_ABX;
 	instr.code = &mos6502::Op_ROL;
-	instr.cycles = 7;
+	// 65c02 note: this instruction now takes 6+ cycles instead of 7 on the 6502
+	instr.cycles = 6;
 	InstrTable[0x3E] = instr;
 
 	instr.addr = &mos6502::Addr_ABS;
@@ -599,7 +602,8 @@ mos6502::mos6502(BusRead r, BusWrite w, CPUEvent stp, BusRead sync)
 	InstrTable[0x76] = instr;
 	instr.addr = &mos6502::Addr_ABX;
 	instr.code = &mos6502::Op_ROR;
-	instr.cycles = 7;
+	// 65c02 note: this instruction now takes 6+ cycles instead of 7 on the 6502
+	instr.cycles = 6;
 	InstrTable[0x7E] = instr;
 
 	instr.addr = &mos6502::Addr_IMP;
