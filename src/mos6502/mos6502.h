@@ -80,6 +80,7 @@ private:
 	uint16_t Addr_INY(); // INDEXED-Y INDIRECT
 	uint16_t Addr_ABI(); // ABSOLUTE INDIRECT
 	uint16_t Addr_ZPI(); // ZERO PAGE INDIRECT
+	uint16_t Addr_AIX(); // ABSOLUTE INDIRECT INDEXED-X
 
 	// opcodes (grouped as per datasheet)
 	void Op_ADC(uint16_t src);

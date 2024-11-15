@@ -891,6 +891,12 @@ mos6502::mos6502(BusRead r, BusWrite w, CPUEvent stp, BusRead sync)
 	instr.cycles = 5;
 	InstrTable[0xFF] = instr;
 
+	// JMP (abs, x): new addressing mode for the 65c02
+	instr.addr = &mos6502::Addr_AIX;
+	instr.code = &mos6502::Op_JMP;
+	instr.cycles = 6;
+	instrTable[0x7C] = instr;
+
 	Reset();
 
 	return;
@@ -976,6 +982,36 @@ uint16_t mos6502::Addr_ABI()
 
 	return addr;
 }
+
+uint16_t mos6502::Addr_AIX()
+{
+	uint16_t addrL;
+	uint16_t addrH;
+	uint16_t effL;
+	uint16_t effH;
+	uint16_t abs;
+	uint16_t addr;
+
+	addrL = Read(pc++);
+	addrH = Read(pc++);
+
+	abs = (addrH << 8) | addrL;
+
+	effL = Read(abs);
+
+#ifndef CMOS_INDIRECT_JMP_FIX
+	effH = Read((abs & 0xFF00) + ((abs + 1) & 0x00FF) );
+#else
+	effH = Read(abs + 1);
+#endif
+
+	addr = effL + 0x100 * effH;
+
+	addr = addr + X;
+
+	return addr;
+}
+
 
 uint16_t mos6502::Addr_ZEX()
 {
