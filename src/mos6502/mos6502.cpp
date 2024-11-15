@@ -798,15 +798,98 @@ mos6502::mos6502(BusRead r, BusWrite w, CPUEvent stp, BusRead sync)
 	instr.cycles = 2;
 	InstrTable[0x89] = instr;
 
-	instr.addr = &mos6502::addr_ZEX;
-	instr.code = &mos6502::op_BIT;
+	instr.addr = &mos6502::Addr_ZEX;
+	instr.code = &mos6502::Op_BIT;
 	instr.cycles = 4;
-	instrtable[0x34] = instr;
+	InstrTable[0x34] = instr;
 
 	instr.addr = &mos6502::Addr_ABX;
-	instr.code = &mos6502::op_BIT;
+	instr.code = &mos6502::Op_BIT;
 	instr.cycles = 4;
-	instrtable[0x3C] = instr;
+	InstrTable[0x3C] = instr;
+
+	// BBRx and BBSx
+	// NOTE these instructions are weird and use their own addressing mode
+	// Instead I'll opt for implied and handle within the codes
+	instr.addr = &mos6502::Addr_IMP;
+	instr.code = &mos6502::Op_BBR0;
+	instr.cycles = 5;
+	InstrTable[0x0F] = instr;
+
+	instr.addr = &mos6502::Addr_IMP;
+	instr.code = &mos6502::Op_BBR1;
+	instr.cycles = 5;
+	InstrTable[0x1F] = instr;
+
+	instr.addr = &mos6502::Addr_IMP;
+	instr.code = &mos6502::Op_BBR2;
+	instr.cycles = 5;
+	InstrTable[0x2F] = instr;
+
+	instr.addr = &mos6502::Addr_IMP;
+	instr.code = &mos6502::Op_BBR3;
+	instr.cycles = 5;
+	InstrTable[0x3F] = instr;
+
+	instr.addr = &mos6502::Addr_IMP;
+	instr.code = &mos6502::Op_BBR4;
+	instr.cycles = 5;
+	InstrTable[0x4F] = instr;
+
+	instr.addr = &mos6502::Addr_IMP;
+	instr.code = &mos6502::Op_BBR5;
+	instr.cycles = 5;
+	InstrTable[0x5F] = instr;
+
+	instr.addr = &mos6502::Addr_IMP;
+	instr.code = &mos6502::Op_BBR6;
+	instr.cycles = 5;
+	InstrTable[0x6F] = instr;
+
+	instr.addr = &mos6502::Addr_IMP;
+	instr.code = &mos6502::Op_BBR7;
+	instr.cycles = 5;
+	InstrTable[0x7F] = instr;
+
+	instr.addr = &mos6502::Addr_IMP;
+	instr.code = &mos6502::Op_BBS0;
+	instr.cycles = 5;
+	InstrTable[0x8F] = instr;
+
+	instr.addr = &mos6502::Addr_IMP;
+	instr.code = &mos6502::Op_BBS1;
+	instr.cycles = 5;
+	InstrTable[0x9F] = instr;
+
+	instr.addr = &mos6502::Addr_IMP;
+	instr.code = &mos6502::Op_BBS2;
+	instr.cycles = 5;
+	InstrTable[0xAF] = instr;
+
+	instr.addr = &mos6502::Addr_IMP;
+	instr.code = &mos6502::Op_BBS3;
+	instr.cycles = 5;
+	InstrTable[0xBF] = instr;
+
+	instr.addr = &mos6502::Addr_IMP;
+	instr.code = &mos6502::Op_BBS4;
+	instr.cycles = 5;
+	InstrTable[0xCF] = instr;
+
+	instr.addr = &mos6502::Addr_IMP;
+	instr.code = &mos6502::Op_BBS5;
+	instr.cycles = 5;
+	InstrTable[0xDF] = instr;
+
+	instr.addr = &mos6502::Addr_IMP;
+	instr.code = &mos6502::Op_BBS6;
+	instr.cycles = 5;
+	InstrTable[0xEF] = instr;
+
+	instr.addr = &mos6502::Addr_IMP;
+	instr.code = &mos6502::Op_BBS7;
+	instr.cycles = 5;
+	InstrTable[0xFF] = instr;
 
 	Reset();
 
@@ -1847,4 +1930,168 @@ void mos6502::Op_TSB(uint16_t src)
 	SET_ZERO(m & A);
 	m = m | A;
 	Write(src, m);
+}
+
+void mos6502::Op_BBRx(uint8_t mask, uint8_t val, uint16_t offset)
+{
+	uint16_t addr;
+
+	if ((val & mask) == 0) {
+		// Taking the branch incurs an additional cycle
+		opExtraCycles++;
+
+		if (offset & 0x80) offset |= 0xFF00;
+		addr = pc + (int16_t)offset;
+
+		// Crossing page boundary incurs another additional cycle
+		if (addressesSamePage(addr, pc)) opExtraCycles++;
+
+		pc = addr;
+	}
+}
+
+void mos6502::Op_BBR0(uint16_t src)
+{
+	auto val = Read(Read(pc++));
+	uint16_t offset = (uint16_t) Read(pc++);
+
+	Op_BBRx(0x01, val, offset);
+}
+
+void mos6502::Op_BBR1(uint16_t src)
+{
+	auto val = Read(Read(pc++));
+	uint16_t offset = (uint16_t) Read(pc++);
+
+	Op_BBRx(0x02, val, offset);
+}
+
+void mos6502::Op_BBR2(uint16_t src)
+{
+	auto val = Read(Read(pc++));
+	uint16_t offset = (uint16_t) Read(pc++);
+
+	Op_BBRx(0x04, val, offset);
+}
+
+void mos6502::Op_BBR3(uint16_t src)
+{
+	auto val = Read(Read(pc++));
+	uint16_t offset = (uint16_t) Read(pc++);
+
+	Op_BBRx(0x08, val, offset);
+}
+
+void mos6502::Op_BBR4(uint16_t src)
+{
+	auto val = Read(Read(pc++));
+	uint16_t offset = (uint16_t) Read(pc++);
+
+	Op_BBRx(0x10, val, offset);
+}
+
+void mos6502::Op_BBR5(uint16_t src)
+{
+	auto val = Read(Read(pc++));
+	uint16_t offset = (uint16_t) Read(pc++);
+
+	Op_BBRx(0x20, val, offset);
+}
+
+void mos6502::Op_BBR6(uint16_t src)
+{
+	auto val = Read(Read(pc++));
+	uint16_t offset = (uint16_t) Read(pc++);
+
+	Op_BBRx(0x40, val, offset);
+}
+
+void mos6502::Op_BBR7(uint16_t src)
+{
+	auto val = Read(Read(pc++));
+	uint16_t offset = (uint16_t) Read(pc++);
+
+	Op_BBRx(0x80, val, offset);
+}
+
+void mos6502::Op_BBSx(uint8_t mask, uint8_t val, uint16_t offset)
+{
+	uint16_t addr;
+
+	if ((val & mask) != 0) {
+		// Taking the branch, additional cycle
+		opExtraCycles++;
+
+		if (offset & 0x80) offset |= 0xFF00;
+		addr = pc + (int16_t)offset;
+
+		// Crossing page boundary incurs an additional cycle
+		if (addressesSamePage(addr, pc)) opExtraCycles++;
+
+		pc = addr;
+	}
+}
+
+void mos6502::Op_BBS0(uint16_t src)
+{
+	auto val = Read(Read(pc++));
+	uint16_t offset = (uint16_t) Read(pc++);
+
+	Op_BBSx(0x01, val, offset);
+}
+
+void mos6502::Op_BBS1(uint16_t src)
+{
+	auto val = Read(Read(pc++));
+	uint16_t offset = (uint16_t) Read(pc++);
+
+	Op_BBSx(0x02, val, offset);
+}
+
+void mos6502::Op_BBS2(uint16_t src)
+{
+	auto val = Read(Read(pc++));
+	uint16_t offset = (uint16_t) Read(pc++);
+
+	Op_BBSx(0x04, val, offset);
+}
+
+void mos6502::Op_BBS3(uint16_t src)
+{
+	auto val = Read(Read(pc++));
+	uint16_t offset = (uint16_t) Read(pc++);
+
+	Op_BBSx(0x08, val, offset);
+}
+
+void mos6502::Op_BBS4(uint16_t src)
+{
+	auto val = Read(Read(pc++));
+	uint16_t offset = (uint16_t) Read(pc++);
+
+	Op_BBSx(0x10, val, offset);
+}
+
+void mos6502::Op_BBS5(uint16_t src)
+{
+	auto val = Read(Read(pc++));
+	uint16_t offset = (uint16_t) Read(pc++);
+
+	Op_BBSx(0x20, val, offset);
+}
+
+void mos6502::Op_BBS6(uint16_t src)
+{
+	auto val = Read(Read(pc++));
+	uint16_t offset = (uint16_t) Read(pc++);
+
+	Op_BBSx(0x40, val, offset);
+}
+
+void mos6502::Op_BBS7(uint16_t src)
+{
+	auto val = Read(Read(pc++));
+	uint16_t offset = (uint16_t) Read(pc++);
+
+	Op_BBSx(0x80, val, offset);
 }
