@@ -895,7 +895,7 @@ mos6502::mos6502(BusRead r, BusWrite w, CPUEvent stp, BusRead sync)
 	instr.addr = &mos6502::Addr_AIX;
 	instr.code = &mos6502::Op_JMP;
 	instr.cycles = 6;
-	instrTable[0x7C] = instr;
+	InstrTable[0x7C] = instr;
 
 	Reset();
 
@@ -995,7 +995,8 @@ uint16_t mos6502::Addr_AIX()
 	addrL = Read(pc++);
 	addrH = Read(pc++);
 
-	abs = (addrH << 8) | addrL;
+	// Offset the calculated absolute address by X
+	abs = ((addrH << 8) | addrL) + X;
 
 	effL = Read(abs);
 
@@ -1006,8 +1007,6 @@ uint16_t mos6502::Addr_AIX()
 #endif
 
 	addr = effL + 0x100 * effH;
-
-	addr = addr + X;
 
 	return addr;
 }
