@@ -30,50 +30,51 @@ vector<string> Disassembler::opcodeNames = {
     };
 
 Disassembler::ArgIsLabel Disassembler::opcodeTakesLabels[256] = {
-    N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,
-    DL,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,
-    AL,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,
-    DL,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,
-    N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,AL,N_,N_,N_,
-    DL,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,
-    N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,AL,N_,N_,N_,
-    DL,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,AL,N_,N_,N_,
-    DL,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,
-    DL,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,
-    N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,
-    DL,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,
-    N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,
-    DL,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,
-    N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,
-    DL,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,
+    N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,DL,
+    DL,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,DL,
+    AL,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,DL,
+    DL,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,DL,
+    N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,AL,N_,N_,DL,
+    DL,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,DL,
+    N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,AL,N_,N_,DL,
+    DL,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,AL,N_,N_,DL,
+    DL,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,DL,
+    DL,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,DL,
+    N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,DL,
+    DL,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,DL,
+    N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,DL,
+    DL,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,DL,
+    N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,DL,
+    DL,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,N_,DL,
 };
 
 Disassembler::AddressMode Disassembler::opcodeModes[256] = {
     //BRK is listed as "stack" address mode but is a two byte instruction
-    NO,IX,XX,XX,ZP,ZP,ZP,ZP,ST,NO,AC,XX,AB,AB,AB,PR,
-    PR,IY,ZI,XX,ZP,ZX,ZX,ZP,IM,AY,AC,XX,AB,AX,AX,PR,
-    AB,IX,XX,XX,ZP,ZP,ZP,ZP,ST,NO,AC,XX,AB,AB,AB,PR,
-    PR,IY,ZI,XX,ZX,ZX,ZX,ZP,IM,AY,AC,XX,AX,AX,AX,PR,
-    ST,IX,XX,XX,XX,ZP,ZP,ZP,ST,NO,AC,XX,AB,AB,AB,PR,
-    PR,IY,ZI,XX,XX,ZX,ZX,ZP,IM,AY,AC,XX,XX,AX,AX,PR,
-    ST,IX,XX,XX,ZP,ZP,ZP,ZP,ST,NO,AC,XX,AI,AB,AB,PR,
-    PR,IY,ZI,XX,ZX,ZX,ZX,ZP,IM,AY,ST,XX,JX,AX,AX,PR,
-    PR,IX,XX,XX,ZP,ZP,ZP,ZP,IM,NO,IM,XX,AB,AB,AB,PR,
-    PR,IY,ZI,XX,ZX,ZX,ZY,ZP,IM,AY,IM,XX,AB,AX,AX,PR,
-    NO,IX,NO,XX,ZP,ZP,ZP,ZP,IM,NO,IM,XX,AB,AB,AB,PR,
-    PR,IY,ZI,XX,ZX,ZX,ZY,ZP,IM,AY,IM,XX,AX,AX,AY,PR,
-    NO,IX,XX,XX,ZP,ZP,ZP,ZP,IM,NO,IM,IM,AB,AB,AB,PR,
-    PR,IY,ZI,XX,XX,ZX,ZX,ZP,IM,AY,ST,IM,XX,AX,AX,PR,
-    NO,IX,XX,XX,ZP,ZP,ZP,ZP,IM,NO,IM,XX,AB,AB,AB,PR,
-    PR,IY,ZI,XX,XX,ZX,ZX,ZP,IM,AY,ST,XX,XX,AX,AX,PR
+    NO,IX,XX,XX,ZP,ZP,ZP,ZP,ST,NO,AC,XX,AB,AB,AB,BB,
+    PR,IY,ZI,XX,ZP,ZX,ZX,ZP,IM,AY,AC,XX,AB,AX,AX,BB,
+    AB,IX,XX,XX,ZP,ZP,ZP,ZP,ST,NO,AC,XX,AB,AB,AB,BB,
+    PR,IY,ZI,XX,ZX,ZX,ZX,ZP,IM,AY,AC,XX,AX,AX,AX,BB,
+    ST,IX,XX,XX,XX,ZP,ZP,ZP,ST,NO,AC,XX,AB,AB,AB,BB,
+    PR,IY,ZI,XX,XX,ZX,ZX,ZP,IM,AY,AC,XX,XX,AX,AX,BB,
+    ST,IX,XX,XX,ZP,ZP,ZP,ZP,ST,NO,AC,XX,AI,AB,AB,BB,
+    PR,IY,ZI,XX,ZX,ZX,ZX,ZP,IM,AY,ST,XX,JX,AX,AX,BB,
+    PR,IX,XX,XX,ZP,ZP,ZP,ZP,IM,NO,IM,XX,AB,AB,AB,BB,
+    PR,IY,ZI,XX,ZX,ZX,ZY,ZP,IM,AY,IM,XX,AB,AX,AX,BB,
+    NO,IX,NO,XX,ZP,ZP,ZP,ZP,IM,NO,IM,XX,AB,AB,AB,BB,
+    PR,IY,ZI,XX,ZX,ZX,ZY,ZP,IM,AY,IM,XX,AX,AX,AY,BB,
+    NO,IX,XX,XX,ZP,ZP,ZP,ZP,IM,NO,IM,IM,AB,AB,AB,BB,
+    PR,IY,ZI,XX,XX,ZX,ZX,ZP,IM,AY,ST,IM,XX,AX,AX,BB,
+    NO,IX,XX,XX,ZP,ZP,ZP,ZP,IM,NO,IM,XX,AB,AB,AB,BB,
+    PR,IY,ZI,XX,XX,ZX,ZX,ZP,IM,AY,ST,XX,XX,AX,AX,BB,
 };
 
-static size_t opBytes[17] = {
+static size_t opBytes[18] = {
     1,
     3, 3, 3, 3,
     3, 1, 2, 1,
     2, 1, 2, 2,
     2, 2, 2, 2,
+    3,
 };
 
 
@@ -198,6 +199,38 @@ void Disassembler::FormatArgBytes(std::stringstream& ss, MemoryMap* mem_map, uin
                 //Zero Page Indirect Indexed Y
                 argstream << "($" << FMT_ARG << "), y";
                 break;
+	    case BB: {
+		// BB Weird instruction style used by BBRx and BBSx instructions
+		// Unlike all other instructions this takes two arguments
+		// First, a location in the zero page to test the given bit of
+		uint16_t zpArg = (argBytes & 0x00FF);
+		// Second, an relative jump offset
+		uint16_t relArg = (argBytes & 0xFF00) >> 8;
+		// In this regard it is sort of like a zero page and relative instruction combined
+		// Because this takes multiple distinct args, we won't be able to make use of the FMT_ARG marco here :(
+
+		// Print the first argument and separator here
+		// TODO might want to check for named zero page items in the first argument
+		argstream << "$" << std::setw(2) << std::setfill('0') << std::right << std::hex << zpArg << ", ";
+
+		// Print the second arg
+		// First check if it is a named label if so print the label
+		// Otherwise print it as a normal offset
+                if (mem_map && opcodeTakesLabels[opcode] == DL) {
+                    Symbol sym;
+                    // Check to see if the branch target is a named label
+		    // Note that we only want the least significant byte of the argument
+                    if(mem_map->FindAddress(address + (char) relArg, &sym)) {
+                        string name = sym.name;
+                        argstream << name;
+                        break;
+                    }
+                }
+
+		// Not a named label, print as a normal offset
+		argstream << "$" << std::setw(2) << std::setfill('0') << std::right << std::hex << relArg;
+                break;
+	    }
             case XX:
                 //Treat invalid opcode as no bytes
                 break;

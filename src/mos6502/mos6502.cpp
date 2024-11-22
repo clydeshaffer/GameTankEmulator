@@ -112,7 +112,8 @@ mos6502::mos6502(BusRead r, BusWrite w, CPUEvent stp, BusRead sync)
 	InstrTable[0x16] = instr;
 	instr.addr = &mos6502::Addr_ABX;
 	instr.code = &mos6502::Op_ASL;
-	instr.cycles = 7;
+	// 65c02 note: this instruction now takes 6+ cycles instead of 7 on the 6502
+	instr.cycles = 6;
 	InstrTable[0x1E] = instr;
 
 	instr.addr = &mos6502::Addr_REL;
@@ -475,7 +476,8 @@ mos6502::mos6502(BusRead r, BusWrite w, CPUEvent stp, BusRead sync)
 	InstrTable[0x56] = instr;
 	instr.addr = &mos6502::Addr_ABX;
 	instr.code = &mos6502::Op_LSR;
-	instr.cycles = 7;
+	// 65c02 note: this instruction now takes 6+ cycles instead of 7 on the 6502
+	instr.cycles = 6;
 	InstrTable[0x5E] = instr;
 
 	instr.addr = &mos6502::Addr_IMP;
@@ -578,7 +580,8 @@ mos6502::mos6502(BusRead r, BusWrite w, CPUEvent stp, BusRead sync)
 	InstrTable[0x36] = instr;
 	instr.addr = &mos6502::Addr_ABX;
 	instr.code = &mos6502::Op_ROL;
-	instr.cycles = 7;
+	// 65c02 note: this instruction now takes 6+ cycles instead of 7 on the 6502
+	instr.cycles = 6;
 	InstrTable[0x3E] = instr;
 
 	instr.addr = &mos6502::Addr_ABS;
@@ -599,7 +602,8 @@ mos6502::mos6502(BusRead r, BusWrite w, CPUEvent stp, BusRead sync)
 	InstrTable[0x76] = instr;
 	instr.addr = &mos6502::Addr_ABX;
 	instr.code = &mos6502::Op_ROR;
-	instr.cycles = 7;
+	// 65c02 note: this instruction now takes 6+ cycles instead of 7 on the 6502
+	instr.cycles = 6;
 	InstrTable[0x7E] = instr;
 
 	instr.addr = &mos6502::Addr_IMP;
@@ -788,6 +792,110 @@ mos6502::mos6502(BusRead r, BusWrite w, CPUEvent stp, BusRead sync)
 	instr.cycles = 5;
 	InstrTable[0x04] = instr;
 
+	// New addressing modes for BIT
+	instr.addr = &mos6502::Addr_IMM;
+	instr.code = &mos6502::Op_BIT;
+	instr.cycles = 2;
+	InstrTable[0x89] = instr;
+
+	instr.addr = &mos6502::Addr_ZEX;
+	instr.code = &mos6502::Op_BIT;
+	instr.cycles = 4;
+	InstrTable[0x34] = instr;
+
+	instr.addr = &mos6502::Addr_ABX;
+	instr.code = &mos6502::Op_BIT;
+	instr.cycles = 4;
+	InstrTable[0x3C] = instr;
+
+	// BBRx and BBSx
+	// NOTE these instructions are weird and use their own addressing mode
+	// Instead I'll opt for implied and handle within the codes
+	instr.addr = &mos6502::Addr_IMP;
+	instr.code = &mos6502::Op_BBR0;
+	instr.cycles = 5;
+	InstrTable[0x0F] = instr;
+
+	instr.addr = &mos6502::Addr_IMP;
+	instr.code = &mos6502::Op_BBR1;
+	instr.cycles = 5;
+	InstrTable[0x1F] = instr;
+
+	instr.addr = &mos6502::Addr_IMP;
+	instr.code = &mos6502::Op_BBR2;
+	instr.cycles = 5;
+	InstrTable[0x2F] = instr;
+
+	instr.addr = &mos6502::Addr_IMP;
+	instr.code = &mos6502::Op_BBR3;
+	instr.cycles = 5;
+	InstrTable[0x3F] = instr;
+
+	instr.addr = &mos6502::Addr_IMP;
+	instr.code = &mos6502::Op_BBR4;
+	instr.cycles = 5;
+	InstrTable[0x4F] = instr;
+
+	instr.addr = &mos6502::Addr_IMP;
+	instr.code = &mos6502::Op_BBR5;
+	instr.cycles = 5;
+	InstrTable[0x5F] = instr;
+
+	instr.addr = &mos6502::Addr_IMP;
+	instr.code = &mos6502::Op_BBR6;
+	instr.cycles = 5;
+	InstrTable[0x6F] = instr;
+
+	instr.addr = &mos6502::Addr_IMP;
+	instr.code = &mos6502::Op_BBR7;
+	instr.cycles = 5;
+	InstrTable[0x7F] = instr;
+
+	instr.addr = &mos6502::Addr_IMP;
+	instr.code = &mos6502::Op_BBS0;
+	instr.cycles = 5;
+	InstrTable[0x8F] = instr;
+
+	instr.addr = &mos6502::Addr_IMP;
+	instr.code = &mos6502::Op_BBS1;
+	instr.cycles = 5;
+	InstrTable[0x9F] = instr;
+
+	instr.addr = &mos6502::Addr_IMP;
+	instr.code = &mos6502::Op_BBS2;
+	instr.cycles = 5;
+	InstrTable[0xAF] = instr;
+
+	instr.addr = &mos6502::Addr_IMP;
+	instr.code = &mos6502::Op_BBS3;
+	instr.cycles = 5;
+	InstrTable[0xBF] = instr;
+
+	instr.addr = &mos6502::Addr_IMP;
+	instr.code = &mos6502::Op_BBS4;
+	instr.cycles = 5;
+	InstrTable[0xCF] = instr;
+
+	instr.addr = &mos6502::Addr_IMP;
+	instr.code = &mos6502::Op_BBS5;
+	instr.cycles = 5;
+	InstrTable[0xDF] = instr;
+
+	instr.addr = &mos6502::Addr_IMP;
+	instr.code = &mos6502::Op_BBS6;
+	instr.cycles = 5;
+	InstrTable[0xEF] = instr;
+
+	instr.addr = &mos6502::Addr_IMP;
+	instr.code = &mos6502::Op_BBS7;
+	instr.cycles = 5;
+	InstrTable[0xFF] = instr;
+
+	// JMP (abs, x): new addressing mode for the 65c02
+	instr.addr = &mos6502::Addr_AIX;
+	instr.code = &mos6502::Op_JMP;
+	instr.cycles = 6;
+	InstrTable[0x7C] = instr;
 
 	Reset();
 
@@ -874,6 +982,35 @@ uint16_t mos6502::Addr_ABI()
 
 	return addr;
 }
+
+uint16_t mos6502::Addr_AIX()
+{
+	uint16_t addrL;
+	uint16_t addrH;
+	uint16_t effL;
+	uint16_t effH;
+	uint16_t abs;
+	uint16_t addr;
+
+	addrL = Read(pc++);
+	addrH = Read(pc++);
+
+	// Offset the calculated absolute address by X
+	abs = ((addrH << 8) | addrL) + X;
+
+	effL = Read(abs);
+
+#ifndef CMOS_INDIRECT_JMP_FIX
+	effH = Read((abs & 0xFF00) + ((abs + 1) & 0x00FF) );
+#else
+	effH = Read(abs + 1);
+#endif
+
+	addr = effL + 0x100 * effH;
+
+	return addr;
+}
+
 
 uint16_t mos6502::Addr_ZEX()
 {
@@ -1828,4 +1965,168 @@ void mos6502::Op_TSB(uint16_t src)
 	SET_ZERO(m & A);
 	m = m | A;
 	Write(src, m);
+}
+
+void mos6502::Op_BBRx(uint8_t mask, uint8_t val, uint16_t offset)
+{
+	uint16_t addr;
+
+	if ((val & mask) == 0) {
+		// Taking the branch incurs an additional cycle
+		opExtraCycles++;
+
+		if (offset & 0x80) offset |= 0xFF00;
+		addr = pc + (int16_t)offset;
+
+		// Crossing page boundary incurs another additional cycle
+		if (addressesSamePage(addr, pc)) opExtraCycles++;
+
+		pc = addr;
+	}
+}
+
+void mos6502::Op_BBR0(uint16_t src)
+{
+	auto val = Read(Read(pc++));
+	uint16_t offset = (uint16_t) Read(pc++);
+
+	Op_BBRx(0x01, val, offset);
+}
+
+void mos6502::Op_BBR1(uint16_t src)
+{
+	auto val = Read(Read(pc++));
+	uint16_t offset = (uint16_t) Read(pc++);
+
+	Op_BBRx(0x02, val, offset);
+}
+
+void mos6502::Op_BBR2(uint16_t src)
+{
+	auto val = Read(Read(pc++));
+	uint16_t offset = (uint16_t) Read(pc++);
+
+	Op_BBRx(0x04, val, offset);
+}
+
+void mos6502::Op_BBR3(uint16_t src)
+{
+	auto val = Read(Read(pc++));
+	uint16_t offset = (uint16_t) Read(pc++);
+
+	Op_BBRx(0x08, val, offset);
+}
+
+void mos6502::Op_BBR4(uint16_t src)
+{
+	auto val = Read(Read(pc++));
+	uint16_t offset = (uint16_t) Read(pc++);
+
+	Op_BBRx(0x10, val, offset);
+}
+
+void mos6502::Op_BBR5(uint16_t src)
+{
+	auto val = Read(Read(pc++));
+	uint16_t offset = (uint16_t) Read(pc++);
+
+	Op_BBRx(0x20, val, offset);
+}
+
+void mos6502::Op_BBR6(uint16_t src)
+{
+	auto val = Read(Read(pc++));
+	uint16_t offset = (uint16_t) Read(pc++);
+
+	Op_BBRx(0x40, val, offset);
+}
+
+void mos6502::Op_BBR7(uint16_t src)
+{
+	auto val = Read(Read(pc++));
+	uint16_t offset = (uint16_t) Read(pc++);
+
+	Op_BBRx(0x80, val, offset);
+}
+
+void mos6502::Op_BBSx(uint8_t mask, uint8_t val, uint16_t offset)
+{
+	uint16_t addr;
+
+	if ((val & mask) != 0) {
+		// Taking the branch, additional cycle
+		opExtraCycles++;
+
+		if (offset & 0x80) offset |= 0xFF00;
+		addr = pc + (int16_t)offset;
+
+		// Crossing page boundary incurs an additional cycle
+		if (addressesSamePage(addr, pc)) opExtraCycles++;
+
+		pc = addr;
+	}
+}
+
+void mos6502::Op_BBS0(uint16_t src)
+{
+	auto val = Read(Read(pc++));
+	uint16_t offset = (uint16_t) Read(pc++);
+
+	Op_BBSx(0x01, val, offset);
+}
+
+void mos6502::Op_BBS1(uint16_t src)
+{
+	auto val = Read(Read(pc++));
+	uint16_t offset = (uint16_t) Read(pc++);
+
+	Op_BBSx(0x02, val, offset);
+}
+
+void mos6502::Op_BBS2(uint16_t src)
+{
+	auto val = Read(Read(pc++));
+	uint16_t offset = (uint16_t) Read(pc++);
+
+	Op_BBSx(0x04, val, offset);
+}
+
+void mos6502::Op_BBS3(uint16_t src)
+{
+	auto val = Read(Read(pc++));
+	uint16_t offset = (uint16_t) Read(pc++);
+
+	Op_BBSx(0x08, val, offset);
+}
+
+void mos6502::Op_BBS4(uint16_t src)
+{
+	auto val = Read(Read(pc++));
+	uint16_t offset = (uint16_t) Read(pc++);
+
+	Op_BBSx(0x10, val, offset);
+}
+
+void mos6502::Op_BBS5(uint16_t src)
+{
+	auto val = Read(Read(pc++));
+	uint16_t offset = (uint16_t) Read(pc++);
+
+	Op_BBSx(0x20, val, offset);
+}
+
+void mos6502::Op_BBS6(uint16_t src)
+{
+	auto val = Read(Read(pc++));
+	uint16_t offset = (uint16_t) Read(pc++);
+
+	Op_BBSx(0x40, val, offset);
+}
+
+void mos6502::Op_BBS7(uint16_t src)
+{
+	auto val = Read(Read(pc++));
+	uint16_t offset = (uint16_t) Read(pc++);
+
+	Op_BBSx(0x80, val, offset);
 }

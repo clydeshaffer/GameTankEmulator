@@ -25,7 +25,8 @@ private:
         AB, JX, AX, AY,
         AI, AC, NO, IM,
         PR, ST, ZP, IX,
-        ZX, ZY, ZI, IY
+        ZX, ZY, ZI, IY,
+        BB
     };
     enum ArgIsLabel {
         // Not Label

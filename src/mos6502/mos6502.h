@@ -61,6 +61,10 @@ private:
 	// Helper function for determining if two addresses are in the same page
 	inline bool addressesSamePage(uint16_t a, uint16_t b);
 
+	// Helper functions for the BBRx and BBSx instructions
+	void Op_BBRx(uint8_t mask, uint8_t val, uint16_t offset);
+	void Op_BBSx(uint8_t mask, uint8_t val, uint16_t offset);
+
 	// addressing modes
 	uint16_t Addr_ACC(); // ACCUMULATOR
 	uint16_t Addr_IMM(); // IMMEDIATE
@@ -76,6 +80,7 @@ private:
 	uint16_t Addr_INY(); // INDEXED-Y INDIRECT
 	uint16_t Addr_ABI(); // ABSOLUTE INDIRECT
 	uint16_t Addr_ZPI(); // ZERO PAGE INDIRECT
+	uint16_t Addr_AIX(); // ABSOLUTE INDIRECT INDEXED-X
 
 	// opcodes (grouped as per datasheet)
 	void Op_ADC(uint16_t src);
@@ -155,6 +160,24 @@ private:
 	void Op_BRA(uint16_t src);
 	void Op_TRB(uint16_t src);
 	void Op_TSB(uint16_t src);
+
+	void Op_BBR0(uint16_t src);
+	void Op_BBR1(uint16_t src);
+	void Op_BBR2(uint16_t src);
+	void Op_BBR3(uint16_t src);
+	void Op_BBR4(uint16_t src);
+	void Op_BBR5(uint16_t src);
+	void Op_BBR6(uint16_t src);
+	void Op_BBR7(uint16_t src);
+
+	void Op_BBS0(uint16_t src);
+	void Op_BBS1(uint16_t src);
+	void Op_BBS2(uint16_t src);
+	void Op_BBS3(uint16_t src);
+	void Op_BBS4(uint16_t src);
+	void Op_BBS5(uint16_t src);
+	void Op_BBS6(uint16_t src);
+	void Op_BBS7(uint16_t src);
 
 	void Op_ILLEGAL(uint16_t src);
 
