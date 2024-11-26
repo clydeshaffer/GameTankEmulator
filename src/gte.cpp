@@ -31,6 +31,7 @@
 
 #include "devtools/memory_map.h"
 #include "devtools/breakpoints.h"
+#include "devtools/source_map.h"
 
 #include "ui/ui_utils.h"
 #include "devtools/profiler.h"
@@ -598,15 +599,24 @@ extern "C" {
 
 		gameconfig = new GameConfig(nvramPath.string().c_str());
 
-		std::filesystem::path defaultMapFilePath = filepath.parent_path().append("../build/out.map");
+		std::filesystem::path defaultMemMapFilePath = filepath.parent_path().append("../build/out.map");
+		std::filesystem::path defaultSourceMapFilePath = filepath.parent_path().append("../build/sourcemap.dbg");
 
-		if(std::filesystem::exists(defaultMapFilePath)) {
-			printf("found default memory map file location %s\n", defaultMapFilePath.c_str());
-			loadedMemoryMap = new MemoryMap(defaultMapFilePath.string());
+		if(std::filesystem::exists(defaultMemMapFilePath)) {
+			printf("found default memory map file location %s\n", defaultMemMapFilePath.c_str());
+			loadedMemoryMap = new MemoryMap(defaultMemMapFilePath.string());
 			Breakpoints::linkBreakpoints(*loadedMemoryMap);
 		} else {
 			loadedMemoryMap = new MemoryMap();
-			printf("default memory map file %s not found\n", defaultMapFilePath.c_str());
+			printf("default memory map file %s not found\n", defaultMemMapFilePath.c_str());
+		}
+
+		if(std::filesystem::exists(defaultSourceMapFilePath)) {
+			printf("found default source map file location %s\n", defaultSourceMapFilePath.c_str());
+			std::string sourceMapPathString = defaultSourceMapFilePath.string();
+			SourceMap::singleton = new SourceMap(sourceMapPathString);
+		} else {
+			printf("default source map file %s not found\n", defaultSourceMapFilePath.c_str());
 		}
 
 		printf("loading %s\n", filename);
@@ -732,7 +742,7 @@ void toggleVRAMWindow() {
 
 void toggleSteppingWindow() {
 	if(!toolTypeIsOpen<SteppingWindow>()) {
-		toolWindows.push_back(new SteppingWindow(timekeeper, loadedMemoryMap, cpu_core, *gameconfig));
+		toolWindows.push_back(new SteppingWindow(timekeeper, loadedMemoryMap, cpu_core, *gameconfig, cartridge_state));
 	} else {
 		closeToolByType<SteppingWindow>();
 	}
