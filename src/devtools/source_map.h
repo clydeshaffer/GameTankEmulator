@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <string>
+#include <cstdint>
 
 typedef struct SourceMapLine {
     unsigned int id;
