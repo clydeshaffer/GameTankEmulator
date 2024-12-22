@@ -5,7 +5,7 @@
 // 0 - old inaccurate table
 // 256 - straight from capture card
 // 512 - scaled capture
-int palette_select = PALETTE_SELECT_SCALED;
+int palette_select = PALETTE_SELECT_CAPTURE;
 
 Uint32 Palette::ConvertColor(SDL_Surface* target, uint8_t index) {
     //if(index == 0) return SDL_MapRGB(target->format, 0, 0, 0);
