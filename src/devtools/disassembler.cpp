@@ -266,12 +266,15 @@ vector<AsmLine> Disassembler::Decode(const std::function<uint8_t(uint16_t, bool)
 
         assert(instructionSize <= MAX_INSTRUCTION_SIZE);
 
-        ++address;
+        
 
         ss << "\t" << std::setw(MAX_INSTRUCTION_NAME_LEN + 1) << std::left << opcodeName;
 
         AsmLine line;
+        line.address = address;
         line.num_args = instructionSize - 1;
+
+        ++address;
 
         if(instructionSize == 1) {
             // We don't have any arguments for this instruction
@@ -296,7 +299,6 @@ vector<AsmLine> Disassembler::Decode(const std::function<uint8_t(uint16_t, bool)
 
         
         line.disassembledLine = ss.str();
-        line.address = address;
         line.isLabel = false;
         line.opcode = opcode;
 
