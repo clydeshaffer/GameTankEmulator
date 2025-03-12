@@ -480,7 +480,7 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 				if (fourthwall.is_upper_set && fourthwall.is_lower_set) {
 					uint16_t full_address = (static_cast<uint16_t>(fourthwall.upper_byte) << 8) | fourthwall.lower_byte;
 				
-					fourthwall.game_ram_pointer = &system_state.ram[full_address];
+					fourthwall.game_ram_pointer = &system_state.ram[FULL_RAM_ADDRESS(full_address & 0x1FFF)];
 					*fourthwall.game_ram_pointer = 1;
 				
 					fourthwall.is_upper_set = false;
