@@ -78,6 +78,17 @@ std::string currentRomFilePath;
 std::string nvramFileFullPath;
 std::string flashFileFullPath;
 
+struct FourthWallBreak {
+	uint8_t* game_ram_pointer;
+
+	uint8_t upper_byte;
+	uint8_t lower_byte;
+	bool is_upper_set;
+	bool is_lower_set;
+};
+
+FourthWallBreak fourthwall;
+
 void SaveNVRAM() {
 	fstream file;
 	if(loadedRomType != RomType::FLASH2M_RAM32K) return;
@@ -462,7 +473,25 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 			}
 			system_state.VIA_regs[address & 0xF] = value;
 		} else {
-			if((address & 0x000F) == 0x0007) {
+			if((address & 0x000F) == 0x0009) {
+				fourthwall.upper_byte = value;
+				fourthwall.is_upper_set = true;
+
+				if (fourthwall.is_upper_set && fourthwall.is_lower_set) {
+					uint16_t full_address = (static_cast<uint16_t>(fourthwall.upper_byte) << 8) | fourthwall.lower_byte;
+				
+					fourthwall.game_ram_pointer = &system_state.ram[full_address];
+					*fourthwall.game_ram_pointer = 1;
+				
+					fourthwall.is_upper_set = false;
+					fourthwall.is_lower_set = false;
+				}
+			}
+			else if((address & 0x000F) == 0x0008) {
+				fourthwall.lower_byte = value;
+				fourthwall.is_lower_set = true;
+			}
+			else if((address & 0x000F) == 0x0007) {
 				blitter->CatchUp();
 				if((value & DMA_VID_OUT_PAGE_BIT) != (system_state.dma_control & DMA_VID_OUT_PAGE_BIT)) {
 					profiler.bufferFlipCount++;
