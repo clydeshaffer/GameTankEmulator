@@ -49,6 +49,7 @@
 #include "imgui/backends/imgui_impl_sdl2.h"
 #include "imgui/backends/imgui_impl_sdlrenderer2.h"
 #endif
+#include "fourthwall.h"
 
 #ifndef WINDOW_TITLE
 #define WINDOW_TITLE "GameTank Emulator"
@@ -78,16 +79,7 @@ std::string currentRomFilePath;
 std::string nvramFileFullPath;
 std::string flashFileFullPath;
 
-struct FourthWallBreak {
-	uint8_t* game_ram_pointer;
-
-	uint8_t upper_byte;
-	uint8_t lower_byte;
-	bool is_upper_set;
-	bool is_lower_set;
-};
-
-FourthWallBreak fourthwall;
+FourthWall fourthwall;
 
 void SaveNVRAM() {
 	fstream file;
@@ -482,6 +474,7 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 				
 					fourthwall.game_ram_pointer = &system_state.ram[FULL_RAM_ADDRESS(full_address & 0x1FFF)];
 					*fourthwall.game_ram_pointer = 1;
+					fourthwall.is_broken = true;
 				
 					fourthwall.is_upper_set = false;
 					fourthwall.is_lower_set = false;
@@ -869,11 +862,14 @@ void refreshScreen() {
 	dest.x = (scr_w - dest.w) / 2;
 	dest.y = (scr_h - dest.h) / 2;
 	//SDL_BlitScaled(vRAM_Surface, &src, screenSurface, &dest);
-	SDL_UpdateTexture(framebufferTexture, NULL, vRAM_Surface->pixels, vRAM_Surface->pitch);
+			
+	if (true) {
+		draw_square(system_state, vRAM_Surface, 0,0,20,20,0xFFFFFFFF);
+	}
 
+	SDL_UpdateTexture(framebufferTexture, NULL, vRAM_Surface->pixels, vRAM_Surface->pitch);
 	SDL_RenderClear(mainRenderer);
 	SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
-
 #ifndef WASM_BUILD
 	ImGui::SetCurrentContext(main_imgui_ctx);
 
@@ -1056,6 +1052,7 @@ EM_BOOL mainloop(double time, void* userdata) {
 					blitter->pixels_this_frame = 0;
 				}
 			}
+
 		} else {
 			SDL_Delay(100);
 		}
