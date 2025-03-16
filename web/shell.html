@@ -187,7 +187,10 @@
                         method: "PUT",
                         body: pngBlob,
                         mode: 'cors',
-                        headers: { "Content-Type": "image/png" },
+                        headers: {
+                          "Content-Type": "image/png",
+                          "x-amz-acl": "public-read"
+                        },
                     });
 
                     if (response.ok) {
