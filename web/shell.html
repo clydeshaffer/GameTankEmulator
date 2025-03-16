@@ -158,7 +158,14 @@
 
                 // Convert to PNG
                 let canvas = document.getElementById('canvas');
-                canvas.toBlob(async (pngBlob) => {
+                let tempCanvas = document.createElement('canvas');
+                tempCanvas.width = canvas.width;
+                tempCanvas.height = canvas.height;
+                let ctx = tempCanvas.getContext("2d");
+                ctx.drawImage(canvas, 0, 0);
+
+
+                tempCanvas.toBlob(async (pngBlob) => {
                     if (!pngBlob) {
                         console.error("PNG conversion failed");
                         return;
