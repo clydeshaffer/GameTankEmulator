@@ -290,7 +290,7 @@
           .then(response => checkStatus(response) && response.arrayBuffer())
           .then(buffer => {
             var data = new Uint8Array(buffer);
-            Module['FS_createDataFile']('/', romName, data, true, true, true);
+            Module['FS_createDataFile'](`/${gameID}/`, 'game.gtr', data, true, true, true);
             loadedFiles[romName] = 1;
             Module.ccall('LoadRomFile', null, ["string"], [romName]);
           })
