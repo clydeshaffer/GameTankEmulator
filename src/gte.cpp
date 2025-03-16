@@ -685,6 +685,13 @@ extern "C" {
 			joysticks->SetHeldButtons(buttonMask);
 		}
 	}
+
+	void takeScreenShot() {
+		SDL_Surface *screenshot = SDL_CreateRGBSurface(0, SCREEN_WIDTH, SCREEN_HEIGHT, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
+		SDL_RenderReadPixels(mainRenderer, NULL, SDL_PIXELFORMAT_ARGB8888, screenshot->pixels, screenshot->pitch);
+		SDL_SaveBMP(screenshot, "screenshot.bmp");
+		SDL_FreeSurface(screenshot);
+	}
 }
 #ifndef WASM_BUILD
 template <typename T>
@@ -761,13 +768,6 @@ void doRamDump() {
 	ofstream dumpfile ("ram_debug.dat", ios::out | ios::binary);
 	dumpfile.write((char*) system_state.ram, RAMSIZE);
 	dumpfile.close();
-}
-
-void takeScreenShot() {
-	SDL_Surface *screenshot = SDL_CreateRGBSurface(0, SCREEN_WIDTH, SCREEN_HEIGHT, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
-	SDL_RenderReadPixels(mainRenderer, NULL, SDL_PIXELFORMAT_ARGB8888, screenshot->pixels, screenshot->pitch);
-	SDL_SaveBMP(screenshot, "screenshot.bmp");
-	SDL_FreeSurface(screenshot);
 }
 
 void toggleControllerOptionsWindow() {

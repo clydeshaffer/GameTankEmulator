@@ -119,6 +119,40 @@
     <div class="emscripten landscapeOnly">
       <input id="RomFileInput" type="file" onchange="useFileInput(this);" style="display: none"/>
       <input type="button" id="loadimg" value="Load ROM" onclick="document.getElementById('RomFileInput').click();" />
+
+
+      <div class="editonly">
+        <form action="../../games/api/update.php" method="POST">
+            <input type="hidden" id="gameId" name="id">
+    
+            <label for="title">Title:</label>
+            <input type="text" id="title" name="title" required>
+    
+            <label for="description">Description:</label>
+            <textarea id="description" name="description" required></textarea>
+    
+            <label>Visibility:</label>
+            <div>
+                <input type="radio" id="hidden" name="visibility" value="0">
+                <label for="hidden">Hidden</label>
+                <input type="radio" id="published" name="visibility" value="1">
+                <label for="published">Published</label>
+            </div>
+    
+            <button type="submit">Submit</button>
+        </form>
+    
+        <script>
+          if(GAMEINFO != undefined) {
+            // Populate form fields with GAMEINFO values
+            document.getElementById('gameId').value = GAMEINFO.id;
+            document.getElementById('title').value = GAMEINFO.title;
+            document.getElementById('description').value = GAMEINFO.description;
+            document.getElementById(GAMEINFO.visibility === 1 ? 'published' : 'hidden').checked = true;
+          }
+        </script>
+      </div>
+
     </div>
     
     <hr/>
