@@ -464,6 +464,9 @@
         }
       }
 
+      if(GAMEINFO != undefined) {
+        document.getElementById('canvas').getContext("webgl", {preserveDrawingBuffer: true});
+      }
     </script>
     {{{ SCRIPT }}}
   </body>
