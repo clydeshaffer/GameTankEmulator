@@ -141,6 +141,8 @@
     
             <button type="submit">Submit</button>
         </form>
+
+        <button id="screenshotUpload" onclick=>Update screenshot</button>
     
         <script>
           if(GAMEINFO != undefined) {
@@ -150,7 +152,77 @@
             document.getElementById('description').value = GAMEINFO.description;
             document.getElementById(GAMEINFO.visibility === 1 ? 'published' : 'hidden').checked = true;
           }
+
+          async function convertAndUploadBMP(bmpPath, presignedUrl) {
+            try {
+                // Read the BMP file  from Emscripten FS
+                let bmpData = FS.readFile(bmpPath); // Uint8Array
+
+                // Convert BMP to a Blob for creating an image
+                let bmpBlob = new Blob([bmpData], { type: "image/bmp" });
+
+                // Create an image element
+                let img = new Image();
+                img.src = URL.createObjectURL(bmpBlob);
+
+                // Wait for the image to load
+                await new Promise((resolve) => (img.onload = resolve));
+
+                // Draw the image onto a canvas
+                let canvas = document.createElement("canvas");
+                canvas.width = img.width;
+                canvas.height = img.height;
+                let ctx = canvas.getContext("2d");
+                ctx.drawImage(img, 0, 0);
+
+                // Convert to PNG
+                canvas.toBlob(async (pngBlob) => {
+                    if (!pngBlob) {
+                        console.error("PNG conversion failed");
+                        return;
+                    }
+
+                    // Upload PNG using fetch
+                    let response = await fetch(presignedUrl, {
+                        method: "PUT",
+                        body: pngBlob,
+                        headers: { "Content-Type": "image/png" },
+                    });
+
+                    if (response.ok) {
+                        alert("Upload successful!");
+                    } else {
+                        console.error("Upload failed", await response.text());
+                    }
+                }, "image/png");
+            } catch (error) {
+                console.error("Error processing BMP file:", error);
+            }
+        }
+
+
+          async function captureScreenshotAndUpload() {
+            if(GAMEINFO != undefined) {
+              const response = await fetch('../../games/api/screenshot.php', {
+                method: POST,
+                body: new URLSearchParams({
+                  id: GAMEINFO.id
+                })
+              });
+              const json = await response.json();
+              const signedURL = json['url'];
+              Module._takeScreenShot();
+              await('/screenshot.bmp', signedURL);
+            }
+          }
+
+          document.getElementById('screenshotUpload').onclick = async() => {
+            await captureScreenshotAndUpload();
+          };
         </script>
+
+        
+        
       </div>
 
     </div>
