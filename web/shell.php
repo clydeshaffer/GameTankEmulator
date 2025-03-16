@@ -1,0 +1,404 @@
+<?php
+include '/include/db.php';
+$pagetitle = "GameTank Emulator - WASM Edition"
+if(isset($_GET['game'])) {
+  $db = get_db("games");
+  $sql = 'SELECT * from games where gameID = :id';
+  $statement = $db->prepare($sql);
+  try {
+      $statement->execute([
+        ":id" => $_GET['game']
+      ]);
+
+      if ($statement->rowCount() > 0) {
+          if($row = $statement->fetch()) {
+              $title = $row['title'];
+              $id = $row['gameID'];
+              $link = "https://gametank.zone/emulator/web?game=$id";
+              $img = "https://gametankgames.nyc3.cdn.digitaloceanspaces.com/games/phpapi/$id/mainimg.png";
+              $pagetitle = 'GameTank Emulator - ' . $title;
+          }
+      }
+      http_response_code(200);
+  } catch (PDOException $e) {
+  }
+}
+
+?>
+<!doctype html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>GameTank Emulator - WASM Edition</title>
+    <style>
+      .emscripten { padding-right: 0; margin-left: auto; margin-right: auto; display: block; }
+      textarea.emscripten { font-family: monospace; width: 80%; }
+      div.emscripten { text-align: center; }
+      div.emscripten_border { border: 1px solid black; }
+      /* the canvas *must not* have any border or padding, or mouse coords will be wrong */
+      canvas.emscripten { border: 0px none; background-color: black; }
+
+      .spinner {
+        height: 50px;
+        width: 50px;
+        margin: 0px auto;
+        -webkit-animation: rotation .8s linear infinite;
+        -moz-animation: rotation .8s linear infinite;
+        -o-animation: rotation .8s linear infinite;
+        animation: rotation 0.8s linear infinite;
+        border-left: 10px solid rgb(0,150,240);
+        border-right: 10px solid rgb(0,150,240);
+        border-bottom: 10px solid rgb(0,150,240);
+        border-top: 10px solid rgb(100,0,200);
+        border-radius: 100%;
+        background-color: rgb(200,100,250);
+      }
+      @-webkit-keyframes rotation {
+        from {-webkit-transform: rotate(0deg);}
+        to {-webkit-transform: rotate(360deg);}
+      }
+      @-moz-keyframes rotation {
+        from {-moz-transform: rotate(0deg);}
+        to {-moz-transform: rotate(360deg);}
+      }
+      @-o-keyframes rotation {
+        from {-o-transform: rotate(0deg);}
+        to {-o-transform: rotate(360deg);}
+      }
+      @keyframes rotation {
+        from {transform: rotate(0deg);}
+        to {transform: rotate(360deg);}
+      }
+
+      .mobileinputcontainer {
+          position:absolute;
+          display: block;
+          bottom: 0;
+          left: 0;
+          right: 0;
+      }
+
+      .mobileinput {
+        width: 100%;
+      }
+
+      select {
+          font-size: 50px;
+        }
+
+      @media only screen and (orientation:landscape) {
+        .mobileinputcontainer {
+            display: none;
+        }
+
+        select {
+          font-size: 16pt;
+        }
+      }
+
+      html {
+        height: 100%;
+      }
+
+      body {
+        min-height: 100%;
+      }
+
+      @media only screen and (orientation:portrait) {
+        #canvas {
+            width: 100%;
+        }
+
+        html {
+          background-color: #DF7F1F;
+        }
+
+        .landscapeOnly {
+          display:none;
+        }
+      }
+
+    </style>
+  </head>
+  <body>
+    <div style="text-align: center;">
+      <select id="RomSelectList" onchange="loadRomFromList(this);">
+        <option> Select a cartridge </option>
+        <option value="hello.gtr"> Hello World </option>
+        <option value="tetris.gtr"> Tetris </option>
+        <option value="badapple.gtr"> Bad Apple </option>
+        <option value="cubicle.gtr"> Cubicle Knight </option>
+        <option value="fiend.gtr"> Accursed Fiend </option>
+        <option value="barrels.gtr"> Bob's Barrels </option>
+        <option value="tanks.gtr"> Tanks! </option>
+        <option value="words.gtr"> Word Guess Game </option>
+        <option value="multi.gtr"> Arcade Multi Pack </option>
+        <option value="other"> ----- </option>
+      </select>
+    </div>
+    <hr/>
+    <figure style="overflow:visible;" id="spinner"><div class="spinner"></div><center style="margin-top:0.5em"><strong>emscripten</strong></center></figure>
+    <div class="emscripten" id="status">Downloading...</div>
+    <div class="emscripten">
+      <progress value="0" max="100" id="progress" hidden=1></progress>  
+    </div>
+    <div class="emscripten_border" style="position:relative;">
+      
+      <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1 width="512" height="512"></canvas>
+    </div>
+    <hr/>
+    <div class="emscripten landscapeOnly">
+      <input id="RomFileInput" type="file" onchange="useFileInput(this);" style="display: none"/>
+      <input type="button" id="loadimg" value="Load ROM" onclick="document.getElementById('RomFileInput').click();" />
+    </div>
+    
+    <hr/>
+    <div class="landscapeOnly">
+      <h2>Player 1 Controls:</h2>
+      <ul>
+        <li>Arrow Keys = Directional Buttons</li>
+        <li>Enter = Start</li>
+        <li>Z, X, C = A, B, C</li>
+        <li>B, N, M = also A, B, C</li>
+      </ul>
+      <h2>Player 2 Controls:</h2>
+      <ul>
+        <li>T,F,G,H = Up, Left, Down, Right</li>
+        <li>1 = Start</li>
+        <li>Tab, Q, W = A, B, C</li>
+        <li>LShift, A, S = also A, B, C</li>
+      </ul>
+      <h2>General Keybinds:</h2>
+      <ul>
+        <li>R = Reset</li>
+        <li>Shift+R = Hard Reset</li>
+      </ul>
+    </div>
+    <hr/>
+    <div class="mobileinputcontainer">
+      <img class="mobileinput" id="mobileInputImg" src="static/gamepad.png"/>
+    </div>
+
+    <script type='text/javascript'>
+      var statusElement = document.getElementById('status');
+      var progressElement = document.getElementById('progress');
+      var spinnerElement = document.getElementById('spinner');
+
+      var Module = {
+        preRun: [()=>{
+          addRunDependency('syncfs');
+          FS.mkdir('/idbfs');
+          try {
+            FS.mount(IDBFS, {
+            }, '/idbfs');
+            FS.syncfs(true, function (err) {
+              assert(!err);
+              removeRunDependency('syncfs');
+            });
+          } catch(e) {
+            console.error(e.message);
+          }
+        }],
+        postRun: [],
+        print: (function() {
+          var element = document.getElementById('output');
+          if (element) element.value = ''; // clear browser cache
+          return function(text) {
+            if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+            // These replacements are necessary if you render to raw HTML
+            //text = text.replace(/&/g, "&amp;");
+            //text = text.replace(/</g, "&lt;");
+            //text = text.replace(/>/g, "&gt;");
+            //text = text.replace('\n', '<br>', 'g');
+            console.log(text);
+            if (element) {
+              element.value += text + "\n";
+              element.scrollTop = element.scrollHeight; // focus on bottom
+            }
+          };
+        })(),
+        printErr: function(text) {
+          if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+          console.error(text);
+        },
+        canvas: (function() {
+          var canvas = document.getElementById('canvas');
+
+          // As a default initial behavior, pop up an alert when webgl context is lost. To make your
+          // application robust, you may want to override this behavior before shipping!
+          // See http://www.khronos.org/registry/webgl/specs/latest/1.0/#5.15.2
+          canvas.addEventListener("webglcontextlost", function(e) { alert('WebGL context lost. You will need to reload the page.'); e.preventDefault(); }, false);
+
+          return canvas;
+        })(),
+        setStatus: function(text) {
+          if (!Module.setStatus.last) Module.setStatus.last = { time: Date.now(), text: '' };
+          if (text === Module.setStatus.last.text) return;
+          var m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
+          var now = Date.now();
+          if (m && now - Module.setStatus.last.time < 30) return; // if this is a progress update, skip it if too soon
+          Module.setStatus.last.time = now;
+          Module.setStatus.last.text = text;
+          if (m) {
+            text = m[1];
+            progressElement.value = parseInt(m[2])*100;
+            progressElement.max = parseInt(m[4])*100;
+            progressElement.hidden = false;
+            spinnerElement.hidden = false;
+          } else {
+            progressElement.value = null;
+            progressElement.max = null;
+            progressElement.hidden = true;
+            if (!text) spinnerElement.hidden = true;
+          }
+          statusElement.innerHTML = text;
+        },
+        totalDependencies: 0,
+        monitorRunDependencies: function(left) {
+          this.totalDependencies = Math.max(this.totalDependencies, left);
+          Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies-left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
+        }
+      };
+      Module.setStatus('Downloading...');
+      window.onerror = function() {
+        Module.setStatus('Exception thrown, see JavaScript console');
+        spinnerElement.style.display = 'none';
+        Module.setStatus = function(text) {
+          if (text) Module.printErr('[post-exception status] ' + text);
+        };
+      };
+
+      function useFileInput(fileInput) {
+          console.log("useFileInput called");
+          if (fileInput.files.length == 0)
+              return;
+          var file = fileInput.files[0];
+          console.log("loading file " + file.name);
+          var fr = new FileReader();
+          fr.onload = function () {
+              var data = new Uint8Array(fr.result);
+              console.log("loaded file");
+              Module['FS_createDataFile']('/', file.name, data, true, true, true);
+              console.log("calling LoadRomFile");
+              Module.ccall('LoadRomFile', null, ["string"], [file.name]);
+
+              fileInput.value = '';
+          };
+          fr.readAsArrayBuffer(file);
+      }
+
+      function checkStatus(response) {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status} - ${response.statusText}`);
+        }
+        return response;
+      }
+
+      var loadedFiles = {};
+
+      function loadRomByName(romName) {
+        var romUrl = "../roms/" + romName;
+        if(!loadedFiles[romName]) {
+          fetch(romUrl)
+          .then(response => checkStatus(response) && response.arrayBuffer())
+          .then(buffer => {
+            var data = new Uint8Array(buffer);
+            Module['FS_createDataFile']('/', romName, data, true, true, true);
+            loadedFiles[romName] = 1;
+            Module.ccall('LoadRomFile', null, ["string"], [romName]);
+          })
+          .catch(err=>console.error(err));
+        } else {
+          Module.ccall('LoadRomFile', null, ["string"], [romName]);
+        }
+      }
+
+      function loadRomByID(gameID) {
+        var romUrl = `https://gametankgames.nyc3.cdn.digitaloceanspaces.com/games/phpapi/${gameID}/game.gtr`;
+        var romName = `${gameID}/game.gtr`;
+        if(!loadedFiles[romName]) {
+          fetch(romUrl)
+          .then(response => checkStatus(response) && response.arrayBuffer())
+          .then(buffer => {
+            var data = new Uint8Array(buffer);
+            Module['FS_createDataFile']('/', romName, data, true, true, true);
+            loadedFiles[romName] = 1;
+            Module.ccall('LoadRomFile', null, ["string"], [romName]);
+          })
+          .catch(err=>console.error(err));
+        } else {
+          Module.ccall('LoadRomFile', null, ["string"], [romName]);
+        }
+      }
+
+      function loadRomFromList(listBox) {
+        if(listBox.value != 'other') {
+          loadRomByName(listBox.value);
+        }
+      }
+
+      function getParameterByName(name, url = window.location.href) {
+          name = name.replace(/[\[\]]/g, '\\$&');
+          var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'),
+              results = regex.exec(url);
+          if (!results) return null;
+          if (!results[2]) return '';
+          return decodeURIComponent(results[2].replace(/\+/g, ' '));
+      }
+
+      Module.onRuntimeInitialized = function() {
+        document.addEventListener("visibilitychange", () => {
+          if (document.hidden) {
+            Module.ccall('PauseEmulation');
+          } else {
+            // NOTE if in the future we have other means of pausing emulation, we should not assume that we always
+            // want to resume on the page becoming visible again
+            Module.ccall('ResumeEmulation');
+          }
+        });
+
+        var urlRomName = getParameterByName('rom');
+        if(urlRomName != null) {
+          loadRomByName(urlRomName);
+          document.getElementById("RomSelectList").value = urlRomName;
+        }
+
+        var urlRomID = getParameterByName('game');
+        if(urlRomID != null) {
+          loadRomByID(urlRomID);
+          document.getElementById("RomSelectList").value = 'other';
+        }
+
+        var buttonGrid = [[0, 0b0000100000001000, 0, 0b0000000000100000, 0, 0b0010000000000000, 0],
+                        [0b0000001000000000, 0, 0b0000000100000000, 0, 0b0010000000000000, 0, 0b0001000000000000],
+                        [0, 0b0000010000000100, 0, 0, 0, 0b0000000000010000, 0],
+                        [0,0,0,0,0,0,0]];
+        var inputScreen = document.getElementById("mobileInputImg");
+        var touchIds = [];
+        var touchedMask = 0;
+        inputScreen.ontouchstart = function(ev) {
+          ev.preventDefault();
+          var inputscale = 4 / ev.targetTouches[0].target.clientHeight;
+          for(var i = 0; i < ev.targetTouches.length; i++) {
+            var top = 3 - Math.floor(inputscale * (document.body.clientHeight - ev.targetTouches[i].clientY));
+            var lef = Math.floor(inputscale * ev.targetTouches[i].clientX);
+            touchIds[ev.targetTouches[i].identifier] = buttonGrid[top][lef];
+            touchedMask |= buttonGrid[top][lef];
+            Module.ccall('SetButtons', null, ["int"], [touchedMask]);
+          }
+        }
+
+        inputScreen.ontouchend = function(ev) {
+          ev.preventDefault();
+          for(var i = 0; i < ev.changedTouches.length; i++) {
+            touchedMask &= ~touchIds[ev.changedTouches[i].identifier];
+          }
+          Module.ccall('SetButtons', null, ["int"], [touchedMask]);
+        }
+      }
+
+    </script>
+    {{{ SCRIPT }}}
+  </body>
+</html>
