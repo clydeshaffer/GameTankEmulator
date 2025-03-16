@@ -284,13 +284,13 @@
 
       function loadRomByID(gameID) {
         var romUrl = `https://gametankgames.nyc3.cdn.digitaloceanspaces.com/games/phpapi/${gameID}/game.gtr`;
-        var romName = `${gameID}/game.gtr`;
+        var romName = `game-${gameID}.gtr`;
         if(!loadedFiles[romName]) {
           fetch(romUrl)
           .then(response => checkStatus(response) && response.arrayBuffer())
           .then(buffer => {
             var data = new Uint8Array(buffer);
-            Module['FS_createDataFile'](`/${gameID}/`, 'game.gtr', data, true, true, true);
+            Module['FS_createDataFile'](`/`, romName, data, true, true, true);
             loadedFiles[romName] = 1;
             Module.ccall('LoadRomFile', null, ["string"], [romName]);
           })
