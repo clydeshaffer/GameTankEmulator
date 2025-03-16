@@ -186,6 +186,7 @@
                     let response = await fetch(presignedUrl, {
                         method: "PUT",
                         body: pngBlob,
+                        mode: 'cors',
                         headers: { "Content-Type": "image/png" },
                     });
 
