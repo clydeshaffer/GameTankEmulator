@@ -153,29 +153,11 @@
             document.getElementById(GAMEINFO.visibility === 1 ? 'published' : 'hidden').checked = true;
           }
 
-          async function convertAndUploadBMP(bmpPath, presignedUrl) {
+          async function captureAndUploadBMP(presignedUrl) {
             try {
-                // Read the BMP file  from Emscripten FS
-                let bmpData = FS.readFile(bmpPath); // Uint8Array
-
-                // Convert BMP to a Blob for creating an image
-                let bmpBlob = new Blob([bmpData], { type: "image/bmp" });
-
-                // Create an image element
-                let img = new Image();
-                img.src = URL.createObjectURL(bmpBlob);
-
-                // Wait for the image to load
-                await new Promise((resolve) => (img.onload = resolve));
-
-                // Draw the image onto a canvas
-                let canvas = document.createElement("canvas");
-                canvas.width = img.width;
-                canvas.height = img.height;
-                let ctx = canvas.getContext("2d");
-                ctx.drawImage(img, 0, 0);
 
                 // Convert to PNG
+                let canvas = document.getElementById('canvas');
                 canvas.toBlob(async (pngBlob) => {
                     if (!pngBlob) {
                         console.error("PNG conversion failed");
@@ -215,8 +197,7 @@
               });
               const json = await response.json();
               const signedURL = json['url'];
-              Module._takeScreenShot();
-              await convertAndUploadBMP('/screenshot.bmp', signedURL);
+              await captureAndUploadBMP(signedURL);
             }
           }
 
