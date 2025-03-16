@@ -1,9 +1,4 @@
-<!doctype html>
-<html lang="en-us">
-  <head>
-    <meta charset="utf-8">
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>GameTank Emulator - WASM Edition</title>
+<!-- Head lives in PHP wrapper -->
     <style>
       .emscripten { padding-right: 0; margin-left: auto; margin-right: auto; display: block; }
       textarea.emscripten { font-family: monospace; width: 80%; }
@@ -107,6 +102,7 @@
         <option value="tanks.gtr"> Tanks! </option>
         <option value="words.gtr"> Word Guess Game </option>
         <option value="multi.gtr"> Arcade Multi Pack </option>
+        <option value="other"> ----- </option>
       </select>
     </div>
     <hr/>
@@ -286,8 +282,28 @@
         }
       }
 
+      function loadRomByID(gameID) {
+        var romUrl = `https://gametankgames.nyc3.cdn.digitaloceanspaces.com/games/phpapi/${gameID}/game.gtr`;
+        var romName = `${gameID}/game.gtr`;
+        if(!loadedFiles[romName]) {
+          fetch(romUrl)
+          .then(response => checkStatus(response) && response.arrayBuffer())
+          .then(buffer => {
+            var data = new Uint8Array(buffer);
+            Module['FS_createDataFile']('/', romName, data, true, true, true);
+            loadedFiles[romName] = 1;
+            Module.ccall('LoadRomFile', null, ["string"], [romName]);
+          })
+          .catch(err=>console.error(err));
+        } else {
+          Module.ccall('LoadRomFile', null, ["string"], [romName]);
+        }
+      }
+
       function loadRomFromList(listBox) {
-        loadRomByName(listBox.value);
+        if(listBox.value != 'other') {
+          loadRomByName(listBox.value);
+        }
       }
 
       function getParameterByName(name, url = window.location.href) {
@@ -314,6 +330,12 @@
         if(urlRomName != null) {
           loadRomByName(urlRomName);
           document.getElementById("RomSelectList").value = urlRomName;
+        }
+
+        var urlRomID = getParameterByName('game');
+        if(urlRomID != null) {
+          loadRomByID(urlRomID);
+          document.getElementById("RomSelectList").value = 'other';
         }
 
         var buttonGrid = [[0, 0b0000100000001000, 0, 0b0000000000100000, 0, 0b0010000000000000, 0],
