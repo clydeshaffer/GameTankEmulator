@@ -204,7 +204,7 @@
           async function captureScreenshotAndUpload() {
             if(GAMEINFO != undefined) {
               const response = await fetch('../../games/api/screenshot.php', {
-                method: POST,
+                method: "POST",
                 body: new URLSearchParams({
                   id: GAMEINFO.id
                 })
@@ -212,7 +212,7 @@
               const json = await response.json();
               const signedURL = json['url'];
               Module._takeScreenShot();
-              await('/screenshot.bmp', signedURL);
+              await convertAndUploadBMP('/screenshot.bmp', signedURL);
             }
           }
 
