@@ -143,6 +143,9 @@
         </form>
 
         <button id="screenshotUpload" onclick=>Update screenshot</button>
+
+        <input id="RomFileInput2" type="file" onchange="useFileInput2(this);" style="display: none"/>
+        <input type="button" id="loadimg2" value="Upload new ROM" onclick="document.getElementById('RomFileInput2').click();" />
     
         <script>
           if(GAMEINFO != undefined) {
@@ -211,6 +214,52 @@
           document.getElementById('screenshotUpload').onclick = async() => {
             await captureScreenshotAndUpload();
           };
+
+          async function useFileInput2(fileInput) {
+          console.log("useFileInput called");
+          if (fileInput.files.length == 0)
+              return;
+          var file = fileInput.files[0];
+          console.log("loading file " + file.name);
+          var fr = new FileReader();
+
+          async function doUpload () {
+              var data = new Uint8Array(fr.result);
+              
+              const response = await fetch('../../games/api/replacerom.php', {
+                method: "POST",
+                body: new URLSearchParams({
+                  id: GAMEINFO.id
+                })
+              });
+              const json = await response.json();
+              const signedURL = json['url'];
+              
+              let romresponse = await fetch(signedURL, {
+                        method: "PUT",
+                        body: data,
+                        mode: 'cors',
+                        headers: {
+                          "Content-Type": "binary/octet-stream",
+                          "x-amz-acl": "public-read"
+                        },
+                    });
+
+                    if (romresponse.ok) {
+                        alert("Upload successful!");
+                        window.location = "https://gametank.zone/emulator/web?game=" + GAMEINFO.id;
+                    } else {
+                        console.error("Upload failed", await response.text());
+                    }
+
+              fileInput.value = '';
+          };
+
+          fr.onload = () => {
+            doUpload();
+          }
+          fr.readAsArrayBuffer(file);
+      }
         </script>
 
         
@@ -381,7 +430,7 @@
       }
 
       function loadRomByID(gameID) {
-        var romUrl = `https://gametankgames.nyc3.cdn.digitaloceanspaces.com/games/phpapi/${gameID}/game.gtr`;
+        var romUrl = `https://gametankgames.nyc3.digitaloceanspaces.com/games/phpapi/${gameID}/game.gtr`;
         var romName = `game-${gameID}.gtr`;
         if(!loadedFiles[romName]) {
           fetch(romUrl)
