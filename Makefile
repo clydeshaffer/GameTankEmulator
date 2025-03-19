@@ -1,6 +1,6 @@
 # specifes the directory to place the build files.
 OUT_DIR = build
-INSTALL_DIR = bin
+INSTALL_DIR = ~/.local
 DIST_DIR = dist
 
 #CC specifies which C compiler we're using
