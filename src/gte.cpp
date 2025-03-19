@@ -863,8 +863,8 @@ void refreshScreen() {
 	dest.y = (scr_h - dest.h) / 2;
 	//SDL_BlitScaled(vRAM_Surface, &src, screenSurface, &dest);
 			
-	if (true) {
-		draw_square(system_state, vRAM_Surface, 0,0,20,20,0xFFFFFFFF);
+	if (fourthwall.is_broken && *fourthwall.game_ram_pointer == 3) {
+		fourthwall.show_overlay(system_state, vRAM_Surface);
 	}
 
 	SDL_UpdateTexture(framebufferTexture, NULL, vRAM_Surface->pixels, vRAM_Surface->pitch);
