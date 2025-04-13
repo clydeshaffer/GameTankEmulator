@@ -628,7 +628,7 @@ extern "C" {
 
 		fseek(romFileP, 0L, SEEK_END);
 		cartridge_state.size = ftell(romFileP);
-		cartridge_state.rom = new uint8_t [cartridge_state.size];
+		//cartridge_state.rom = new uint8_t [cartridge_state.size];
 		cartridge_state.write_mode = false;
 		rewind(romFileP);
 		switch(cartridge_state.size) {
@@ -1152,6 +1152,7 @@ EM_BOOL mainloop(double time, void* userdata) {
 
 int main(int argC, char* argV[]) {
 	srand(time(NULL));
+	cartridge_state.rom = new uint8_t[1 << 21];
 
 	const char* rom_file_name = NULL;
 
@@ -1167,20 +1168,10 @@ int main(int argC, char* argV[]) {
 	}
 #endif
 
-	if(!rom_file_name || LoadRomFile(rom_file_name) == -1) {
-		paused = true;
-#ifdef TINYFILEDIALOGS_H
-		if(rom_file_name) {
-			tinyfd_notifyPopup("Alert",
-			"No ROM was loaded",
-			"warning");
-		}
-#endif
-		cartridge_state.rom = new uint8_t [cartridge_state.size];
+	//cartridge_state.rom = new uint8_t [cartridge_state.size];
 		for(int i = 0; i < cartridge_state.size; i++) {
 			cartridge_state.rom[i] = 0;
 		}
-	}
 
 	joysticks = new JoystickAdapter();
 	soundcard = new AudioCoprocessor();
@@ -1195,7 +1186,7 @@ int main(int argC, char* argV[]) {
 
 	bmpFont = SDL_CreateRGBSurfaceFrom(font_map, 128, 128, 32, 4 * 128, rmask, gmask, bmask, amask);
 
-	vRAM_Surface = SDL_CreateRGBSurface(0, GT_WIDTH, GT_HEIGHT * 2, 32, rmask, gmask, bmask, amask);
+	vRAM_Surface = SDL_CreateRGBSurface(0, GT_WIDTH, GT_HEIGHT * 2, 32, rmask, gmask, bmfask, amask);
 	gRAM_Surface = SDL_CreateRGBSurface(0, GT_WIDTH, GT_HEIGHT * 32, 32, rmask, gmask, bmask, amask);
 
 	SDL_SetColorKey(vRAM_Surface, SDL_FALSE, 0);
@@ -1229,6 +1220,18 @@ int main(int argC, char* argV[]) {
 	#endif
 
 	randomize_vram();
+
+	if(!rom_file_name || LoadRomFile(rom_file_name) == -1) {
+		paused = true;
+#ifdef TINYFILEDIALOGS_H
+		if(rom_file_name) {
+			tinyfd_notifyPopup("Alert",
+			"No ROM was loaded",
+			"warning");
+		}
+#endif
+		
+	}
 
 #ifdef WASM_BUILD
 
