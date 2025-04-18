@@ -78,6 +78,9 @@ std::string currentRomFilePath;
 std::string nvramFileFullPath;
 std::string flashFileFullPath;
 
+bool vsyncProfileArmed = false;
+bool vsyncProfileRunning = false;
+
 void SaveNVRAM() {
 	fstream file;
 	if(loadedRomType != RomType::FLASH2M_RAM32K) return;
@@ -353,6 +356,13 @@ uint8_t MemorySync(uint16_t address) {
 			timekeeper.clock_mode = CLOCKMODE_STOPPED;
 			Disassembler::Decode(MemoryReadResolve, loadedMemoryMap, address, 32);
 			cpu_core->Freeze();
+		}
+		uint8_t opcode = MemoryReadResolve(address, false);
+		if(opcode == 0x20) { //JSR
+			uint16_t jsr_dest = MemoryReadResolve(address+1, false) | (MemoryReadResolve(address+2, false) << 8);
+			profiler.LogJSR(address, cartridge_state.bank_mask, jsr_dest);
+		} else if(opcode == 0x60) { //RTS
+			profiler.LogRTS(address, cartridge_state.bank_mask);
 		}
 	}
 	return MemoryRead(address);
@@ -899,6 +909,9 @@ void refreshScreen() {
 			if(ImGui::MenuItem("Dump RAM to file (F6)")) {
 				doRamDump();
 			}
+			if(ImGui::MenuItem("Deep Profile Single Vsync")) {
+				vsyncProfileArmed = true;
+			}
 			ImGui::EndMenu();
 		}
 		ImGui::EndMainMenuBar();
@@ -1020,6 +1033,14 @@ EM_BOOL mainloop(double time, void* userdata) {
 				timekeeper.cycles_since_vsync -= timekeeper.cycles_per_vsync;
 				if(system_state.dma_control & DMA_VSYNC_NMI_BIT) {
 					cpu_core->NMI();
+					if(vsyncProfileArmed) {
+						profiler.DeepProfileStart();
+						vsyncProfileArmed = false;
+						vsyncProfileRunning = true;
+					} else if(vsyncProfileRunning) {
+						profiler.DeepProfileStop(loadedMemoryMap, SourceMap::singleton);
+						vsyncProfileRunning = false;
+					}
 				}
 				if(!profiler.measure_by_frameflip) {
 					profiler.ResetTimers();
