@@ -42,6 +42,7 @@ void Profiler::DeepProfileStart() {
     deepProfileIsRecording = true;
     deepProfileStartCycleCount = timekeeper.totalCyclesCount;
     lastDeepProfileRoot = nullptr;
+    deepProfileZoomFocus = nullptr;
     timeline.clear();
     for(auto& ptr : cleanupList) {
         free(ptr);

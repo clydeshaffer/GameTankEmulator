@@ -68,5 +68,6 @@ public:
     void DeepProfileStart();
     void DeepProfileStop(MemoryMap* memory_map, SourceMap* source_map);
     DeepProfileCallNode* lastDeepProfileRoot;
+    DeepProfileCallNode* deepProfileZoomFocus;
     std::vector<DeepProfileCallNode*> cleanupList;
 };
