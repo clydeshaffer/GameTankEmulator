@@ -31,7 +31,18 @@ namespace ImGui
 
 struct ComboAutoSelectData;
 struct ComboFilterData;
-struct ComboFilterSearchResultData;
+// Result data from a search algorithm
+// Contains the index of the item from list and the score of the item
+struct ComboFilterSearchResultData
+{
+	int Index;
+	int Score;
+
+	bool operator < (const ComboFilterSearchResultData& other) const noexcept
+	{
+		return this->Score < other.Score;
+	}
+};
 
 template<typename T1>
 struct ComboAutoSelectSearchCallbackData;
@@ -180,19 +191,6 @@ struct ComboFilterData : Internal::ComboData
 	bool SetNewValue(const char* new_val) noexcept;
 	void ResetToInitialValue() noexcept;
 	void ResetAll() noexcept;
-};
-
-// Result data from a search algorithm
-// Contains the index of the item from list and the score of the item
-struct ComboFilterSearchResultData
-{
-	int Index;
-	int Score;
-
-	bool operator < (const ComboFilterSearchResultData& other) const noexcept
-	{
-		return this->Score < other.Score;
-	}
 };
 
 template<typename T>
