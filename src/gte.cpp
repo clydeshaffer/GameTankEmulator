@@ -1162,11 +1162,8 @@ EM_BOOL mainloop(double time, void* userdata) {
 		ImPlot::DestroyContext(main_implot_ctx);
     	ImGui::DestroyContext(main_imgui_ctx);
 #endif
-		printf("Finished running\n");
-		
     	SDL_DestroyRenderer(mainRenderer);
 		SDL_DestroyWindow(mainWindow);
-		SDL_Quit();
 	}
 	return running;
 }
@@ -1263,6 +1260,12 @@ int main(int argC, char* argV[]) {
 		mainloop(0, NULL);
 	}
 	joysticks->SaveBindings();
+#endif
+
+#ifndef WASM_BUILD
+	if(savingThread.joinable()) {
+		savingThread.join();
+	}
 #endif
 	return 0;
 }
