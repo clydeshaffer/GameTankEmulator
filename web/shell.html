@@ -118,7 +118,8 @@
     <hr/>
     <div class="emscripten landscapeOnly">
       <input id="RomFileInput" type="file" onchange="useFileInput(this);" style="display: none"/>
-      <input type="button" id="loadimg" value="Load ROM" onclick="document.getElementById('RomFileInput').click();" />
+      <input type="button" id="loadimg" value="Open ROM" onclick="document.getElementById('RomFileInput').click();" />
+      <input type="button" id="downloadROM" value="Download ROM" onclick="goDownloadRom();"/>
 
 
       <div class="editonly">
@@ -429,8 +430,19 @@
         }
       }
 
+      function romURLForID(gameID) {
+        return `https://gametankgames.nyc3.digitaloceanspaces.com/games/phpapi/${gameID}/game.gtr`;
+      }
+
+      function goDownloadRom() {
+        var urlRomID = getParameterByName('game');
+        if(urlRomID != null) {
+          window.location.href = romURLForID(urlRomID);
+        }
+      }
+
       function loadRomByID(gameID) {
-        var romUrl = `https://gametankgames.nyc3.digitaloceanspaces.com/games/phpapi/${gameID}/game.gtr`;
+        var romUrl = romURLForID(gameID);
         var romName = `game-${gameID}.gtr`;
         if(!loadedFiles[romName]) {
           fetch(romUrl)
