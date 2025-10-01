@@ -837,6 +837,23 @@ bool checkHotkey(SDL_Keycode  key) {
 #define EM_BOOL int
 #endif
 
+// Force a redraw of the sdl surfaces for vRAM and gRAM
+// This is useful when the entire screen needs to be redrawn following a palette swap
+void redrawVramGramSurfaces() {
+    int vramSize = vRAM_Surface->w * vRAM_Surface->h;
+    int gramSize = gRAM_Surface->w * gRAM_Surface->h;
+    Uint32 *vramPixels = (Uint32 *)vRAM_Surface->pixels;
+    Uint32 *gramPixels = (Uint32 *)gRAM_Surface->pixels;
+
+    for (int i; i < vramSize; i++) {
+	vramPixels[i] = Palette::ConvertColor(vRAM_Surface, system_state.vram[i]);
+    }
+
+    for (int i; i < gramSize; i++) {
+	gramPixels[i] = Palette::ConvertColor(gRAM_Surface, system_state.gram[i]);
+    }
+}
+
 void refreshScreen() {
 	SDL_Rect src, dest;
 	int scr_w, scr_h;
@@ -879,11 +896,13 @@ void refreshScreen() {
 			ImGui::SliderInt("Volume", &AudioCoprocessor::singleton_acp_state->volume, 0, 256);
 			ImGui::Checkbox("Mute", &AudioCoprocessor::singleton_acp_state->isMuted);
 			if(ImGui::BeginMenu("Pallete")) {
-				ImGui::RadioButton("Unscaled Capture", &palette_select, PALETTE_SELECT_CAPTURE);
-				ImGui::RadioButton("Full Contrast", &palette_select, PALETTE_SELECT_SCALED);
-				ImGui::RadioButton("Cheap HDMI converter", &palette_select, PALETTE_SELECT_HDMI);
-				ImGui::RadioButton("Flawed Theory (Legacy)", &palette_select, PALETTE_SELECT_OLD);
-				ImGui::EndMenu();
+			    if (ImGui::RadioButton("Unscaled Capture", &palette_select, PALETTE_SELECT_CAPTURE) ||
+				ImGui::RadioButton("Full Contrast", &palette_select, PALETTE_SELECT_SCALED) ||
+				ImGui::RadioButton("Cheap HDMI converter", &palette_select, PALETTE_SELECT_HDMI) ||
+				ImGui::RadioButton("Flawed Theory (Legacy)", &palette_select, PALETTE_SELECT_OLD)) {
+			      redrawVramGramSurfaces();
+			    }
+			    ImGui::EndMenu();
 			}
 			ImGui::EndMenu();
 		}
