@@ -479,13 +479,13 @@
         var urlRomName = getParameterByName('rom');
         if(urlRomName != null) {
           loadRomByName(urlRomName);
-          document.getElementById("RomSelectList").value = urlRomName;
+          //document.getElementById("RomSelectList").value = urlRomName;
         }
 
         var urlRomID = getParameterByName('game');
         if(urlRomID != null) {
           loadRomByID(urlRomID);
-          document.getElementById("RomSelectList").value = 'other';
+          //document.getElementById("RomSelectList").value = 'other';
         }
 
         var buttonGrid = [[0, 0b0000100000001000, 0, 0b0000000000100000, 0, 0b0010000000000000, 0],
