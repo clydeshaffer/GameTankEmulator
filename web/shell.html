@@ -90,24 +90,12 @@
     </style>
   </head>
   <body>
-    <div style="text-align: center;">
-      <select id="RomSelectList" onchange="loadRomFromList(this);">
-        <option> Select a cartridge </option>
-        <option value="hello.gtr"> Hello World </option>
-        <option value="tetris.gtr"> Tetris </option>
-        <option value="badapple.gtr"> Bad Apple </option>
-        <option value="cubicle.gtr"> Cubicle Knight </option>
-        <option value="fiend.gtr"> Accursed Fiend </option>
-        <option value="barrels.gtr"> Bob's Barrels </option>
-        <option value="tanks.gtr"> Tanks! </option>
-        <option value="words.gtr"> Word Guess Game </option>
-        <option value="multi.gtr"> Arcade Multi Pack </option>
-        <option value="other"> ----- </option>
-      </select>
+    <div class="emscripten landscapeOnly">
+      <h1><span id="title-span"></span></h1>
     </div>
     <hr/>
     <figure style="overflow:visible;" id="spinner"><div class="spinner"></div><center style="margin-top:0.5em"><strong>emscripten</strong></center></figure>
-    <div class="emscripten" id="status">Downloading...</div>
+    <div class="emscripten" id="status" style="display: none;">Downloading...</div>
     <div class="emscripten">
       <progress value="0" max="100" id="progress" hidden=1></progress>  
     </div>
@@ -149,7 +137,7 @@
         <input type="button" id="loadimg2" value="Upload new ROM" onclick="document.getElementById('RomFileInput2').click();" />
     
         <script>
-          if(GAMEINFO != undefined) {
+          if(typeof GAMEINFO != "undefined") {
             // Populate form fields with GAMEINFO values
             document.getElementById('gameId').value = GAMEINFO.id;
             document.getElementById('title').value = GAMEINFO.title;
@@ -199,7 +187,7 @@
 
 
           async function captureScreenshotAndUpload() {
-            if(GAMEINFO != undefined) {
+            if(typeof GAMEINFO != "undefined") {
               const response = await fetch('../../games/api/screenshot.php', {
                 method: "POST",
                 body: new URLSearchParams({
@@ -271,6 +259,9 @@
     
     <hr/>
     <div class="landscapeOnly">
+
+      <span id="description-span"></span>
+      
       <h2>Player 1 Controls:</h2>
       <ul>
         <li>Arrow Keys = Directional Buttons</li>
@@ -525,8 +516,10 @@
         }
       }
 
-      if(GAMEINFO != undefined) {
+      if(typeof GAMEINFO != "undefined") {
         document.getElementById('canvas').getContext("webgl", {preserveDrawingBuffer: true});
+        document.getElementById('title-span').innerText = GAMEINFO.title;
+        document.getElemenyById('description-span').innerHTML = GAMEINFO.description;
       }
     </script>
     {{{ SCRIPT }}}
