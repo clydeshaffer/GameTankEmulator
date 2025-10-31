@@ -25,6 +25,9 @@ void AudioCoprocessor::register_write(uint16_t address, uint8_t value) {
             SDL_LockAudioDevice(state.device);
             state.cpu->NMI();
             state.cpu->Run(state.cycles_per_sample, state.cycle_counter);
+#ifdef WRAPPER_MODE
+            state.cpu->Run(state.cycles_per_sample, state.cycle_counter);
+#endif
             SDL_UnlockAudioDevice(state.device);
 			break;
 		case ACP_RATE:

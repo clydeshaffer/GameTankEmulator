@@ -26,7 +26,7 @@ endif
 #OBJS specifies which files to compile as part of the project
 SRCS := $(filter-out %example_implot.cpp, $(shell $(FIND) src -name "*.cpp"))
 OBJS = $(SRCS:%=$(OUT_DIR)/%.o)
-NATIVE_SRCS = src/tinyfd/tinyfiledialogs.c
+NATIVE_SRCS = src/tinyfd/tinyfiledialogs.c src/whereami/whereami.c
 NATIVE_OBJS = $(NATIVE_SRCS:%=$(OUT_DIR)/%.o)
 
 #BIN_NAME specifies the name of our exectuable
@@ -36,7 +36,7 @@ ZIP_NAME = GTE_$(OS).zip
 WEB_SHELL ?= web/shell.html
 WEB_ASSETS ?= web/static/
 
-IMGUI_INCLUDES = -Isrc/imgui -Isrc/imgui/backends -Isrc/imgui/ext/implot
+EXTRA_INCLUDES = -Isrc/imgui -Isrc/imgui/backends -Isrc/imgui/ext/implot -Isrc/whereami
 
 ifeq ($(NIGHTLY), yes)
 	TAG = _$(shell date '+%Y%m%d')
@@ -59,7 +59,7 @@ ifeq ($(OS), Windows_NT)
 	SDL_ROOT = ../SDL2-2.26.2/x86_64-w64-mingw32
 
 	#INCLUDE_PATHS specifies the additional include paths we'll need
-	INCLUDE_PATHS = -I$(SDL_ROOT)/include/SDL2 $(IMGUI_INCLUDES)
+	INCLUDE_PATHS = -I$(SDL_ROOT)/include/SDL2 $(EXTRA_INCLUDES)
 
 	#LIBRARY_PATHS specifies the additional library paths we'll need
 	LIBRARY_PATHS = -L$(SDL_ROOT)/lib
@@ -71,6 +71,10 @@ ifeq ($(OS), Windows_NT)
 	# change subsystem,windows to subsystem,console to get printfs on command line
 	COMPILER_FLAGS = -Wl,-subsystem,windows
 	DEFINES += -D _WIN32
+
+	ifeq ($(WRAPPERMODE), yes)
+		COMPILER_FLAGS += -D DEFAULT_ROM_PATH='"gamedata.gtr"' -D WRAPPER_MODE=1
+	endif
 
 	#LINKER_FLAGS specifies the libraries we're linking against
 	LINKER_FLAGS = -lmingw32 -lSDL2main -lSDL2 -Wl,-Bstatic -mwindows -lm -ldinput8 -ldxguid -ldxerr8 -luser32 -lgdi32 -lwinmm -limm32 -lcomdlg32 -lole32 -loleaut32 -lshell32 -lversion -luuid -static-libgcc -lsetupapi
@@ -93,7 +97,7 @@ else ifeq ($(OS), wasm)
 	SRCS := $(filter-out %window.cpp, $(SRCS))
 else
 	OBJS += $(NATIVE_OBJS)
-	COMPILER_FLAGS = -g `sdl2-config --cflags` $(IMGUI_INCLUDES)
+	COMPILER_FLAGS = -g `sdl2-config --cflags` $(EXTRA_INCLUDES)
 	LINKER_FLAGS = `sdl2-config --libs`
 endif
 

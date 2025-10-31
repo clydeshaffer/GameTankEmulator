@@ -48,6 +48,7 @@
 #include "implot.h"
 #include "imgui/backends/imgui_impl_sdl2.h"
 #include "imgui/backends/imgui_impl_sdlrenderer2.h"
+#include "whereami/whereami.h"
 #endif
 
 #ifndef WINDOW_TITLE
@@ -813,7 +814,7 @@ typedef struct HotkeyAssignment {
 HotkeyAssignment hotkeys[] = {
 	{&toggleFullScreen, SDLK_F11},
 	{&toggleMute, SDLK_m},
-#ifndef WASM_BUILD
+#if !defined(WASM_BUILD) && !defined(WRAPPER_MODE)
 	{&doRamDump, SDLK_F6},
 	{&toggleSteppingWindow, SDLK_F7},
 	{&takeScreenShot, SDLK_F8},
@@ -866,7 +867,7 @@ void refreshScreen() {
 
 	SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
 
-#ifndef WASM_BUILD
+#if !defined(WASM_BUILD) && !defined(WRAPPER_MODE)
 	ImGui::SetCurrentContext(main_imgui_ctx);
 
     ImGui_ImplSDLRenderer2_NewFrame();
@@ -1005,8 +1006,10 @@ EM_BOOL mainloop(double time, void* userdata) {
 				if(timekeeper.lastTicks != 0) {
 					int time_error = (timekeeper.currentTicks - timekeeper.lastTicks) - (1000 * intended_cycles/timekeeper.system_clock);
 					if(timekeeper.frameCount == 100) {
+#ifndef WRAPPER_MODE						
 					  sprintf(titlebuf, "%s | %s | s: %.1f inc: %.1f err: %d\n", WINDOW_TITLE, currentRomFilePath.c_str(), timekeeper.time_scaling, timekeeper.scaling_increment, time_error);
 						SDL_SetWindowTitle(mainWindow, titlebuf);
+#endif
 						profiler.fps = profiler.bufferFlipCount * 60 / 100;
 						timekeeper.frameCount = 0;
 						profiler.bufferFlipCount = 0;
@@ -1106,12 +1109,13 @@ EM_BOOL mainloop(double time, void* userdata) {
 							break;
 						case SDLK_RSHIFT:
 							rshift = (e.type == SDL_KEYDOWN);
-							break;
+							break;							
 						case SDLK_ESCAPE:
-							#ifndef DISABLE_ESC
+							#if !defined(DISABLE_ESC) && !defined(WRAPPER_MODE)
 								running = false;
 							#endif
 							break;
+#ifndef WRAPPER_MODE
 						case SDLK_BACKQUOTE:
 							gofast = (e.type == SDL_KEYDOWN);
 							break;
@@ -1139,6 +1143,7 @@ EM_BOOL mainloop(double time, void* userdata) {
 								}
 							}
 							break;
+#endif
 						default:
 							joysticks->update(&e);
 							break;
@@ -1185,7 +1190,7 @@ int main(int argC, char* argV[]) {
 
 	const char* rom_file_name = NULL;
 
-#ifdef WASM_BUILD
+#ifdef EMBED_ROM_FILE
 	rom_file_name = EMBED_ROM_FILE;
 #else
 	for(int argIdx = 1; argIdx < argC; ++argIdx) {
@@ -1193,6 +1198,22 @@ int main(int argC, char* argV[]) {
 			EmulatorConfig::parseArg(argV[argIdx]);
 		} else if(!rom_file_name) {
 			rom_file_name = argV[argIdx];
+		}
+	}
+#endif
+
+#ifdef DEFAULT_ROM_PATH
+	if(argC == 1) {
+		int execPathLength = wai_getExecutablePath(NULL, 0, NULL);
+		if(execPathLength != -1) {
+			char* path = (char*)malloc(execPathLength + 1);
+			wai_getExecutablePath(path, execPathLength, NULL);
+			path[execPathLength] = '\0';
+			std::filesystem::path execPath(path);
+			free(path);
+			std::filesystem::path romPath = execPath.parent_path() / DEFAULT_ROM_PATH;
+			std::string romPathStr = (execPath.parent_path() / DEFAULT_ROM_PATH).string();
+			rom_file_name = strdup(romPathStr.c_str());
 		}
 	}
 #endif
