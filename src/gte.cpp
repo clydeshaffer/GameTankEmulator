@@ -68,7 +68,7 @@ JoystickAdapter *joysticks;
 SystemState system_state;
 CartridgeState cartridge_state;
 
-const int SCREEN_WIDTH = 512;
+const int SCREEN_WIDTH = 683;	
 const int SCREEN_HEIGHT = 512;
 RGB_Color *palette;
 
@@ -142,7 +142,7 @@ void LoadModifiedFlash() {
 	while(orig_rom && xor_file) {
 		orig_rom.read((char*) buf, 256);
 		xor_file.read((char*) bufx, 256); 
-		for(int i = 0; i < 256; ++i) {
+		for(int i = 0; i < orig_rom.gcount(); ++i) {
 			*(rom_cursor++) = buf[i] ^ bufx[i];
 		}
 		bytes_read += 256;
@@ -853,6 +853,17 @@ void refreshScreen() {
 	SDL_UpdateTexture(framebufferTexture, NULL, vRAM_Surface->pixels, vRAM_Surface->pitch);
 
 	SDL_RenderClear(mainRenderer);
+	SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
+
+	src.x = GT_WIDTH-1;
+	src.w = 1;
+	dest.w = dest.w * 86.0 / 512.0;
+	dest.x -= dest.w;
+
+	SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
+
+	dest.x += dest.w + dest.h;
+
 	SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
 
 #ifndef WASM_BUILD
