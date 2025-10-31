@@ -85,7 +85,7 @@ else ifeq ($(OS), wasm)
 	    LINKER_FLAGS += --preload-file $(PRELOAD_ROM)
 	endif
 
-	COMPILER_FLAGS += -s USE_SDL=2 -D WASM_BUILD -D EMBED_ROM_FILE='"$(ROMFILE)"'
+	COMPILER_FLAGS += -s USE_SDL=2 -D WASM_BUILD -D EMBED_ROM_FILE='"$(ROMFILE)"' -s TOTAL_STACK=512mb
 	DEFINES += -D DISABLE_ESC
 	BIN_NAME = index.html
 	LINKER_FLAGS += --embed-file $(ROMFILE) --shell-file $(WEB_SHELL) -s EXPORTED_FUNCTIONS='["_LoadRomFile", "_main", "_SetButtons", "_PauseEmulation", "_ResumeEmulation", "_takeScreenShot"]' -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]' -lidbfs.js
