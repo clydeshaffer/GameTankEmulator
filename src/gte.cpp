@@ -901,6 +901,9 @@ void refreshScreen() {
 						LoadRomFile(rom_file_name);
 					}	
 				}
+				if(ImGui::MenuItem("Exit")) {
+					running = false;
+				}
 				ImGui::EndMenu();
 			}
 			if(ImGui::BeginMenu("Settings")) {
