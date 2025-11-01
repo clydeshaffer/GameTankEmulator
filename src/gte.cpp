@@ -82,6 +82,15 @@ std::string flashFileFullPath;
 bool vsyncProfileArmed = false;
 bool vsyncProfileRunning = false;
 
+bool showMenu = false;
+int resetQueued = 0;
+bool menuSelectPressed = false;
+int escMenuSelection = 0;
+int escMenuNumItems = 3;
+#define MUTE_SOURCE_MANUAL 1
+#define MUTE_SOURCE_MENU 2
+int muteMask = 0;
+
 void SaveNVRAM() {
 	fstream file;
 	if(loadedRomType != RomType::FLASH2M_RAM32K) return;
@@ -803,7 +812,16 @@ void toggleFullScreen() {
 }
 
 void toggleMute() {
-	AudioCoprocessor::singleton_acp_state->isMuted = !AudioCoprocessor::singleton_acp_state->isMuted;
+	muteMask = muteMask ^ MUTE_SOURCE_MANUAL;
+	AudioCoprocessor::singleton_acp_state->isMuted = (muteMask != 0);
+}
+
+void setMenuMute(bool muted) {
+	muteMask &= ~MUTE_SOURCE_MENU;
+	if(muted) {
+		muteMask |= MUTE_SOURCE_MENU;
+	}
+	AudioCoprocessor::singleton_acp_state->isMuted = (muteMask != 0);
 }
 
 typedef struct HotkeyAssignment {
@@ -867,66 +885,129 @@ void refreshScreen() {
 
 	SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
 
-#if !defined(WASM_BUILD) && !defined(WRAPPER_MODE)
+#if !defined(WASM_BUILD)
 	ImGui::SetCurrentContext(main_imgui_ctx);
 
     ImGui_ImplSDLRenderer2_NewFrame();
     ImGui_ImplSDL2_NewFrame();
 	ImGui::NewFrame();
-	if(ImGui::BeginMainMenuBar()) {
-		if (ImGui::BeginMenu("File")) {
-			if(ImGui::MenuItem("Open Rom")) {
-				const char* rom_file_name = open_rom_dialog();
-				if(rom_file_name) {
-					LoadRomFile(rom_file_name);
-				}	
-			}
-			ImGui::EndMenu();
-		}
-		if(ImGui::BeginMenu("Settings")) {
-			if(ImGui::MenuItem("Controllers")) {
-				toggleControllerOptionsWindow();
-			}
-			ImGui::MenuItem("Toggle Instant Blits", NULL, &(blitter->instant_mode));
-			ImGui::SliderInt("Volume", &AudioCoprocessor::singleton_acp_state->volume, 0, 256);
-			ImGui::Checkbox("Mute", &AudioCoprocessor::singleton_acp_state->isMuted);
-			if(ImGui::BeginMenu("Pallete")) {
-				ImGui::RadioButton("Unscaled Capture", &palette_select, PALETTE_SELECT_CAPTURE);
-				ImGui::RadioButton("Full Contrast", &palette_select, PALETTE_SELECT_SCALED);
-				ImGui::RadioButton("Cheap HDMI converter", &palette_select, PALETTE_SELECT_HDMI);
-				ImGui::RadioButton("Flawed Theory (Legacy)", &palette_select, PALETTE_SELECT_OLD);
+	if(showMenu) {
+#ifndef WRAPPER_MODE
+		if(ImGui::BeginMainMenuBar()) {
+			if (ImGui::BeginMenu("File")) {
+				if(ImGui::MenuItem("Open Rom")) {
+					const char* rom_file_name = open_rom_dialog();
+					if(rom_file_name) {
+						LoadRomFile(rom_file_name);
+					}	
+				}
 				ImGui::EndMenu();
 			}
-			ImGui::EndMenu();
+			if(ImGui::BeginMenu("Settings")) {
+				if(ImGui::MenuItem("Controllers")) {
+					toggleControllerOptionsWindow();
+				}
+				ImGui::MenuItem("Toggle Instant Blits", NULL, &(blitter->instant_mode));
+				ImGui::SliderInt("Volume", &AudioCoprocessor::singleton_acp_state->volume, 0, 256);
+				ImGui::Checkbox("Mute", &AudioCoprocessor::singleton_acp_state->isMuted);
+				if(ImGui::BeginMenu("Pallete")) {
+					ImGui::RadioButton("Unscaled Capture", &palette_select, PALETTE_SELECT_CAPTURE);
+					ImGui::RadioButton("Full Contrast", &palette_select, PALETTE_SELECT_SCALED);
+					ImGui::RadioButton("Cheap HDMI converter", &palette_select, PALETTE_SELECT_HDMI);
+					ImGui::RadioButton("Flawed Theory (Legacy)", &palette_select, PALETTE_SELECT_OLD);
+					ImGui::EndMenu();
+				}
+				ImGui::EndMenu();
+			}
+			if(ImGui::BeginMenu("Tools")) {
+				if(ImGui::MenuItem("Profiler (F12)")) {
+					toggleProfilerWindow();
+				}
+				if(ImGui::MenuItem("Memory Browser (F9)")) {
+					toggleMemBrowserWindow();
+				}
+				if(ImGui::MenuItem("VRAM Viewer (F10)")) {
+					toggleVRAMWindow();
+				}
+				if(ImGui::MenuItem("Code Stepper (F7)")) {
+					toggleSteppingWindow();
+				}
+				if(ImGui::MenuItem("Patching Window")) {
+					togglePatchingWindow();
+				}
+				if(ImGui::MenuItem("Update Patches")) {
+					gameconfig->UpdateAllPatches(cartridge_state.rom);
+				}
+				if(ImGui::MenuItem("Dump RAM to file (F6)")) {
+					doRamDump();
+				}
+				if(ImGui::MenuItem("Deep Profile Single Vsync")) {
+					vsyncProfileArmed = true;
+				}
+				ImGui::EndMenu();
+			}
+			ImGui::EndMainMenuBar();
 		}
-		if(ImGui::BeginMenu("Tools")) {
-			if(ImGui::MenuItem("Profiler (F12)")) {
-				toggleProfilerWindow();
+#else
+		ImGui::SetNextWindowPos(ImVec2(0, 0));
+		ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+		ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0, 0, 0, 0.5f)); // 50% transparent black
+		ImGui::Begin("OverlayBackground", nullptr,
+			ImGuiWindowFlags_NoDecoration |
+			ImGuiWindowFlags_NoInputs | 
+			ImGuiWindowFlags_NoMove |
+			ImGuiWindowFlags_NoBringToFrontOnFocus);
+		ImGui::End();
+		ImGui::PopStyleColor();
+		ImGui::PopStyleVar(2);
+
+		// Now create the actual menu window in the top-left corner
+		ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_Always);
+		ImGui::SetNextWindowBgAlpha(0.9f);
+		ImGui::Begin("MainMenu", nullptr,
+			ImGuiWindowFlags_AlwaysAutoResize |
+			ImGuiWindowFlags_NoCollapse |
+			ImGuiWindowFlags_NoMove |
+			ImGuiWindowFlags_NoSavedSettings |
+			ImGuiWindowFlags_NoTitleBar);
+
+		const char* items[] = { "Options", "Reset", "Exit" };
+		int escMenuNumItems = IM_ARRAYSIZE(items);
+
+		// Draw selectable items
+		for (int i = 0; i < escMenuNumItems; i++) {
+			if (ImGui::Selectable(items[i], escMenuSelection == i)) {
+				if (i == 0) {
+				// Options
+				} else if (i == 1) {
+					// Reset
+					resetQueued = 2;
+					showMenu = false;
+					setMenuMute(showMenu);
+				} else if (i == 2) {
+					// Exit
+					running = false;
+				}
 			}
-			if(ImGui::MenuItem("Memory Browser (F9)")) {
-				toggleMemBrowserWindow();
-			}
-			if(ImGui::MenuItem("VRAM Viewer (F10)")) {
-				toggleVRAMWindow();
-			}
-			if(ImGui::MenuItem("Code Stepper (F7)")) {
-				toggleSteppingWindow();
-			}
-			if(ImGui::MenuItem("Patching Window")) {
-				togglePatchingWindow();
-			}
-			if(ImGui::MenuItem("Update Patches")) {
-				gameconfig->UpdateAllPatches(cartridge_state.rom);
-			}
-			if(ImGui::MenuItem("Dump RAM to file (F6)")) {
-				doRamDump();
-			}
-			if(ImGui::MenuItem("Deep Profile Single Vsync")) {
-				vsyncProfileArmed = true;
-			}
-			ImGui::EndMenu();
 		}
-		ImGui::EndMainMenuBar();
+		if (menuSelectPressed) {
+			menuSelectPressed = false;
+			if (escMenuSelection == 0) {
+				// Options
+			} else if (escMenuSelection == 1) {
+				// Reset
+				resetQueued = 2;
+				showMenu = false;
+				setMenuMute(showMenu);
+			} else if (escMenuSelection == 2) {
+				// Exit
+				running = false;
+			}
+		}
+		ImGui::End();
+#endif
 	}
 	ImGui::Render();
 	ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData());
@@ -954,7 +1035,11 @@ EM_BOOL mainloop(double time, void* userdata) {
         frame_time_accumulator -= target_frame_period_ms;
 #endif
 
+#ifdef WRAPPER_MODE
+	if(!paused && !showMenu) {
+#else
 	if(!paused) {
+#endif
 			timekeeper.actual_cycles = timekeeper.totalCyclesCount;
 #ifndef WASM_BUILD
 			switch(timekeeper.clock_mode) {
@@ -1111,8 +1196,13 @@ EM_BOOL mainloop(double time, void* userdata) {
 							rshift = (e.type == SDL_KEYDOWN);
 							break;							
 						case SDLK_ESCAPE:
-							#if !defined(DISABLE_ESC) && !defined(WRAPPER_MODE)
-								running = false;
+							#if !defined(DISABLE_ESC)
+							if(e.type == SDL_KEYDOWN) {
+								showMenu = !showMenu;
+#ifdef WRAPPER_MODE
+								setMenuMute(showMenu);
+#endif
+							}
 							#endif
 							break;
 #ifndef WRAPPER_MODE
@@ -1121,13 +1211,13 @@ EM_BOOL mainloop(double time, void* userdata) {
 							break;
 						case SDLK_r:
 							//TODO add menu item for reset
-							paused = false;
-							if(lshift || rshift) {
-								randomize_memory();
-								randomize_vram();
+							if(e.type == SDL_KEYDOWN) {
+								if(lshift || rshift) {
+									resetQueued = 2;
+								} else {
+									resetQueued = 1;
+								}
 							}
-							cpu_core->Reset();
-							cartridge_state.write_mode = false;
 							break;
 						case SDLK_o:
 							if(e.type == SDL_KEYDOWN) {
@@ -1145,12 +1235,22 @@ EM_BOOL mainloop(double time, void* userdata) {
 							break;
 #endif
 						default:
-							joysticks->update(&e);
+							if(!showMenu) {
+								joysticks->update(&e);
+							} else {
+								if ((e.type == SDL_KEYDOWN) && (e.key.keysym.sym == SDLK_DOWN))
+									escMenuSelection = (escMenuSelection + 1) % escMenuNumItems;
+								else if ((e.type == SDL_KEYDOWN) && (e.key.keysym.sym == SDLK_UP))
+									escMenuSelection = (escMenuSelection - 1 + escMenuNumItems) % escMenuNumItems;
+								else if ((e.type == SDL_KEYDOWN) && (e.key.keysym.sym == SDLK_RETURN))
+									menuSelectPressed = true;
+							}
 							break;
 					}
 				}
             } else if(e.key.repeat == 0) {
-				joysticks->update(&e);
+				if(!showMenu)
+					joysticks->update(&e);
 			}
         }
 
@@ -1180,6 +1280,18 @@ EM_BOOL mainloop(double time, void* userdata) {
 #endif
     	SDL_DestroyRenderer(mainRenderer);
 		SDL_DestroyWindow(mainWindow);
+	}
+
+	if(resetQueued) {
+		paused = false;
+		if(lshift || rshift || (resetQueued == 2)) {
+			randomize_memory();
+			randomize_vram();
+		}
+		cpu_core->Reset();
+		cartridge_state.write_mode = false;
+		joysticks->Reset();
+		resetQueued = 0;
 	}
 	return running;
 }

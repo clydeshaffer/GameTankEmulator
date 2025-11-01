@@ -196,3 +196,11 @@ void JoystickAdapter::update(SDL_Event *e) {
 void JoystickAdapter::SetHeldButtons(uint16_t heldMask) {
 	held1Mask = heldMask;
 }
+
+void JoystickAdapter::Reset() {
+	pad1State = false;
+	pad2State = false;
+	pad1Mask = 0;
+	pad2Mask = 0;
+	held1Mask = 0;
+}

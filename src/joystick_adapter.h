@@ -64,4 +64,5 @@ public:
 	void SetHeldButtons(uint16_t heldMask);
 	std::vector<InputBinding> bindings;
 	void SaveBindings();
+	void Reset();
 };
