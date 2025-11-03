@@ -53,11 +53,6 @@ uint8_t JoystickAdapter::read(uint8_t portNum, bool stateful) {
 	return ~outbyte;
 }
 
-#define BUTTON_COUNT 8
-uint8_t button_press_counts[BUTTON_COUNT*2] = {
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-};
 uint16_t button_masks[BUTTON_COUNT] = {
 	GameTankButtons::UP,
 	GameTankButtons::DOWN,
@@ -94,7 +89,8 @@ void JoystickAdapter::update(SDL_Event *e) {
 				if(e->type == SDL_KEYDOWN) {
 					++button_press_counts[buttonId];
 				} else if(e->type == SDL_KEYUP) {
-					--button_press_counts[buttonId];
+					if(button_press_counts[buttonId] > 0)
+						--button_press_counts[buttonId];
 				}
 
 				if(button_press_counts[buttonId] > 0) {
@@ -143,7 +139,8 @@ void JoystickAdapter::update(SDL_Event *e) {
 					if(e->type == SDL_JOYBUTTONDOWN) {
 						++button_press_counts[buttonId];
 					} else if(e->type == SDL_JOYBUTTONUP) {
-						--button_press_counts[buttonId];
+						if(button_press_counts[buttonId] > 0)
+							--button_press_counts[buttonId];
 					}
 
 					if(button_press_counts[buttonId] > 0) {
@@ -203,4 +200,7 @@ void JoystickAdapter::Reset() {
 	pad1Mask = 0;
 	pad2Mask = 0;
 	held1Mask = 0;
+	for(int i = 0; i < (BUTTON_COUNT*2); ++i) {
+		button_press_counts[i] = 0;
+	}
 }

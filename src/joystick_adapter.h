@@ -48,6 +48,8 @@ typedef struct InputBinding {
     GameTankButtons::ButtonId button;
 } InputBinding;
 
+#define BUTTON_COUNT 8
+
 class JoystickAdapter {
 private:
 	bool pad1State = false;
@@ -55,6 +57,10 @@ private:
 	uint16_t pad1Mask = 0;
 	uint16_t pad2Mask = 0;
 	uint16_t held1Mask = 0;
+	uint8_t button_press_counts[BUTTON_COUNT*2] = {
+		0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,
+	};
 	SDL_Joystick* gGameController = NULL;
 public:
 	JoystickAdapter();

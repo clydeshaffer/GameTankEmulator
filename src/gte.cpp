@@ -83,10 +83,8 @@ bool vsyncProfileArmed = false;
 bool vsyncProfileRunning = false;
 
 bool showMenu = false;
+bool menuOpening = false;
 int resetQueued = 0;
-bool menuSelectPressed = false;
-int escMenuSelection = 0;
-int escMenuNumItems = 3;
 #define MUTE_SOURCE_MANUAL 1
 #define MUTE_SOURCE_MENU 2
 int muteMask = 0;
@@ -887,7 +885,6 @@ void refreshScreen() {
 
 #if !defined(WASM_BUILD)
 	ImGui::SetCurrentContext(main_imgui_ctx);
-
     ImGui_ImplSDLRenderer2_NewFrame();
     ImGui_ImplSDL2_NewFrame();
 	ImGui::NewFrame();
@@ -969,6 +966,10 @@ void refreshScreen() {
 		// Now create the actual menu window in the top-left corner
 		ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_Always);
 		ImGui::SetNextWindowBgAlpha(0.9f);
+		if(!ImGui::IsAnyItemFocused()) {
+			ImGui::SetNextWindowFocus();
+		}
+		menuOpening = false;
 		ImGui::Begin("MainMenu", nullptr,
 			ImGuiWindowFlags_AlwaysAutoResize |
 			ImGuiWindowFlags_NoCollapse |
@@ -976,39 +977,37 @@ void refreshScreen() {
 			ImGuiWindowFlags_NoSavedSettings |
 			ImGuiWindowFlags_NoTitleBar);
 
-		const char* items[] = { "Options", "Reset", "Exit" };
-		int escMenuNumItems = IM_ARRAYSIZE(items);
+			ImGui::SetWindowFontScale(2.0f);
 
-		// Draw selectable items
-		for (int i = 0; i < escMenuNumItems; i++) {
-			if (ImGui::Selectable(items[i], escMenuSelection == i)) {
-				if (i == 0) {
-				// Options
-				} else if (i == 1) {
-					// Reset
-					resetQueued = 2;
-					showMenu = false;
-					setMenuMute(showMenu);
-				} else if (i == 2) {
-					// Exit
-					running = false;
-				}
+		if (ImGui::IsWindowAppearing())
+    		ImGui::SetKeyboardFocusHere(-1);
+		
+
+		if (ImGui::BeginMenu("Options")) {
+			// These are items inside the pop-out menu
+			if (ImGui::MenuItem("Toggle Full Screen")) {
+				toggleFullScreen();
 			}
+			ImGui::SliderInt("Volume", &AudioCoprocessor::singleton_acp_state->volume, 0, 256, "", ImGuiSliderFlags_NoInput);
+			bool appMute = (muteMask & MUTE_SOURCE_MANUAL) != 0;
+			ImGui::Checkbox("Mute Audio", &appMute);
+			if(appMute) muteMask |= MUTE_SOURCE_MANUAL;
+			else muteMask &= ~MUTE_SOURCE_MANUAL;
+			AudioCoprocessor::singleton_acp_state->isMuted = (muteMask != 0);
+			ImGui::EndMenu();
 		}
-		if (menuSelectPressed) {
-			menuSelectPressed = false;
-			if (escMenuSelection == 0) {
-				// Options
-			} else if (escMenuSelection == 1) {
-				// Reset
-				resetQueued = 2;
-				showMenu = false;
-				setMenuMute(showMenu);
-			} else if (escMenuSelection == 2) {
-				// Exit
-				running = false;
-			}
+
+		if(ImGui::Selectable("Reset")) {
+			resetQueued = 2;
+			showMenu = false;
+			setMenuMute(showMenu);
+			joysticks->Reset();
 		}
+
+		if(ImGui::Selectable("Exit")) {
+			running = false;
+		}
+
 		ImGui::End();
 #endif
 	}
@@ -1151,11 +1150,10 @@ EM_BOOL mainloop(double time, void* userdata) {
 				}
 			}
 		} else {
-			SDL_Delay(100);
+				SDL_Delay(16);
 		}
 		blitter->CatchUp();
-		refreshScreen();
-		SDL_UpdateWindowSurface(mainWindow);
+		
 
 		if(EmulatorConfig::noSound) {
 			AudioCoprocessor::fill_audio(AudioCoprocessor::singleton_acp_state, NULL, intended_cycles / AudioCoprocessor::singleton_acp_state->cycles_per_sample);
@@ -1164,7 +1162,12 @@ EM_BOOL mainloop(double time, void* userdata) {
 		while( SDL_PollEvent( &e ) != 0 )
         {
 #ifndef WASM_BUILD
+
+#ifdef WRAPPER_MODE
+			if(true){
+#else
 			if(SDL_GetMouseFocus() == mainWindow) {
+#endif
 				ImGui::SetCurrentContext(main_imgui_ctx);
 				ImPlot::SetCurrentContext(main_implot_ctx);
 				ImGui_ImplSDL2_ProcessEvent(&e);
@@ -1173,10 +1176,12 @@ EM_BOOL mainloop(double time, void* userdata) {
 				toolWindow->HandleEvent(e);
 			}
 
+#ifndef WRAPPER_MODE
 			if(ImGui::GetIO().WantCaptureKeyboard && ((e.type == SDL_KEYDOWN) || (e.type == SDL_KEYUP))) {
 				continue;
 			}
-#endif
+#endif //WRAPPER_MODE
+#endif //WASM_BUILD
             //User requests quit
             if( e.type == SDL_QUIT )
             {
@@ -1202,6 +1207,7 @@ EM_BOOL mainloop(double time, void* userdata) {
 							#if !defined(DISABLE_ESC)
 							if(e.type == SDL_KEYDOWN) {
 								showMenu = !showMenu;
+								menuOpening = showMenu;
 #ifdef WRAPPER_MODE
 								setMenuMute(showMenu);
 #endif
@@ -1238,24 +1244,20 @@ EM_BOOL mainloop(double time, void* userdata) {
 							break;
 #endif
 						default:
-							if(!showMenu) {
+							if(!(showMenu || resetQueued)) {
 								joysticks->update(&e);
-							} else {
-								if ((e.type == SDL_KEYDOWN) && (e.key.keysym.sym == SDLK_DOWN))
-									escMenuSelection = (escMenuSelection + 1) % escMenuNumItems;
-								else if ((e.type == SDL_KEYDOWN) && (e.key.keysym.sym == SDLK_UP))
-									escMenuSelection = (escMenuSelection - 1 + escMenuNumItems) % escMenuNumItems;
-								else if ((e.type == SDL_KEYDOWN) && (e.key.keysym.sym == SDLK_RETURN))
-									menuSelectPressed = true;
 							}
 							break;
 					}
 				}
             } else if(e.key.repeat == 0) {
-				if(!showMenu)
+				if(!(showMenu || resetQueued))
 					joysticks->update(&e);
 			}
         }
+
+		refreshScreen();
+		SDL_UpdateWindowSurface(mainWindow);
 
 #ifndef WASM_BUILD
 		for (auto& window : toolWindows) {
@@ -1367,6 +1369,8 @@ int main(int argC, char* argV[]) {
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
 	io.ConfigViewportsNoAutoMerge = true;
 	io.IniFilename = NULL;
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+	io.Fonts->Flags |= ImFontAtlasFlags_NoBakedLines;
 	ImGui::StyleColorsDark();
 	ImGui_ImplSDL2_InitForSDLRenderer(mainWindow, mainRenderer);
 	ImGui_ImplSDLRenderer2_Init(mainRenderer);
