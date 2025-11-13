@@ -61,8 +61,6 @@ The DMA controller can be configured for direct CPU access to either page of the
 
 The blitter can also be used to draw rectangles of solid color, or to skip copying pixels with value 0x00 to treat them as transparent.
 
-**Note:** The emulated blitting engine copies sprites relatively instantly, but the actual hardware copies at a rate closer to 1 pixel per CPU clock cycle.
-
 ### Audio:
 
 Audio is produced by a second 6502 connected to an 8-bit DAC and 4K of dual-port RAM. The main processor can write programs to the Audio RAM from 0x3000 to 0x3FFF, and trigger interrupts on the Audio Processor by writing to certain registers.
