@@ -278,9 +278,9 @@ void UpdateFlashShiftRegister(uint8_t nextVal) {
 	uint8_t oldVal = system_state.VIA_regs[VIA_ORA];
 	uint8_t risingBits = nextVal & ~oldVal;
 	if(risingBits & VIA_SPI_BIT_CLK) {
-		cartridge_state.bank_shifter = cartridge_state.bank_shifter << 1;
-		cartridge_state.bank_shifter &= 0xFE;
-		cartridge_state.bank_shifter |= !!(oldVal & VIA_SPI_BIT_MOSI);
+		cartridge_state.bank_shifter = cartridge_state.bank_shifter >> 1;
+		cartridge_state.bank_shifter &= 0b00111111;
+		cartridge_state.bank_shifter |= (!!(oldVal & VIA_SPI_BIT_MOSI)) << 6;
 	} else if(risingBits & VIA_SPI_BIT_CS) {
 		//flash cart CS is connected to latch clock
 		if((cartridge_state.bank_mask ^ cartridge_state.bank_shifter) & 0x80) {
