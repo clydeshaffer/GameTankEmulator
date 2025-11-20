@@ -49,6 +49,33 @@ For Windows users, I've set up an automated [nightly build](https://gametank.zon
 
 _For now I'm listing the differences between the emulator and the real hardware; stopping short of writing a programming manual for the GameTank which will be a separate wiki-like document to come later_
 
+## Build Instructions:
+
+The GameTankEmulator is compiled with [GCC, the GNU Compiler Collection](https://gcc.gnu.org). Please make sure GCC is available on your system.
+
+This project includes some dependencies via [Git Submodules](https://git-scm.com/book/en/v2/Git-Tools-Submodules). To ensure these dependencies are available, either clone with `--recurse-submodules` or run the following commands after cloning:
+
+```sh
+$ git submodule init
+$ git submodule update
+```
+
+If when building you receive the error `fatal error: implot.h: No such file or directory`, the is likely due to not correctly pulling in the required Git Submodules.
+
+The GameTank Emulator also depends on SDL2. On Linux, X11 development libraries are also required. If you while building you receive errors like `fatal error: SDL2/SDL.h: No such file or directory` or `fatal error: X11/Xlib.h: No such file or directory` please make sure that these libraries are installed.
+
+Once all dependencies are ready, the GameTank Emulator can be built by using make:
+
+```sh
+$ make install
+```
+
+This should build the GameTank Emulator and install it to `./bin` (the location can be changed with the `$INSTALL_DIR` environment variable). One of the included test roms can then be used to confirm that the GameTank Emulator is functioning as intended:
+
+```sh
+$ ./bin/GameTankEmulator roms/hello.gtr
+```
+
 ## Emulated Capabilities:
 
 ### Video:
