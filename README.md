@@ -51,6 +51,8 @@ _For now I'm listing the differences between the emulator and the real hardware;
 
 ## Build Instructions:
 
+The GameTankEmulator is compiled with [GCC, the GNU Compiler Collection](https://gcc.gnu.org). Please make sure GCC is available on your system.
+
 This project includes some dependencies via [Git Submodules](https://git-scm.com/book/en/v2/Git-Tools-Submodules). To ensure these dependencies are available, either clone with `--recurse-submodules` or run the following commands after cloning:
 
 ```sh
