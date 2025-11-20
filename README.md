@@ -58,6 +58,8 @@ $ git submodule init
 $ git submodule update
 ```
 
+If when building you receive the error `fatal error: implot.h: No such file or directory`, the is likely due to not correctly pulling in the required Git Submodules.
+
 The GameTank Emulator also depends on SDL2. On Linux, X11 development libraries are also required. If you while building you receive errors like `fatal error: SDL2/SDL.h: No such file or directory` or `fatal error: X11/Xlib.h: No such file or directory` please make sure that these libraries are installed.
 
 Once all dependencies are ready, the GameTank Emulator can be built by using make:
