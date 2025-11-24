@@ -65,6 +65,9 @@ private:
 	void Op_BBRx(uint8_t mask, uint8_t val, uint16_t offset);
 	void Op_BBSx(uint8_t mask, uint8_t val, uint16_t offset);
 
+	void Op_RMBx(uint8_t mask, uint16_t location);
+	void Op_SMBx(uint8_t mask, uint16_t location);
+
 	// addressing modes
 	uint16_t Addr_ACC(); // ACCUMULATOR
 	uint16_t Addr_IMM(); // IMMEDIATE
@@ -178,6 +181,24 @@ private:
 	void Op_BBS5(uint16_t src);
 	void Op_BBS6(uint16_t src);
 	void Op_BBS7(uint16_t src);
+
+	void Op_SMB0(uint16_t src);
+	void Op_SMB1(uint16_t src);
+	void Op_SMB2(uint16_t src);
+	void Op_SMB3(uint16_t src);
+	void Op_SMB4(uint16_t src);
+	void Op_SMB5(uint16_t src);
+	void Op_SMB6(uint16_t src);
+	void Op_SMB7(uint16_t src);
+
+	void Op_RMB0(uint16_t src);
+	void Op_RMB1(uint16_t src);
+	void Op_RMB2(uint16_t src);
+	void Op_RMB3(uint16_t src);
+	void Op_RMB4(uint16_t src);
+	void Op_RMB5(uint16_t src);
+	void Op_RMB6(uint16_t src);
+	void Op_RMB7(uint16_t src);
 
 	void Op_ILLEGAL(uint16_t src);
 

@@ -897,6 +897,86 @@ mos6502::mos6502(BusRead r, BusWrite w, CPUEvent stp, BusRead sync)
 	instr.cycles = 6;
 	InstrTable[0x7C] = instr;
 
+	instr.addr = &mos6502::Addr_ZER;
+	instr.code = &mos6502::Op_RMB0;
+	instr.cycles = 5;
+	InstrTable[0x07] = instr;
+
+	instr.addr = &mos6502::Addr_ZER;
+	instr.code = &mos6502::Op_RMB1;
+	instr.cycles = 5;
+	InstrTable[0x17] = instr;
+
+	instr.addr = &mos6502::Addr_ZER;
+	instr.code = &mos6502::Op_RMB2;
+	instr.cycles = 5;
+	InstrTable[0x27] = instr;
+
+	instr.addr = &mos6502::Addr_ZER;
+	instr.code = &mos6502::Op_RMB3;
+	instr.cycles = 5;
+	InstrTable[0x37] = instr;
+
+	instr.addr = &mos6502::Addr_ZER;
+	instr.code = &mos6502::Op_RMB4;
+	instr.cycles = 5;
+	InstrTable[0x47] = instr;
+
+	instr.addr = &mos6502::Addr_ZER;
+	instr.code = &mos6502::Op_RMB5;
+	instr.cycles = 5;
+	InstrTable[0x57] = instr;
+
+	instr.addr = &mos6502::Addr_ZER;
+	instr.code = &mos6502::Op_RMB6;
+	instr.cycles = 5;
+	InstrTable[0x67] = instr;
+
+	instr.addr = &mos6502::Addr_ZER;
+	instr.code = &mos6502::Op_RMB7;
+	instr.cycles = 5;
+	InstrTable[0x77] = instr;
+
+	instr.addr = &mos6502::Addr_ZER;
+	instr.code = &mos6502::Op_SMB0;
+	instr.cycles = 5;
+	InstrTable[0x87] = instr;
+
+	instr.addr = &mos6502::Addr_ZER;
+	instr.code = &mos6502::Op_SMB1;
+	instr.cycles = 5;
+	InstrTable[0x97] = instr;
+
+	instr.addr = &mos6502::Addr_ZER;
+	instr.code = &mos6502::Op_SMB2;
+	instr.cycles = 5;
+	InstrTable[0xA7] = instr;
+
+	instr.addr = &mos6502::Addr_ZER;
+	instr.code = &mos6502::Op_SMB3;
+	instr.cycles = 5;
+	InstrTable[0xB7] = instr;
+
+	instr.addr = &mos6502::Addr_ZER;
+	instr.code = &mos6502::Op_SMB4;
+	instr.cycles = 5;
+	InstrTable[0xC7] = instr;
+
+	instr.addr = &mos6502::Addr_ZER;
+	instr.code = &mos6502::Op_SMB5;
+	instr.cycles = 5;
+	InstrTable[0xD7] = instr;
+
+	instr.addr = &mos6502::Addr_ZER;
+	instr.code = &mos6502::Op_SMB6;
+	instr.cycles = 5;
+	InstrTable[0xE7] = instr;
+
+	instr.addr = &mos6502::Addr_ZER;
+	instr.code = &mos6502::Op_SMB7;
+	instr.cycles = 5;
+	InstrTable[0xF7] = instr;
+
 	Reset();
 
 	return;
@@ -2129,4 +2209,98 @@ void mos6502::Op_BBS7(uint16_t src)
 	uint16_t offset = (uint16_t) Read(pc++);
 
 	Op_BBSx(0x80, val, offset);
+}
+
+void mos6502::Op_RMBx(uint8_t mask, uint16_t location)
+{
+	uint8_t m = Read(location);
+	m = m & ~mask;
+	Write(location, m);
+}
+
+void mos6502::Op_SMBx(uint8_t mask, uint16_t location)
+{
+	uint8_t m = Read(location);
+	m = m | mask;
+	Write(location, m);
+}
+
+void mos6502::Op_RMB0(uint16_t src)
+{
+	Op_RMBx(1, src);
+}
+
+void mos6502::Op_RMB1(uint16_t src)
+{
+	Op_RMBx(2, src);
+}
+
+void mos6502::Op_RMB2(uint16_t src)
+{
+	Op_RMBx(4, src);
+}
+
+void mos6502::Op_RMB3(uint16_t src)
+{
+	Op_RMBx(8, src);
+}
+
+void mos6502::Op_RMB4(uint16_t src)
+{
+	Op_RMBx(16, src);
+}
+
+void mos6502::Op_RMB5(uint16_t src)
+{
+	Op_RMBx(32, src);
+}
+
+void mos6502::Op_RMB6(uint16_t src)
+{
+	Op_RMBx(64, src);
+}
+
+void mos6502::Op_RMB7(uint16_t src)
+{
+	Op_RMBx(128, src);
+}
+
+void mos6502::Op_SMB0(uint16_t src)
+{
+	Op_SMBx(1, src);
+}
+
+void mos6502::Op_SMB1(uint16_t src)
+{
+	Op_SMBx(2, src);
+}
+
+void mos6502::Op_SMB2(uint16_t src)
+{
+	Op_SMBx(4, src);
+}
+
+void mos6502::Op_SMB3(uint16_t src)
+{
+	Op_SMBx(8, src);
+}
+
+void mos6502::Op_SMB4(uint16_t src)
+{
+	Op_SMBx(16, src);
+}
+
+void mos6502::Op_SMB5(uint16_t src)
+{
+	Op_SMBx(32, src);
+}
+
+void mos6502::Op_SMB6(uint16_t src)
+{
+	Op_SMBx(64, src);
+}
+
+void mos6502::Op_SMB7(uint16_t src)
+{
+	Op_SMBx(128, src);
 }
