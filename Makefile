@@ -59,6 +59,7 @@ ifeq ($(OS), Windows_NT)
 	SDL_ROOT = ../SDL2-2.26.2/x86_64-w64-mingw32
 
 	#INCLUDE_PATHS specifies the additional include paths we'll need
+	EXTRA_INCLUDES += -Iinclude
 	INCLUDE_PATHS = -I$(SDL_ROOT)/include/SDL2 $(EXTRA_INCLUDES)
 
 	#LIBRARY_PATHS specifies the additional library paths we'll need
@@ -69,8 +70,9 @@ ifeq ($(OS), Windows_NT)
 	#COMPILER_FLAGS specifies the additional compilation options we're using
 	# -Wl,-subsystem,windows gets rid of the console window
 	# change subsystem,windows to subsystem,console to get printfs on command line
-	COMPILER_FLAGS = -Wl,-subsystem,windows
+	COMPILER_FLAGS = -Wl,-subsystem,console
 	DEFINES += -D _WIN32
+	DEFINES += -DLIBREMIDI_WINMM=1 -DUNICODE=1 -D_UNICODE=1 -DLIBREMIDI_HEADER_ONLY=1
 
 	ifeq ($(WRAPPERMODE), yes)
 		COMPILER_FLAGS += -D DEFAULT_ROM_PATH='"gamedata.gtr"' -D WRAPPER_MODE=1
@@ -78,6 +80,7 @@ ifeq ($(OS), Windows_NT)
 
 	#LINKER_FLAGS specifies the libraries we're linking against
 	LINKER_FLAGS = -lmingw32 -lSDL2main -lSDL2 -Wl,-Bstatic -mwindows -lm -ldinput8 -ldxguid -ldxerr8 -luser32 -lgdi32 -lwinmm -limm32 -lcomdlg32 -lole32 -loleaut32 -lshell32 -lversion -luuid -static-libgcc -lsetupapi
+	LINKER_FLAGS += -lwinmm
 else ifeq ($(OS), wasm)
 	CC = emcc
 	CPPC = emcc

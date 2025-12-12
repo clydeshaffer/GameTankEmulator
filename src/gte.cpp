@@ -49,6 +49,7 @@
 #include "imgui/backends/imgui_impl_sdl2.h"
 #include "imgui/backends/imgui_impl_sdlrenderer2.h"
 #include "whereami/whereami.h"
+#include "exp/midi-adapter/midi-adapter.h"
 #endif
 
 #ifndef WINDOW_TITLE
@@ -68,6 +69,8 @@ AudioCoprocessor *soundcard;
 JoystickAdapter *joysticks;
 SystemState system_state;
 CartridgeState cartridge_state;
+
+ExpansionPortMidiAdapter expMidi;
 
 const int SCREEN_WIDTH = 683;	
 const int SCREEN_HEIGHT = 512;
@@ -337,6 +340,7 @@ uint8_t MemoryReadResolve(const uint16_t address, bool stateful) {
 	} else if((address >= 0x3000) && (address <= 0x3FFF)) {
 		return soundcard->ram_read(address);
 	} else if((address >= 0x2800) && (address <= 0x2FFF)) {
+		if((address & 0xF) == VIA_ORB) return expMidi.ExpansionPortRead(address);
 		return system_state.VIA_regs[address & 0xF];
 	} else if(address < 0x2000) {
 		if(stateful) {
@@ -915,6 +919,10 @@ void refreshScreen() {
 					ImGui::RadioButton("Full Contrast", &palette_select, PALETTE_SELECT_SCALED);
 					ImGui::RadioButton("Cheap HDMI converter", &palette_select, PALETTE_SELECT_HDMI);
 					ImGui::RadioButton("Flawed Theory (Legacy)", &palette_select, PALETTE_SELECT_OLD);
+					ImGui::EndMenu();
+				}
+				if(ImGui::BeginMenu("Expansion Port Device")) {
+					expMidi.ExpansionSettingsMenu();
 					ImGui::EndMenu();
 				}
 				ImGui::EndMenu();
