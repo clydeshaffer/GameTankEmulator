@@ -987,7 +987,7 @@ mos6502::mos6502(BusRead r, BusWrite w, CPUEvent stp, BusRead sync)
 // addresses cross page boundaries
 inline bool mos6502::addressesSamePage(uint16_t a, uint16_t b)
 {
-	return (a & 0xFF00 == b & 0xFF00);
+	return ((a & 0xFF00) == (b & 0xFF00));
 }
 
 uint16_t mos6502::Addr_ACC()

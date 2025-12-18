@@ -15,6 +15,10 @@ ExpansionPortMidiAdapter::ExpansionPortMidiAdapter()
     input_port = nullptr;
     msg_buf_head = 0;
     msg_buf_tail = 0;
+
+    if(obs.get_input_ports().size() > 0) {
+        midi.open_port(obs.get_input_ports()[0]);
+    }
 }
 
 void ExpansionPortMidiAdapter::handle_message(const libremidi::message& message)
