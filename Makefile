@@ -37,6 +37,7 @@ WEB_SHELL ?= web/shell.html
 WEB_ASSETS ?= web/static/
 
 EXTRA_INCLUDES = -Isrc/imgui -Isrc/imgui/backends -Isrc/imgui/ext/implot -Isrc/whereami
+EXTRA_INCLUDES += -Iinclude
 
 ifeq ($(NIGHTLY), yes)
 	TAG = _$(shell date '+%Y%m%d')
@@ -59,7 +60,6 @@ ifeq ($(OS), Windows_NT)
 	SDL_ROOT = ../SDL2-2.26.2/x86_64-w64-mingw32
 
 	#INCLUDE_PATHS specifies the additional include paths we'll need
-	EXTRA_INCLUDES += -Iinclude
 	INCLUDE_PATHS = -I$(SDL_ROOT)/include/SDL2 $(EXTRA_INCLUDES)
 
 	#LIBRARY_PATHS specifies the additional library paths we'll need
@@ -98,6 +98,10 @@ else ifeq ($(OS), wasm)
 	LINKER_FLAGS += --embed-file $(ROMFILE) --shell-file $(WEB_SHELL) -s EXPORTED_FUNCTIONS='["_LoadRomFile", "_main", "_SetButtons", "_PauseEmulation", "_ResumeEmulation", "_takeScreenShot"]' -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]' -lidbfs.js
 	SRCS :=  $(filter-out $(foreach src,$(SRCS),$(if $(findstring imgui,$(src)), $(src))),$(SRCS))
 	SRCS := $(filter-out %window.cpp, $(SRCS))
+else ifeq ($(OS), Darwin)
+	OBJS += $(NATIVE_OBJS)
+	COMPILER_FLAGS = -g `sdl2-config --cflags` -DLIBREMIDI_COREMIDI=1 -DLIBREMIDI_HEADER_ONLY=1 $(EXTRA_INCLUDES)
+	LINKER_FLAGS = `sdl2-config --libs` -framework CoreFoundation -framework CoreAudio -framework CoreMIDI
 else
 	OBJS += $(NATIVE_OBJS)
 	COMPILER_FLAGS = -g `sdl2-config --cflags` $(EXTRA_INCLUDES)
