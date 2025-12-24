@@ -62,6 +62,7 @@ private:
 		0, 0, 0, 0, 0, 0, 0, 0,
 	};
 	SDL_Joystick* gGameController = NULL;
+	SDL_JoystickID gGameControllerId = 0;
 public:
 	JoystickAdapter();
 	~JoystickAdapter();

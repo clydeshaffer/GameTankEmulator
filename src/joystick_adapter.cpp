@@ -14,6 +14,7 @@ JoystickAdapter::JoystickAdapter() {
 		if(SDL_NumJoysticks() > 0) {
 			printf("Joystick found\n");
 			gGameController = SDL_JoystickOpen(0);
+			gGameControllerId = SDL_JoystickInstanceID(gGameController);
 		} else {
 			printf("Joystick NOT found\n");
 		}
@@ -21,8 +22,10 @@ JoystickAdapter::JoystickAdapter() {
 }
 
 JoystickAdapter::~JoystickAdapter() {
-	SDL_JoystickClose(gGameController);
-	gGameController = NULL;
+	if(gGameController != NULL) {
+		SDL_JoystickClose(gGameController);
+		gGameController = NULL;
+	}
 }
 
 uint8_t JoystickAdapter::read(uint8_t portNum, bool stateful) {
@@ -80,10 +83,23 @@ void JoystickAdapter::update(SDL_Event *e) {
 		Start - DB9 pin 9 (select LOW) - bit 5
 		select status - bit 7
 	*/
+
+	if((e->type == SDL_JOYDEVICEADDED) && (gGameController == NULL)) {
+		gGameController = SDL_JoystickOpen(e->jdevice.which);
+		gGameControllerId = SDL_JoystickInstanceID(gGameController);
+	}
+
+	if((e->type == SDL_JOYDEVICEREMOVED) && (gGameController != NULL)) {
+		if(e->jdevice.which == gGameControllerId) {
+			SDL_JoystickClose(gGameController);
+			gGameController = NULL;
+		}
+	}
+
 	uint16_t buttonMask = 0;
 	GameTankButtons::ButtonId buttonId = GameTankButtons::NO_BUTTON;
 	for (InputBinding binding : this->bindings) {
-		if((binding.type == BindingTypes::KEYBOARD) && (e->type == SDL_KEYDOWN || e->type == SDL_KEYUP)) {
+		if((binding.type == BindingTypes::KEYBOARD) && ((e->type == SDL_KEYDOWN) || (e->type == SDL_KEYUP))) {
 			if(binding.host_input.key == e->key.keysym.sym) {
 				buttonId = binding.button;
 				if(e->type == SDL_KEYDOWN) {
@@ -133,8 +149,8 @@ void JoystickAdapter::update(SDL_Event *e) {
 				}
 			}
 		} else if (binding.type == BindingTypes::JOYSTICK_BUTTON) {
-			if(e->type == SDL_JOYBUTTONDOWN || e->type == SDL_JOYBUTTONUP) {
-				if(binding.host_input.joy_button == e->jbutton.button) {
+			if((e->type == SDL_JOYBUTTONDOWN) || (e->type == SDL_JOYBUTTONUP)) {
+				if((binding.host_input.joy_button) == (e->jbutton.button)) {
 					buttonId = binding.button;
 					if(e->type == SDL_JOYBUTTONDOWN) {
 						++button_press_counts[buttonId];
@@ -184,7 +200,7 @@ void JoystickAdapter::update(SDL_Event *e) {
 						pad2Mask &= ~clearMask;
 					}
 				}
-				printf("Joystick axis %x %x\n", e->jaxis.axis, e->jaxis.value);
+				//printf("Joystick axis %x %x\n", e->jaxis.axis, e->jaxis.value);
 			}	
 		}
 	}

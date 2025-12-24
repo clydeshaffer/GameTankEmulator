@@ -1194,63 +1194,65 @@ EM_BOOL mainloop(double time, void* userdata) {
 						running = false;
 					}
 				}
-			} else if((e.key.repeat == 0) && (e.type == SDL_KEYDOWN || e.type == SDL_KEYUP)) {
-				if((e.type == SDL_KEYUP) || !checkHotkey(e.key.keysym.sym)) {
-					switch(e.key.keysym.sym) {
-						case SDLK_LSHIFT:
-							lshift = (e.type == SDL_KEYDOWN);
-							break;
-						case SDLK_RSHIFT:
-							rshift = (e.type == SDL_KEYDOWN);
-							break;							
-						case SDLK_ESCAPE:
-							#if !defined(DISABLE_ESC)
-							if(e.type == SDL_KEYDOWN) {
-								showMenu = !showMenu;
-								menuOpening = showMenu;
-#ifdef WRAPPER_MODE
-								setMenuMute(showMenu);
-#endif
-							}
-							#endif
-							break;
-#ifndef WRAPPER_MODE
-						case SDLK_BACKQUOTE:
-							gofast = (e.type == SDL_KEYDOWN);
-							break;
-						case SDLK_r:
-							//TODO add menu item for reset
-							if(e.type == SDL_KEYDOWN) {
-								if(lshift || rshift) {
-									resetQueued = 2;
-								} else {
-									resetQueued = 1;
+			} else if((e.type == SDL_KEYDOWN) || (e.type == SDL_KEYUP)) {
+				if(e.key.repeat == 0) {
+					if((e.type == SDL_KEYUP) || !checkHotkey(e.key.keysym.sym)) {
+						switch(e.key.keysym.sym) {
+							case SDLK_LSHIFT:
+								lshift = (e.type == SDL_KEYDOWN);
+								break;
+							case SDLK_RSHIFT:
+								rshift = (e.type == SDL_KEYDOWN);
+								break;							
+							case SDLK_ESCAPE:
+								#if !defined(DISABLE_ESC)
+								if(e.type == SDL_KEYDOWN) {
+									showMenu = !showMenu;
+									menuOpening = showMenu;
+	#ifdef WRAPPER_MODE
+									setMenuMute(showMenu);
+	#endif
 								}
-							}
-							break;
-						case SDLK_o:
-							if(e.type == SDL_KEYDOWN) {
-								const char* rom_file_name = open_rom_dialog();
-								if(rom_file_name) {
-									LoadRomFile(rom_file_name);
-								} else {
-#ifdef TINYFILEDIALOGS_H
-									tinyfd_notifyPopup("Alert",
-									"No ROM was loaded",
-									"warning");
-#endif
+								#endif
+								break;
+	#ifndef WRAPPER_MODE
+							case SDLK_BACKQUOTE:
+								gofast = (e.type == SDL_KEYDOWN);
+								break;
+							case SDLK_r:
+								//TODO add menu item for reset
+								if(e.type == SDL_KEYDOWN) {
+									if(lshift || rshift) {
+										resetQueued = 2;
+									} else {
+										resetQueued = 1;
+									}
 								}
-							}
-							break;
-#endif
-						default:
-							if(!(showMenu || resetQueued)) {
-								joysticks->update(&e);
-							}
-							break;
+								break;
+							case SDLK_o:
+								if(e.type == SDL_KEYDOWN) {
+									const char* rom_file_name = open_rom_dialog();
+									if(rom_file_name) {
+										LoadRomFile(rom_file_name);
+									} else {
+	#ifdef TINYFILEDIALOGS_H
+										tinyfd_notifyPopup("Alert",
+										"No ROM was loaded",
+										"warning");
+	#endif
+									}
+								}
+								break;
+	#endif
+							default:
+								if(!(showMenu || resetQueued)) {
+									joysticks->update(&e);
+								}
+								break;
+						}
 					}
 				}
-            } else if(e.key.repeat == 0) {
+            } else {
 				if(!(showMenu || resetQueued))
 					joysticks->update(&e);
 			}
