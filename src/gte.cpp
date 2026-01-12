@@ -1156,7 +1156,7 @@ EM_BOOL mainloop(double time, void* userdata) {
 		
 
 		if(EmulatorConfig::noSound) {
-			AudioCoprocessor::fill_audio(AudioCoprocessor::singleton_acp_state, NULL, intended_cycles / AudioCoprocessor::singleton_acp_state->cycles_per_sample);
+			AudioCoprocessor::fill_audio(AudioCoprocessor::singleton_acp_state, NULL, AudioCoprocessor::singleton_acp_state->samples_per_frame);
 		}
 
 		while( SDL_PollEvent( &e ) != 0 )

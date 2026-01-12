@@ -34,6 +34,7 @@ void AudioCoprocessor::register_write(uint16_t address, uint8_t value) {
 			state.irqRate = (((value << 1) & 0xFE) | (value & 1));
             state.running = (value & 0x80) != 0;
             state.cycles_per_sample = state.irqRate * state.clkMult;
+            state.samples_per_frame = 315000000 / (88 * 256 * 60);
             break;
 		default:
 			break;
@@ -163,6 +164,7 @@ AudioCoprocessor::AudioCoprocessor() {
     state.running = false;
     state.clksPerHostSample = 0;
     state.cycles_per_sample = 1024;
+    state.samples_per_frame = 233;
     state.last_irq_cycles = 0;
     state.volume = 256;
     state.isMuted = false;
@@ -175,6 +177,8 @@ AudioCoprocessor::AudioCoprocessor() {
 
     if(!EmulatorConfig::noSound) {
         StartAudio();
+    } else {
+        state.clksPerHostSample = 1024;
     }
 
 	return;

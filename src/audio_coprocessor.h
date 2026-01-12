@@ -19,6 +19,7 @@ typedef struct ACPState {
     uint8_t dacReg;
     uint16_t clksPerHostSample;
     uint64_t cycles_per_sample;
+	uint32_t samples_per_frame;
 	uint8_t clkMult;
 	SDL_AudioFormat format;
 	uint16_t last_irq_cycles;
