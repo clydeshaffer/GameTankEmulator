@@ -1,6 +1,6 @@
 # specifes the directory to place the build files.
 OUT_DIR = build
-INSTALL_DIR = bin
+INSTALL_DIR = .
 DIST_DIR = dist
 
 #CC specifies which C compiler we're using
@@ -115,14 +115,17 @@ dist: $(OUT_DIR)/$(ZIP_NAME)
 
 install: bin
 	@mkdir -p $(INSTALL_DIR)/bin
-	install -t $(INSTALL_DIR)/bin $(OUT_DIR)/$(BIN_NAME)
 ifeq ($(OS), Windows_NT)
+	install -t $(INSTALL_DIR)/bin $(OUT_DIR)/$(BIN_NAME)
 	install -t $(INSTALL_DIR)/bin $(SDL_ROOT)/bin/SDL2.dll
 else ifeq ($(OS), wasm)
+	install -t $(INSTALL_DIR)/bin $(OUT_DIR)/$(BIN_NAME)
 	@mkdir -p $(INSTALL_DIR)/bin/static
 	cp -r $(WEB_ASSETS) $(INSTALL_DIR)/bin/static
 	install -t $(INSTALL_DIR)/bin $(OUT_DIR)/index.js
 	install -t $(INSTALL_DIR)/bin $(OUT_DIR)/index.wasm
+else ifeq ($(OS), Darwin)
+	install $(OUT_DIR)/$(BIN_NAME) $(INSTALL_DIR)/bin
 endif
 
 $(OUT_DIR)/$(ZIP_NAME): bin commit_hash.txt
