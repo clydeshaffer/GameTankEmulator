@@ -24,7 +24,7 @@ else
 endif
 
 #OBJS specifies which files to compile as part of the project
-SRCS := $(filter-out %example_implot.cpp, $(shell $(FIND) src -name "*.cpp"))
+SRCS := $(filter-out %example/main.cpp %example_implot.cpp, $(shell $(FIND) src -name "*.cpp"))
 OBJS = $(SRCS:%=$(OUT_DIR)/%.o)
 NATIVE_SRCS = src/tinyfd/tinyfiledialogs.c src/whereami/whereami.c
 NATIVE_OBJS = $(NATIVE_SRCS:%=$(OUT_DIR)/%.o)
