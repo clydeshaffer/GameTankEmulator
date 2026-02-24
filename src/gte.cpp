@@ -1263,7 +1263,9 @@ EM_BOOL mainloop(double time, void* userdata) {
 
 #ifndef WASM_BUILD
 		for (auto& window : toolWindows) {
-			window->Draw();
+			if(window->IsOpen()) {
+				window->Draw();
+			}
 		}
 
 		auto const to_be_removed = std::partition(begin(toolWindows), end(toolWindows), [](auto w){ return w->IsOpen(); });
