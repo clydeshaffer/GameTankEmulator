@@ -27,10 +27,21 @@ DebugWindow::DebugWindow():BaseWindow(10, 10) {
     ImPlot::SetCurrentContext(oldPlotCtx);
 }
 
-DebugWindow::~DebugWindow() {
+void DebugWindow::Cleanup() {
+    if(imgui_already_cleaned) {
+        return;
+    }
+    ImGui::SetCurrentContext(ctx);
     ImPlot::DestroyContext(plot_ctx);
+    ImGui_ImplSDLRenderer2_Shutdown();
+    ImGui_ImplSDL2_Shutdown();
     ImGui::DestroyContext(ctx);
     SDL_DestroyRenderer(renderer);
+    imgui_already_cleaned = true;
+}
+
+DebugWindow::~DebugWindow() {
+    Cleanup();
 }
 
 void DebugWindow::Draw() {
@@ -58,7 +69,7 @@ void DebugWindow::Draw() {
     SDL_RenderSetScale(renderer, io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);
     SDL_SetRenderDrawColor(renderer, (Uint8)(clear_color.x * 255), (Uint8)(clear_color.y * 255), (Uint8)(clear_color.z * 255), (Uint8)(clear_color.w * 255));
     SDL_RenderClear(renderer);
-    ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData());
+    ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
     SDL_RenderPresent(renderer);
 }
 
@@ -68,6 +79,7 @@ void DebugWindow::HandleEvent(SDL_Event& e) {
             SDL_Window* closedWindow = SDL_GetWindowFromID(e.window.windowID);
             if(closedWindow == window) {
                 open = false;
+                Cleanup();
             }
         }
     }

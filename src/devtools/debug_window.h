@@ -8,7 +8,9 @@ class DebugWindow : public BaseWindow {
 private:
     ImGuiContext* ctx;
     ImPlotContext* plot_ctx;
+    bool imgui_already_cleaned = false;
     bool size_dirty = true;
+    void Cleanup();
 protected:
     SDL_Renderer* renderer;
     virtual ImVec2 Render() = 0;

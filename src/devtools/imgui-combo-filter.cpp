@@ -203,7 +203,7 @@ void SetScrollToComboItemJump(ImGuiWindow* listbox_window, int index)
 {
     const ImGuiContext& g = *GImGui;
     float spacing_y = ImMax(listbox_window->WindowPadding.y, g.Style.ItemSpacing.y);
-    float temp_pos = (g.Font->FontSize + g.Style.ItemSpacing.y) * index;
+    float temp_pos = (g.Font->LegacySize + g.Style.ItemSpacing.y) * index;
     float new_pos = ImLerp(temp_pos - spacing_y, temp_pos + g.FontSize + g.Style.ItemSpacing.y + spacing_y, 0.5f) - listbox_window->Scroll.y;
     ImGui::SetScrollFromPosY(listbox_window, new_pos + 2.50f, 0.5f);
 }
@@ -226,7 +226,7 @@ void SetScrollToComboItemDown(ImGuiWindow* listbox_window, int index)
         listbox_window->Scroll.y += diff + 1.0f;
 }
 
-void UpdateInputTextAndCursor(char* buf, int buf_capacity, const char* new_str)
+/*void UpdateInputTextAndCursor(char* buf, int buf_capacity, const char* new_str)
 {
     strncpy(buf, new_str, buf_capacity);
 
@@ -236,7 +236,7 @@ void UpdateInputTextAndCursor(char* buf, int buf_capacity, const char* new_str)
     intxt_state.CurLenW = ImTextStrFromUtf8(intxt_state.TextW.Data, intxt_state.TextW.Size, buf, NULL, &buf_end);
     intxt_state.CurLenA = (int)(buf_end - buf);
     intxt_state.Stb.cursor = intxt_state.Stb.select_end = static_cast<int>(strlen(buf));
-}
+}*/
 
 
 // Adapted from https://github.com/forrestthewoods/lib_fts/blob/master/code/fts_fuzzy_match.h

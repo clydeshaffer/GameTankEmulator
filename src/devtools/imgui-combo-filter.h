@@ -118,7 +118,7 @@ float CalcComboItemHeight(int item_count, float offset_multiplier = 1.0f);
 void SetScrollToComboItemJump(ImGuiWindow* listbox_window, int index);
 void SetScrollToComboItemUp(ImGuiWindow* listbox_window, int index);
 void SetScrollToComboItemDown(ImGuiWindow* listbox_window, int index);
-void UpdateInputTextAndCursor(char* buf, int buf_capacity, const char* new_str);
+//void UpdateInputTextAndCursor(char* buf, int buf_capacity, const char* new_str);
 
 // Created my own std::size and std::empty implementation to avoid additional header dependency
 template<typename T>
@@ -332,7 +332,7 @@ bool ComboAutoSelectEX(const char* combo_label, int& selected_item, const T1& it
 	ImGuiContext& g = *GImGui;
 	ImGuiWindow* window = GetCurrentWindow();
 
-	ImGuiNextWindowDataFlags backup_next_window_data_flags = g.NextWindowData.Flags;
+	ImGuiNextWindowDataFlags backup_next_window_data_flags = g.NextWindowData.HasFlags;
 	g.NextWindowData.ClearFlags(); // We behave like Begin() and need to consume those values
 	if (window->SkipItems)
 		return false;
@@ -407,7 +407,7 @@ bool ComboAutoSelectEX(const char* combo_label, int& selected_item, const T1& it
 	PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(3.50f, 5.00f));
 	const float popup_width = flags & (ImGuiComboFlags_NoPreview | ImGuiComboFlags_NoArrowButton) ? expected_w : w - arrow_size;
 	int popup_item_count = -1;
-	if (!(g.NextWindowData.Flags & ImGuiNextWindowDataFlags_HasSizeConstraint)) {
+	if (!(g.NextWindowData.HasFlags & ImGuiNextWindowDataFlags_HasSizeConstraint)) {
 		if ((flags & ImGuiComboFlags_HeightMask_) == 0)
 			flags |= ImGuiComboFlags_HeightRegular;
 		IM_ASSERT(ImIsPowerOfTwo(flags & ImGuiComboFlags_HeightMask_)); // Only one
@@ -551,7 +551,7 @@ bool ComboFilterEX(const char* combo_label, int& selected_item, const T1& items,
 	ImGuiContext* g = GImGui;
 	ImGuiWindow* window = GetCurrentWindow();
 
-	ImGuiNextWindowDataFlags backup_next_window_data_flags = g->NextWindowData.Flags;
+	ImGuiNextWindowDataFlags backup_next_window_data_flags = g->NextWindowData.HasFlags;
 	g->NextWindowData.ClearFlags(); // We behave like Begin() and need to consume those values
 	if (window->SkipItems)
 		return false;
@@ -619,7 +619,7 @@ bool ComboFilterEX(const char* combo_label, int& selected_item, const T1& items,
 
 	PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(3.50f, 5.00f));
 	int popup_item_count = -1;
-	if (!(g->NextWindowData.Flags & ImGuiNextWindowDataFlags_HasSizeConstraint)) {
+	if (!(g->NextWindowData.HasFlags & ImGuiNextWindowDataFlags_HasSizeConstraint)) {
 		if ((flags & ImGuiComboFlags_HeightMask_) == 0)
 			flags |= ImGuiComboFlags_HeightRegular;
 		IM_ASSERT(ImIsPowerOfTwo(flags & ImGuiComboFlags_HeightMask_)); // Only one

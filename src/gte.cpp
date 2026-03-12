@@ -1012,7 +1012,7 @@ void refreshScreen() {
 #endif
 	}
 	ImGui::Render();
-	ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData());
+	ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), mainRenderer);
 #endif
 	SDL_RenderPresent(mainRenderer);
 }
@@ -1176,6 +1176,9 @@ EM_BOOL mainloop(double time, void* userdata) {
 				toolWindow->HandleEvent(e);
 			}
 
+			ImGui::SetCurrentContext(main_imgui_ctx);
+			ImPlot::SetCurrentContext(main_implot_ctx);
+
 #ifndef WRAPPER_MODE
 			if(ImGui::GetIO().WantCaptureKeyboard && ((e.type == SDL_KEYDOWN) || (e.type == SDL_KEYUP))) {
 				continue;
@@ -1284,7 +1287,11 @@ EM_BOOL mainloop(double time, void* userdata) {
 		}
 		toolWindows.clear();
 
+		ImGui::SetCurrentContext(main_imgui_ctx);
+		ImPlot::SetCurrentContext(main_implot_ctx);
 		ImPlot::DestroyContext(main_implot_ctx);
+		ImGui_ImplSDLRenderer2_Shutdown();
+    	ImGui_ImplSDL2_Shutdown();
     	ImGui::DestroyContext(main_imgui_ctx);
 #endif
     	SDL_DestroyRenderer(mainRenderer);
@@ -1374,6 +1381,7 @@ int main(int argC, char* argV[]) {
 	io.ConfigViewportsNoAutoMerge = true;
 	io.IniFilename = NULL;
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 	io.Fonts->Flags |= ImFontAtlasFlags_NoBakedLines;
 	ImGui::StyleColorsDark();
 	ImGui_ImplSDL2_InitForSDLRenderer(mainWindow, mainRenderer);
