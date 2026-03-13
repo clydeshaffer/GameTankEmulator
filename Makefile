@@ -45,7 +45,11 @@ endif
 OS ?= $(shell uname)
 
 ifneq ($(origin WINDOW_TITLE), undefined)
-	DEFINES = -D WINDOW_TITLE="\"$(WINDOW_TITLE)\""
+	DEFINES += -D WINDOW_TITLE="\"$(WINDOW_TITLE)\""
+endif
+
+ifneq ($(origin PREFS_TITLE), undefined)
+	DEFINES += -D PREFS_TITLE="\"$(PREFS_TITLE)\""
 endif
 
 ifeq ($(OS), Windows_NT)

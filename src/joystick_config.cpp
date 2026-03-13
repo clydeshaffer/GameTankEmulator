@@ -5,8 +5,13 @@
 #include <iostream>
 #include <fstream>
 #include "joystick_config.h"
+
+#ifndef PREFS_TITLE
+#define PREFS_TITLE "Emulator"
+#endif
+
 std::string get_joystick_config_path() {
-	std::filesystem::path prefPath(SDL_GetPrefPath("GameTank", "Emulator"));
+	std::filesystem::path prefPath(SDL_GetPrefPath("GameTank", PREFS_TITLE));
 	return (prefPath / "input_cfg.toml").string();
 }
 
