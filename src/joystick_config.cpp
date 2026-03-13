@@ -46,7 +46,7 @@ void save_joystick_config(std::vector<InputBinding> &bindings) {
 
 void load_joystick_config(std::vector<InputBinding> &bindings) {
 	std::string path = get_joystick_config_path();
-    /*if(std::filesystem::exists(path)) {
+    if(std::filesystem::exists(path)) {
         toml::table config = toml::parse_file(path);
         auto bindArray = *config.get_as<toml::array>("input_bindings");
         for(auto&& bindEntry : bindArray) {
@@ -74,8 +74,7 @@ void load_joystick_config(std::vector<InputBinding> &bindings) {
         }
     } else {
 		load_joystick_defaults(bindings);
-	}*/
-	load_joystick_defaults(bindings);
+	}
 }
 
 void load_joystick_defaults(std::vector<InputBinding> &bindings) {
