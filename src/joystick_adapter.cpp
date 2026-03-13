@@ -4,6 +4,9 @@
 #include <stdlib.h>
 #include <vector>
 #include "joystick_config.h"
+#ifndef WASM_BUILD
+#include "imgui/backends/imgui_impl_sdl2.h"
+#endif
 
 JoystickAdapter::JoystickAdapter() {
 
@@ -13,8 +16,8 @@ JoystickAdapter::JoystickAdapter() {
 		SDL_InitSubSystem(SDL_INIT_JOYSTICK);
 		if(SDL_NumJoysticks() > 0) {
 			printf("Joystick found\n");
-			gGameController = SDL_JoystickOpen(0);
-			gGameControllerId = SDL_JoystickInstanceID(gGameController);
+			gGameController = SDL_GameControllerOpen(0);
+			gGameControllerId = SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(gGameController));
 		} else {
 			printf("Joystick NOT found\n");
 		}
@@ -23,7 +26,7 @@ JoystickAdapter::JoystickAdapter() {
 
 JoystickAdapter::~JoystickAdapter() {
 	if(gGameController != NULL) {
-		SDL_JoystickClose(gGameController);
+		SDL_GameControllerClose(gGameController);
 		gGameController = NULL;
 	}
 }
@@ -71,7 +74,7 @@ void JoystickAdapter::SaveBindings() {
 	save_joystick_config(this->bindings);
 }
 
-void JoystickAdapter::update(SDL_Event *e) {
+void JoystickAdapter::update(SDL_Event *e, bool managementOnly) {
 	/*
 		Up - DB9 pin 1 - bit 3
 		Down - DB9 pin 2 - bit 2
@@ -84,17 +87,19 @@ void JoystickAdapter::update(SDL_Event *e) {
 		select status - bit 7
 	*/
 
-	if((e->type == SDL_JOYDEVICEADDED) && (gGameController == NULL)) {
-		gGameController = SDL_JoystickOpen(e->jdevice.which);
-		gGameControllerId = SDL_JoystickInstanceID(gGameController);
+	if((e->type == SDL_CONTROLLERDEVICEADDED) && (gGameController == NULL)) {
+		gGameController = SDL_GameControllerOpen(e->jdevice.which);
+		gGameControllerId = SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(gGameController));
 	}
 
-	if((e->type == SDL_JOYDEVICEREMOVED) && (gGameController != NULL)) {
+	if((e->type == SDL_CONTROLLERDEVICEREMOVED) && (gGameController != NULL)) {
 		if(e->jdevice.which == gGameControllerId) {
-			SDL_JoystickClose(gGameController);
+			SDL_GameControllerClose(gGameController);
 			gGameController = NULL;
 		}
 	}
+	
+	if(managementOnly) return;
 
 	uint16_t buttonMask = 0;
 	GameTankButtons::ButtonId buttonId = GameTankButtons::NO_BUTTON;

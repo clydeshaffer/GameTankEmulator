@@ -1248,16 +1248,13 @@ EM_BOOL mainloop(double time, void* userdata) {
 								break;
 	#endif
 							default:
-								if(!(showMenu || resetQueued)) {
-									joysticks->update(&e);
-								}
+								joysticks->update(&e, showMenu || resetQueued);
 								break;
 						}
 					}
 				}
             } else {
-				if(!(showMenu || resetQueued))
-					joysticks->update(&e);
+				joysticks->update(&e, showMenu || resetQueued);
 			}
         }
 
@@ -1385,6 +1382,7 @@ int main(int argC, char* argV[]) {
 	io.Fonts->Flags |= ImFontAtlasFlags_NoBakedLines;
 	ImGui::StyleColorsDark();
 	ImGui_ImplSDL2_InitForSDLRenderer(mainWindow, mainRenderer);
+	ImGui_ImplSDL2_SetGamepadMode(ImGui_ImplSDL2_GamepadMode_Manual);
 	ImGui_ImplSDLRenderer2_Init(mainRenderer);
 #endif
 

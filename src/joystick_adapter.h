@@ -61,13 +61,13 @@ private:
 		0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0,
 	};
-	SDL_Joystick* gGameController = NULL;
+	SDL_GameController* gGameController = NULL;
 	SDL_JoystickID gGameControllerId = 0;
 public:
 	JoystickAdapter();
 	~JoystickAdapter();
 	uint8_t read(uint8_t portNum, bool stateful);
-	void update(SDL_Event *e);
+	void update(SDL_Event *e, bool managementOnly);
 	void SetHeldButtons(uint16_t heldMask);
 	std::vector<InputBinding> bindings;
 	void SaveBindings();
