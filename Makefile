@@ -69,7 +69,7 @@ ifeq ($(OS), Windows_NT)
 	#COMPILER_FLAGS specifies the additional compilation options we're using
 	# -Wl,-subsystem,windows gets rid of the console window
 	# change subsystem,windows to subsystem,console to get printfs on command line
-	COMPILER_FLAGS = -Wl,-subsystem,console
+	COMPILER_FLAGS = -Wl,-subsystem,windows
 	DEFINES += -D _WIN32
 
 	ifeq ($(WRAPPERMODE), yes)
