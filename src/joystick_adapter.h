@@ -30,6 +30,7 @@ namespace BindingTypes {
 		JOYSTICK_AXIS,
 		JOYSTICK_BUTTON,
 		JOYSTICK_HAT,
+		JOYSTICK_BUTTON_SYSTEM,
 	};
 };
 
@@ -54,6 +55,7 @@ class JoystickAdapter {
 private:
 	bool pad1State = false;
 	bool pad2State = false;
+	bool systemMenuPressed = false;
 	uint16_t pad1Mask = 0;
 	uint16_t pad2Mask = 0;
 	uint16_t held1Mask = 0;
@@ -72,4 +74,5 @@ public:
 	std::vector<InputBinding> bindings;
 	void SaveBindings();
 	void Reset();
+	bool CheckSystemButtonPressed();
 };

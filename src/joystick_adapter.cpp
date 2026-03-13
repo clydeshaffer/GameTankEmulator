@@ -13,11 +13,12 @@ JoystickAdapter::JoystickAdapter() {
 	load_joystick_config(this->bindings);
 
 	if(!EmulatorConfig::noJoystick) {
-		SDL_InitSubSystem(SDL_INIT_JOYSTICK);
+		SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER);
 		if(SDL_NumJoysticks() > 0) {
 			printf("Joystick found\n");
 			gGameController = SDL_GameControllerOpen(0);
 			gGameControllerId = SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(gGameController));
+			ImGui_ImplSDL2_SetGamepadMode(ImGui_ImplSDL2_GamepadMode_Manual, &gGameController, 1);
 		} else {
 			printf("Joystick NOT found\n");
 		}
@@ -88,22 +89,25 @@ void JoystickAdapter::update(SDL_Event *e, bool managementOnly) {
 	*/
 
 	if((e->type == SDL_CONTROLLERDEVICEADDED) && (gGameController == NULL)) {
-		gGameController = SDL_GameControllerOpen(e->jdevice.which);
+		gGameController = SDL_GameControllerOpen(e->cdevice.which);
 		gGameControllerId = SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(gGameController));
+		ImGui_ImplSDL2_SetGamepadMode(ImGui_ImplSDL2_GamepadMode_Manual, &gGameController, 1);
 	}
 
 	if((e->type == SDL_CONTROLLERDEVICEREMOVED) && (gGameController != NULL)) {
-		if(e->jdevice.which == gGameControllerId) {
+		if(e->cdevice.which == gGameControllerId) {
 			SDL_GameControllerClose(gGameController);
 			gGameController = NULL;
+			ImGui_ImplSDL2_SetGamepadMode(ImGui_ImplSDL2_GamepadMode_Manual);
 		}
 	}
-	
-	if(managementOnly) return;
 
 	uint16_t buttonMask = 0;
 	GameTankButtons::ButtonId buttonId = GameTankButtons::NO_BUTTON;
 	for (InputBinding binding : this->bindings) {
+		if(managementOnly && (binding.type != BindingTypes::JOYSTICK_BUTTON_SYSTEM)) {
+			continue;
+		}
 		if((binding.type == BindingTypes::KEYBOARD) && ((e->type == SDL_KEYDOWN) || (e->type == SDL_KEYUP))) {
 			if(binding.host_input.key == e->key.keysym.sym) {
 				buttonId = binding.button;
@@ -128,20 +132,20 @@ void JoystickAdapter::update(SDL_Event *e, bool managementOnly) {
 					}
 				}
 			}
-		} else if (binding.type == BindingTypes::JOYSTICK_HAT) {
-			if(e->type == SDL_JOYHATMOTION) {
+		} /*else if (binding.type == BindingTypes::JOYSTICK_HAT) {
+			if(e->type == SDL_CONTROLLERHATMOTION) {
 				//clockwise from the top, cardinal directions go 1, 2, 4, 8
 				buttonMask = 0;
-				if(e->jhat.value & 1) {
+				if(e->chat.value & 1) {
 					buttonMask |= GameTankButtons::UP;
 				}
-				if(e->jhat.value & 2) {
+				if(e->chat.value & 2) {
 					buttonMask |= GameTankButtons::RIGHT;
 				}
-				if(e->jhat.value & 4) {
+				if(e->chat.value & 4) {
 					buttonMask |= GameTankButtons::DOWN;
 				}
-				if(e->jhat.value & 8) {
+				if(e->chat.value & 8) {
 					buttonMask |= GameTankButtons::LEFT;
 				}
 
@@ -153,13 +157,13 @@ void JoystickAdapter::update(SDL_Event *e, bool managementOnly) {
 					pad2Mask |= buttonMask;
 				}
 			}
-		} else if (binding.type == BindingTypes::JOYSTICK_BUTTON) {
-			if((e->type == SDL_JOYBUTTONDOWN) || (e->type == SDL_JOYBUTTONUP)) {
-				if((binding.host_input.joy_button) == (e->jbutton.button)) {
+		}*/ else if (binding.type == BindingTypes::JOYSTICK_BUTTON) {
+			if((e->type == SDL_CONTROLLERBUTTONDOWN) || (e->type == SDL_CONTROLLERBUTTONUP)) {
+				if((binding.host_input.joy_button) == (e->cbutton.button)) {
 					buttonId = binding.button;
-					if(e->type == SDL_JOYBUTTONDOWN) {
+					if(e->type == SDL_CONTROLLERBUTTONDOWN) {
 						++button_press_counts[buttonId];
-					} else if(e->type == SDL_JOYBUTTONUP) {
+					} else if(e->type == SDL_CONTROLLERBUTTONUP) {
 						if(button_press_counts[buttonId] > 0)
 							--button_press_counts[buttonId];
 					}
@@ -180,18 +184,18 @@ void JoystickAdapter::update(SDL_Event *e, bool managementOnly) {
 				}
 			}
 		} else if (binding.type == BindingTypes::JOYSTICK_AXIS) {
-			if(e->type == SDL_JOYAXISMOTION) {
-				if(e->jaxis.axis == binding.host_input.axis.axis) {
+			if(e->type == SDL_CONTROLLERAXISMOTION) {
+				if(e->caxis.axis == binding.host_input.axis.axis) {
 					uint16_t clearMask = 0;
 					buttonMask = 0;
 					if(binding.host_input.axis.negative) {
-						if(e->jaxis.value < -16384) {
+						if(e->caxis.value < -16384) {
 							buttonMask = button_masks[binding.button % BUTTON_COUNT];
 						} else {
 							clearMask = button_masks[binding.button % BUTTON_COUNT];
 						}
 					} else {
-						if(e->jaxis.value > 16384) {
+						if(e->caxis.value > 16384) {
 							buttonMask = button_masks[binding.button % BUTTON_COUNT];
 						} else {
 							clearMask = button_masks[binding.button % BUTTON_COUNT];
@@ -205,8 +209,14 @@ void JoystickAdapter::update(SDL_Event *e, bool managementOnly) {
 						pad2Mask &= ~clearMask;
 					}
 				}
-				//printf("Joystick axis %x %x\n", e->jaxis.axis, e->jaxis.value);
+				//printf("Joystick axis %x %x\n", e->caxis.axis, e->caxis.value);
 			}	
+		} else if(binding.type == BindingTypes::JOYSTICK_BUTTON_SYSTEM) {
+			if(e->type == SDL_CONTROLLERBUTTONDOWN) {
+				if((binding.host_input.joy_button) == (e->cbutton.button)) {
+					systemMenuPressed = true;
+				}
+			}
 		}
 	}
 }
@@ -224,4 +234,10 @@ void JoystickAdapter::Reset() {
 	for(int i = 0; i < (BUTTON_COUNT*2); ++i) {
 		button_press_counts[i] = 0;
 	}
+}
+
+bool JoystickAdapter::CheckSystemButtonPressed() {
+	bool ret = systemMenuPressed;
+	systemMenuPressed = false;
+	return ret;
 }

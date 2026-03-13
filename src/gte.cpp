@@ -1208,7 +1208,7 @@ EM_BOOL mainloop(double time, void* userdata) {
 								rshift = (e.type == SDL_KEYDOWN);
 								break;							
 							case SDLK_ESCAPE:
-								#if !defined(DISABLE_ESC)
+	#if !defined(DISABLE_ESC)
 								if(e.type == SDL_KEYDOWN) {
 									showMenu = !showMenu;
 									menuOpening = showMenu;
@@ -1257,6 +1257,16 @@ EM_BOOL mainloop(double time, void* userdata) {
 				joysticks->update(&e, showMenu || resetQueued);
 			}
         }
+
+		if(joysticks->CheckSystemButtonPressed()) {
+	#if !defined(DISABLE_ESC)
+									showMenu = !showMenu;
+									menuOpening = showMenu;
+	#ifdef WRAPPER_MODE
+									setMenuMute(showMenu);
+	#endif
+	#endif
+		}
 
 		refreshScreen();
 		SDL_UpdateWindowSurface(mainWindow);
@@ -1348,7 +1358,7 @@ int main(int argC, char* argV[]) {
 			cartridge_state.rom[i] = 0;
 		}
 
-	joysticks = new JoystickAdapter();
+	
 	soundcard = new AudioCoprocessor();
 	cpu_core = new mos6502(MemoryRead, MemoryWrite, CPUStopped, MemorySync);
 	cpu_core->Reset();
@@ -1385,6 +1395,9 @@ int main(int argC, char* argV[]) {
 	ImGui_ImplSDL2_SetGamepadMode(ImGui_ImplSDL2_GamepadMode_Manual);
 	ImGui_ImplSDLRenderer2_Init(mainRenderer);
 #endif
+
+	//Init joystick handler AFTER init imgui
+	joysticks = new JoystickAdapter();
 
 	#if SDL_BYTEORDER == SDL_BIG_ENDIAN
 	    rmask = 0xff000000;

@@ -46,7 +46,7 @@ void save_joystick_config(std::vector<InputBinding> &bindings) {
 
 void load_joystick_config(std::vector<InputBinding> &bindings) {
 	std::string path = get_joystick_config_path();
-    if(std::filesystem::exists(path)) {
+    /*if(std::filesystem::exists(path)) {
         toml::table config = toml::parse_file(path);
         auto bindArray = *config.get_as<toml::array>("input_bindings");
         for(auto&& bindEntry : bindArray) {
@@ -74,7 +74,8 @@ void load_joystick_config(std::vector<InputBinding> &bindings) {
         }
     } else {
 		load_joystick_defaults(bindings);
-	}
+	}*/
+	load_joystick_defaults(bindings);
 }
 
 void load_joystick_defaults(std::vector<InputBinding> &bindings) {
@@ -183,41 +184,62 @@ void load_joystick_defaults(std::vector<InputBinding> &bindings) {
 
 	b.type = BindingTypes::JOYSTICK_AXIS;
 	b.host_input.axis.axis = 1;
-	b.host_input.axis.negative = false;
+	b.host_input.axis.negative = true;
 	b.button = GameTankButtons::P1_UP;
 	bindings.emplace_back(b);
 
 	b.type = BindingTypes::JOYSTICK_AXIS;
 	b.host_input.axis.axis = 1;
-	b.host_input.axis.negative = true;
+	b.host_input.axis.negative = false;
 	b.button = GameTankButtons::P1_DOWN;
 	bindings.emplace_back(b);
 
-	b.type = BindingTypes::JOYSTICK_HAT;
-	bindings.emplace_back(b);
-
 	b.type = BindingTypes::JOYSTICK_BUTTON;
-	b.host_input.joy_button = 0;
+	b.host_input.joy_button = SDL_CONTROLLER_BUTTON_A;
 	b.button = GameTankButtons::P1_A;
 	bindings.emplace_back(b);
 
 	b.type = BindingTypes::JOYSTICK_BUTTON;
-	b.host_input.joy_button = 1;
+	b.host_input.joy_button = SDL_CONTROLLER_BUTTON_B;
 	b.button = GameTankButtons::P1_B;
 	bindings.emplace_back(b);
 
 	b.type = BindingTypes::JOYSTICK_BUTTON;
-	b.host_input.joy_button = 2;
+	b.host_input.joy_button = SDL_CONTROLLER_BUTTON_X;
 	b.button = GameTankButtons::P1_C;
 	bindings.emplace_back(b);
 
 	b.type = BindingTypes::JOYSTICK_BUTTON;
-	b.host_input.joy_button = 3;
+	b.host_input.joy_button = SDL_CONTROLLER_BUTTON_Y;
 	b.button = GameTankButtons::P1_C;
 	bindings.emplace_back(b);
 
 	b.type = BindingTypes::JOYSTICK_BUTTON;
-	b.host_input.joy_button = 7;
+	b.host_input.joy_button = SDL_CONTROLLER_BUTTON_START;
 	b.button = GameTankButtons::P1_START;
+	bindings.emplace_back(b);
+
+	b.type = BindingTypes::JOYSTICK_BUTTON;
+	b.host_input.joy_button = SDL_CONTROLLER_BUTTON_DPAD_UP;
+	b.button = GameTankButtons::P1_UP;
+	bindings.emplace_back(b);
+
+	b.type = BindingTypes::JOYSTICK_BUTTON;
+	b.host_input.joy_button = SDL_CONTROLLER_BUTTON_DPAD_DOWN;
+	b.button = GameTankButtons::P1_DOWN;
+	bindings.emplace_back(b);
+
+	b.type = BindingTypes::JOYSTICK_BUTTON;
+	b.host_input.joy_button = SDL_CONTROLLER_BUTTON_DPAD_LEFT;
+	b.button = GameTankButtons::P1_LEFT;
+	bindings.emplace_back(b);
+
+	b.type = BindingTypes::JOYSTICK_BUTTON;
+	b.host_input.joy_button = SDL_CONTROLLER_BUTTON_DPAD_RIGHT;
+	b.button = GameTankButtons::P1_RIGHT;
+	bindings.emplace_back(b);
+
+	b.type = BindingTypes::JOYSTICK_BUTTON_SYSTEM;
+	b.host_input.joy_button = SDL_CONTROLLER_BUTTON_BACK;
 	bindings.emplace_back(b);
 };
