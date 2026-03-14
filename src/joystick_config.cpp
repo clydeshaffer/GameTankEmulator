@@ -6,6 +6,8 @@
 #include <fstream>
 #include "joystick_config.h"
 
+#define INPUT_CONFIG_VERSION 1
+
 #ifndef PREFS_TITLE
 #define PREFS_TITLE "Emulator"
 #endif
@@ -13,6 +15,18 @@
 std::string get_joystick_config_path() {
 	std::filesystem::path prefPath(SDL_GetPrefPath("GameTank", PREFS_TITLE));
 	return (prefPath / "input_cfg.toml").string();
+}
+
+std::string get_joystick_backup_path() {
+	std::filesystem::path prefPath(SDL_GetPrefPath("GameTank", PREFS_TITLE));
+	return (prefPath / "input_cfg.toml.bak").string();
+}
+
+void backup_joystick_config() {
+	std::ifstream inFile(get_joystick_config_path(), std::ios::binary);
+	std::ofstream outFile(get_joystick_backup_path(), std::ios::binary);
+	
+	outFile << inFile.rdbuf();
 }
 
 void save_joystick_config(std::vector<InputBinding> &bindings) {
@@ -43,6 +57,7 @@ void save_joystick_config(std::vector<InputBinding> &bindings) {
 		bindArray.emplace_back(bindTomlEntry);
 	}
 	config.emplace("input_bindings", bindArray);
+	config.emplace("version", INPUT_CONFIG_VERSION);
 	std::fstream outFile;
     outFile.open(path, std::ios_base::out | std::ios_base::trunc);
     outFile << config << "\n\n";
@@ -51,33 +66,44 @@ void save_joystick_config(std::vector<InputBinding> &bindings) {
 
 void load_joystick_config(std::vector<InputBinding> &bindings) {
 	std::string path = get_joystick_config_path();
+	bool inputLoadingSucceeded = false;
     if(std::filesystem::exists(path)) {
         toml::table config = toml::parse_file(path);
-        auto bindArray = *config.get_as<toml::array>("input_bindings");
-        for(auto&& bindEntry : bindArray) {
-                InputBinding bind;
-                toml::table *tbl = bindEntry.as_table();
-				bind.type = (BindingTypes::BindingType)((int64_t) (*tbl->get_as<int64_t>("type")));
-				bind.button = (GameTankButtons::ButtonId)((int64_t) (*tbl->get_as<int64_t>("gtButton")));
-				switch (bind.type)
-				{
-					case BindingTypes::KEYBOARD:
-					bind.host_input.key = (int64_t) (*tbl->get_as<int64_t>("key"));
-					break;
-					case BindingTypes::JOYSTICK_AXIS:
-					bind.host_input.axis.axis = (int64_t) (*tbl->get_as<int64_t>("joyAxis"));
-					bind.host_input.axis.negative = (bool) (*tbl->get_as<bool>("joyAxisInvert"));
-					break;
-					case BindingTypes::JOYSTICK_BUTTON:
-					bind.host_input.joy_button = (int64_t) (*tbl->get_as<int64_t>("joyButton"));
-					break;
-					case BindingTypes::JOYSTICK_HAT:
-					bind.host_input.joy_button = (int64_t) (*tbl->get_as<int64_t>("joyHat"));
-					break;
-				}
-                bindings.emplace_back(bind);
-        }
-    } else {
+		int64_t versionNumber = config["version"].value_or(-1);
+		if(versionNumber >= INPUT_CONFIG_VERSION) {
+			auto bindArray = *config.get_as<toml::array>("input_bindings");
+			for(auto&& bindEntry : bindArray) {
+					InputBinding bind;
+					toml::table *tbl = bindEntry.as_table();
+					bind.type = (BindingTypes::BindingType)((int64_t) (*tbl->get_as<int64_t>("type")));
+					bind.button = (GameTankButtons::ButtonId)((int64_t) (*tbl->get_as<int64_t>("gtButton")));
+					switch (bind.type)
+					{
+						case BindingTypes::KEYBOARD:
+						bind.host_input.key = (int64_t) (*tbl->get_as<int64_t>("key"));
+						break;
+						case BindingTypes::JOYSTICK_AXIS:
+						bind.host_input.axis.axis = (int64_t) (*tbl->get_as<int64_t>("joyAxis"));
+						bind.host_input.axis.negative = (bool) (*tbl->get_as<bool>("joyAxisInvert"));
+						break;
+						case BindingTypes::JOYSTICK_BUTTON:
+						bind.host_input.joy_button = (int64_t) (*tbl->get_as<int64_t>("joyButton"));
+						break;
+						case BindingTypes::JOYSTICK_HAT:
+						bind.host_input.joy_button = (int64_t) (*tbl->get_as<int64_t>("joyHat"));
+						break;
+					}
+					bindings.emplace_back(bind);
+			}
+			inputLoadingSucceeded = true;
+		}
+
+		if(!inputLoadingSucceeded) {
+			backup_joystick_config();
+		}
+    }
+
+	if(!inputLoadingSucceeded) {
 		load_joystick_defaults(bindings);
 	}
 }
