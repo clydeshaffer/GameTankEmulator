@@ -58,16 +58,16 @@ ImVec2 ProfilerWindow::Render() {
             ImPlot::SetupAxesLimits(0,256, 0, max_scale, ImPlotCond_Always);
             for(int i = 0; i < PROFILER_ENTRIES; ++i) {
                 if(profilerSeen[i] && profilerVis[i]) {
-                    ImPlot::PlotLine<float>("", _profiler.profilingHistory[i], PROFILER_HISTORY, 1, 0, {
+                    ImPlot::PlotLine<float>("", _profiler.profilingHistory[i], PROFILER_HISTORY, 1, 0, ImPlotSpec(
                         ImPlotProp_LineColor, ImVec4(prof_R[i % 7], prof_G[i % 7], prof_B[i % 7], 1.0f),
                         ImPlotProp_Offset, _profiler.history_num
-                    });
+                    ));
                 }
             }
-            ImPlot::PlotLine<float>("Blitter", _profiler.blitter_history, PROFILER_HISTORY, 1, 0, {
+            ImPlot::PlotLine<float>("Blitter", _profiler.blitter_history, PROFILER_HISTORY, 1, 0, ImPlotSpec(
                         ImPlotProp_LineColor, ImVec4(prof_R[7], prof_G[7], prof_B[7], 1.0f),
                         ImPlotProp_Offset, _profiler.history_num
-                    });
+            ));
             ImPlot::EndPlot();
         }
         
