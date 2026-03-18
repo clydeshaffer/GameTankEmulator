@@ -74,6 +74,7 @@ ifeq ($(OS), Windows_NT)
 	# -Wl,-subsystem,windows gets rid of the console window
 	# change subsystem,windows to subsystem,console to get printfs on command line
 	COMPILER_FLAGS = -Wl,-subsystem,windows
+	OPTIM_FLAGS = -O2
 	DEFINES += -D _WIN32
 
 	ifeq ($(WRAPPERMODE), yes)
@@ -93,18 +94,18 @@ else ifeq ($(OS), wasm)
 	    LINKER_FLAGS += --preload-file $(PRELOAD_ROM)
 	endif
 
-	COMPILER_FLAGS += -s USE_SDL=2 -D WASM_BUILD -D EMBED_ROM_FILE='"$(ROMFILE)"' -s TOTAL_STACK=512mb
+	COMPILER_FLAGS += -O2 -s USE_SDL=2 -D WASM_BUILD -D EMBED_ROM_FILE='"$(ROMFILE)"' -s TOTAL_STACK=512mb
 	DEFINES += -D DISABLE_ESC
 	BIN_NAME = index.html
 	LINKER_FLAGS += --embed-file $(ROMFILE) --shell-file $(WEB_SHELL) -s EXPORTED_FUNCTIONS='["_LoadRomFile", "_main", "_SetButtons", "_PauseEmulation", "_ResumeEmulation", "_takeScreenShot"]' -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]' -lidbfs.js
 	SRCS :=  $(filter-out $(foreach src,$(SRCS),$(if $(findstring imgui,$(src)), $(src))),$(SRCS))
 	SRCS := $(filter-out %window.cpp, $(SRCS))
-else
+else #BSD/Linux
 	OBJS += $(NATIVE_OBJS)
-	COMPILER_FLAGS = -g `sdl2-config --cflags` $(EXTRA_INCLUDES)
+	COMPILER_FLAGS = `sdl2-config --cflags` $(EXTRA_INCLUDES)
+	OPTIM_FLAGS = -O2
 	LINKER_FLAGS = `sdl2-config --libs`
 endif
-
 
 DEFINES += -D CPU_6502_STATIC -D CPU_6502_USE_LOCAL_HEADER -D CMOS_INDIRECT_JMP_FIX
 
@@ -113,6 +114,7 @@ DEFINES += -D CPU_6502_STATIC -D CPU_6502_USE_LOCAL_HEADER -D CMOS_INDIRECT_JMP_
 all: bin dist
 
 bin: $(OUT_DIR)/$(BIN_NAME)
+
 dist: $(OUT_DIR)/$(ZIP_NAME)
 	@mkdir -p $(DIST_DIR)
 	cp $^ $(DIST_DIR)
@@ -128,7 +130,7 @@ else ifeq ($(OS), wasm)
 	cp -r $(WEB_ASSETS) $(INSTALL_DIR)/bin/static
 	install -t $(INSTALL_DIR)/bin $(OUT_DIR)/index.js
 	install -t $(INSTALL_DIR)/bin $(OUT_DIR)/index.wasm
-else ifeq ($(OS), Darwin)
+else #BSD/Linux
 	install $(OUT_DIR)/$(BIN_NAME) $(INSTALL_DIR)/bin
 endif
 
@@ -136,11 +138,11 @@ $(OUT_DIR)/$(ZIP_NAME): bin commit_hash.txt
 	@mkdir -p $(@D)/img
 ifeq ($(OS), Windows_NT)
 	cp $(SDL_ROOT)/bin/SDL2.dll $(OUT_DIR)
-endif
-ifeq ($(OS), wasm) #separate ifblock on purpose
-	cd $(OUT_DIR); zip -9 -y -r -q $(ZIP_NAME) $(BIN_NAME) static index.js index.wasm commit_hash.txt
-else
 	cd $(OUT_DIR); zip -9 -y -r -q $(ZIP_NAME) $(BIN_NAME) SDL2.dll img commit_hash.txt
+else ifeq ($(OS), wasm) #separate ifblock on purpose
+	cd $(OUT_DIR); zip -9 -y -r -q $(ZIP_NAME) $(BIN_NAME) static index.js index.wasm commit_hash.txt
+else #BSD/Linux
+	cd $(OUT_DIR); zip -9 -y -r -q $(ZIP_NAME) $(BIN_NAME) commit_hash.txt
 endif
 
 # Allow manually setting a commit hash
@@ -155,18 +157,20 @@ endif
 
 $(OUT_DIR)/%.cpp.o: %.cpp
 	@mkdir -p $(@D)
-	$(CPPC) -c $< -o $@ $(INCLUDE_PATHS) $(COMPILER_FLAGS) $(DEFINES) -std=c++20
+	$(CPPC) -c $< -o $@ $(INCLUDE_PATHS) $(OPTIM_FLAGS) $(COMPILER_FLAGS) $(DEFINES) -std=c++20
 
 $(OUT_DIR)/%.c.o: %.c
 	@mkdir -p $(@D)
-	$(CC) -c $< -o $@ $(INCLUDE_PATHS) $(COMPILER_FLAGS) $(DEFINES)
+	$(CC) -c $< -o $@ $(INCLUDE_PATHS) $(OPTIM_FLAGS) $(COMPILER_FLAGS) $(DEFINES)
 
 $(OUT_DIR)/$(BIN_NAME): $(OBJS)
-	$(CPPC) $(COMPILER_FLAGS) -o $@ $^ $(LIBRARY_PATHS) $(LINKER_FLAGS) -std=c++20
+	$(CPPC) $(OPTIM_FLAGS) $(COMPILER_FLAGS) -o $@ $^ $(LIBRARY_PATHS) $(LINKER_FLAGS) -std=c++20
 ifeq ($(OS), wasm)
 	cp -r $(WEB_ASSETS) $(OUT_DIR)/static
 endif
 
+debug: OPTIM_FLAGS = -DDEBUG -g -O0
+debug: all
 
 clean:
 	rm -rf $(OUT_DIR)
