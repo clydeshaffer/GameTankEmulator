@@ -18,7 +18,9 @@ JoystickAdapter::JoystickAdapter() {
 			printf("Joystick found\n");
 			gGameController = SDL_GameControllerOpen(0);
 			gGameControllerId = SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(gGameController));
+#ifndef WASM_BUILD
 			ImGui_ImplSDL2_SetGamepadMode(ImGui_ImplSDL2_GamepadMode_Manual, &gGameController, 1);
+#endif
 		} else {
 			printf("Joystick NOT found\n");
 		}
@@ -91,14 +93,18 @@ void JoystickAdapter::update(SDL_Event *e, bool managementOnly) {
 	if((e->type == SDL_CONTROLLERDEVICEADDED) && (gGameController == NULL)) {
 		gGameController = SDL_GameControllerOpen(e->cdevice.which);
 		gGameControllerId = SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(gGameController));
+#ifndef WASM_BUILD		
 		ImGui_ImplSDL2_SetGamepadMode(ImGui_ImplSDL2_GamepadMode_Manual, &gGameController, 1);
+#endif
 	}
 
 	if((e->type == SDL_CONTROLLERDEVICEREMOVED) && (gGameController != NULL)) {
 		if(e->cdevice.which == gGameControllerId) {
 			SDL_GameControllerClose(gGameController);
 			gGameController = NULL;
+#ifndef WASM_BUILD
 			ImGui_ImplSDL2_SetGamepadMode(ImGui_ImplSDL2_GamepadMode_Manual);
+#endif
 		}
 	}
 
