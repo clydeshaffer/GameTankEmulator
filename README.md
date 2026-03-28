@@ -4,7 +4,7 @@ An emulator project for the GameTank 8-bit game console, to speed cross-developm
 
 Powered by gianlucag's 6502 emulator library. (Forked to add some WDC 65C02 opcodes)
 
-I mainly develop this on Windows 10 but have also built it on Ubuntu. The Makefile checks for Windows or Linux. (OSX eventually?)
+I mainly develop this on WSL Ubuntu cross-building to Windows, but native Linux and OSX are also supported.
 For setting up the build enviroment I uzed LazyFoo's directions: http://lazyfoo.net/tutorials/SDL/01_hello_SDL/index.php
 
 | ![displaying a whole sprite sheet](img/spritesheet.PNG) | ![a simple platform game scene](img/simplelevel.PNG) |
@@ -13,8 +13,6 @@ For setting up the build enviroment I uzed LazyFoo's directions: http://lazyfoo.
 ## How to use:
 The emulator is meant to test the same ROM files that I'd normally flash to an EEPROM cartridge. You can start the emulator with a ROM file
 either from the command line eg. `./GameTankEmulator.exe conway.gtr` or by dragging the ROM to the executable in Windows Explorer.
-
-ROM files can be produced using the [VASM assembler](http://sun.hasenbraten.de/vasm/) for WDC65C02 code, and should be output as headerless binaries.
 
 ROM files should ideally be either 8192 bytes, 32768 bytes, or 2097152 bytes.
 
