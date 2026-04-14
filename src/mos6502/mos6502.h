@@ -223,12 +223,12 @@ private:
 	inline void StackPush(uint8_t byte);
 	inline uint8_t StackPop();
 
-	uint32_t irq_timer;
+	uint32_t irq_timer = 0;
 	bool irq_line = false;
 
 	//Specific hack for the GameTank's Blit IRQ enable
 	//If not null, this is checked before actually sending IRQ
-	bool *irq_gate;
+	bool *irq_gate = NULL;
 
 	// Some ops will take extra cycles based on factors like page boundries and processor status
 	// Record the extra cycles into this value during execution
@@ -237,7 +237,7 @@ private:
 public:
 	bool freeze = false;
 	bool illegalOpcode = false;
-	bool waiting;
+	bool waiting = false;
 	uint16_t illegalOpcodeSrc;
 
 	// registers
@@ -246,13 +246,13 @@ public:
 	uint8_t Y; // Y-index
 
 	// stack pointer
-	uint8_t sp;
+	uint8_t sp = 0;
 
 	// program counter
-	uint16_t pc;
+	uint16_t pc = 0;
 
 	// status register
-	uint8_t status;
+	uint8_t status = 0;
 	
 	enum CycleMethod {
 		INST_COUNT,
