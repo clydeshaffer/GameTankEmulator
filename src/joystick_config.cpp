@@ -53,6 +53,9 @@ void save_joystick_config(std::vector<InputBinding> &bindings) {
 			case BindingTypes::JOYSTICK_HAT:
 			bindTomlEntry.emplace("joyHat", bindEntry.host_input.joy_button);
 			break;
+			case BindingTypes::JOYSTICK_BUTTON_SYSTEM:
+			bindTomlEntry.emplace("joyButton", bindEntry.host_input.joy_button);
+			break;
 		}
 		bindArray.emplace_back(bindTomlEntry);
 	}
@@ -91,6 +94,9 @@ void load_joystick_config(std::vector<InputBinding> &bindings) {
 						break;
 						case BindingTypes::JOYSTICK_HAT:
 						bind.host_input.joy_button = (int64_t) (*tbl->get_as<int64_t>("joyHat"));
+						break;
+						case BindingTypes::JOYSTICK_BUTTON_SYSTEM:
+						bind.host_input.joy_button = (int64_t) (*tbl->get_as<int64_t>("joyButton"));
 						break;
 					}
 					bindings.emplace_back(bind);
