@@ -6,7 +6,7 @@
 #include <fstream>
 #include "joystick_config.h"
 
-#define INPUT_CONFIG_VERSION 1
+#define INPUT_CONFIG_VERSION 2
 
 #ifndef PREFS_TITLE
 #define PREFS_TITLE "Emulator"
