@@ -168,7 +168,7 @@ AudioCoprocessor::AudioCoprocessor() {
     state.last_irq_cycles = 0;
     state.volume = 256;
     state.isMuted = false;
-    state.isEmulationPaused = false;
+    state.isEmulationPaused = true;
     state.clkMult = 4;
 
 	for(int i = 0; i < AUDIO_RAM_SIZE; i ++) {

@@ -518,7 +518,7 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 SDL_Event e;
 bool running = true;
 bool gofast = false;
-bool paused = false;
+bool paused = true;
 bool lshift = false;
 bool rshift = false;
 
@@ -568,7 +568,7 @@ void ResumeEmulation() {
 }
 
 void CPUStopped() {
-	paused = true;
+	PauseEmulation();
 	printf("CPU stopped");
 #ifdef TINYFILEDIALOGS_H
 	tinyfd_notifyPopup("Alert",
@@ -670,7 +670,7 @@ extern "C" {
 		fread(cartridge_state.rom, sizeof(uint8_t), cartridge_state.size, romFileP);
 		fclose(romFileP);
 		if(cpu_core) {
-			paused = false;
+			ResumeEmulation();
 			cpu_core->Reset();
 			cartridge_state.write_mode = false;
 		}
@@ -1069,12 +1069,12 @@ EM_BOOL mainloop(double time, void* userdata) {
 			timekeeper.actual_cycles = timekeeper.totalCyclesCount - timekeeper.actual_cycles;
 			if(cpu_core->illegalOpcode) {
 				printf("Hit illegal opcode %x\npc = %x\n", cpu_core->illegalOpcodeSrc, cpu_core->pc);
-				paused = true;
+				PauseEmulation();
 			} else if((timekeeper.clock_mode == CLOCKMODE_NORMAL) && (timekeeper.actual_cycles == 0)) {
 				profiler.zeroConsec++;
 				if(profiler.zeroConsec == 10) {
 					printf("(Got stuck at 0x%x)\n", cpu_core->pc);
-					paused = true;
+					PauseEmulation();
 				}
 				timekeeper.totalCyclesCount += intended_cycles;
 			} else {
@@ -1306,7 +1306,7 @@ EM_BOOL mainloop(double time, void* userdata) {
 	}
 
 	if(resetQueued) {
-		paused = false;
+		ResumeEmulation();
 		if(lshift || rshift || (resetQueued == 2)) {
 			randomize_memory();
 			randomize_vram();
@@ -1414,7 +1414,7 @@ int main(int argC, char* argV[]) {
 	randomize_vram();
 
 	if(!rom_file_name || LoadRomFile(rom_file_name) == -1) {
-		paused = true;
+		PauseEmulation();
 #ifdef TINYFILEDIALOGS_H
 		if(rom_file_name) {
 			tinyfd_notifyPopup("Alert",
@@ -1423,6 +1423,8 @@ int main(int argC, char* argV[]) {
 		}
 #endif
 		
+	} else {
+		ResumeEmulation();
 	}
 
 #ifdef WASM_BUILD
