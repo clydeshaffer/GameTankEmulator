@@ -59,6 +59,7 @@ using namespace std;
 
 const int GT_WIDTH = 128;
 const int GT_HEIGHT = 128;
+int display_scale = 4;
 
 RomType loadedRomType;
 
@@ -69,8 +70,6 @@ JoystickAdapter *joysticks;
 SystemState system_state;
 CartridgeState cartridge_state;
 
-const int SCREEN_WIDTH = 683;	
-const int SCREEN_HEIGHT = 512;
 RGB_Color *palette;
 
 MemoryMap* loadedMemoryMap;
@@ -84,6 +83,12 @@ bool vsyncProfileRunning = false;
 
 bool showMenu = false;
 bool menuOpening = false;
+#define GRID_NONE 0
+#define GRID_25   1
+#define GRID_50   2
+#define GRID_75   3
+#define GRID_FULL 4
+int grid_mode = GRID_NONE;
 int resetQueued = 0;
 #define MUTE_SOURCE_MANUAL 1
 #define MUTE_SOURCE_MENU 2
@@ -705,7 +710,7 @@ extern "C" {
 	}
 
 	void takeScreenShot() {
-		SDL_Surface *screenshot = SDL_CreateRGBSurface(0, SCREEN_WIDTH, SCREEN_HEIGHT, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
+		SDL_Surface *screenshot = SDL_CreateRGBSurface(0, GT_WIDTH * display_scale, GT_HEIGHT * display_scale, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
 		SDL_RenderReadPixels(mainRenderer, NULL, SDL_PIXELFORMAT_ARGB8888, screenshot->pixels, screenshot->pitch);
 		SDL_SaveBMP(screenshot, "screenshot.bmp");
 		SDL_FreeSurface(screenshot);
@@ -862,26 +867,37 @@ void refreshScreen() {
 	src.w = GT_WIDTH;
 	src.h = GT_HEIGHT;
 	SDL_GetWindowSize(mainWindow, &scr_w, &scr_h);
-	dest.w = min(scr_w, scr_h);
-	dest.h = dest.w;
+	int scale = min(scr_w / GT_WIDTH, scr_h / GT_HEIGHT);
+	if(scale < 1) scale = 1;
+	dest.w = GT_WIDTH * scale;
+	dest.h = GT_HEIGHT * scale;
 	dest.x = (scr_w - dest.w) / 2;
 	dest.y = (scr_h - dest.h) / 2;
-	//SDL_BlitScaled(vRAM_Surface, &src, screenSurface, &dest);
 	SDL_UpdateTexture(framebufferTexture, NULL, vRAM_Surface->pixels, vRAM_Surface->pitch);
 
 	SDL_RenderClear(mainRenderer);
 	SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
 
-	src.x = GT_WIDTH-1;
-	src.w = 1;
-	dest.w = dest.w * 86.0 / 512.0;
-	dest.x -= dest.w;
-
-	SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
-
-	dest.x += dest.w + dest.h;
-
-	SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
+	if(grid_mode != GRID_NONE && scale > 1) {
+		static const Uint8 grid_alphas[] = { 0, 64, 128, 192, 255 };
+		SDL_SetRenderDrawBlendMode(mainRenderer, SDL_BLENDMODE_BLEND);
+		SDL_SetRenderDrawColor(mainRenderer, 0, 0, 0, grid_alphas[grid_mode]);
+		SDL_Rect line;
+		for(int i = 1; i < GT_WIDTH; ++i) {
+			line.x = dest.x + i * scale;
+			line.y = dest.y;
+			line.w = 1;
+			line.h = dest.h;
+			SDL_RenderFillRect(mainRenderer, &line);
+		}
+		for(int i = 1; i < GT_HEIGHT; ++i) {
+			line.x = dest.x;
+			line.y = dest.y + i * scale;
+			line.w = dest.w;
+			line.h = 1;
+			SDL_RenderFillRect(mainRenderer, &line);
+		}
+	}
 
 #if !defined(WASM_BUILD)
 	ImGui::SetCurrentContext(main_imgui_ctx);
@@ -915,6 +931,26 @@ void refreshScreen() {
 					ImGui::RadioButton("Full Contrast", &palette_select, PALETTE_SELECT_SCALED);
 					ImGui::RadioButton("Cheap HDMI converter", &palette_select, PALETTE_SELECT_HDMI);
 					ImGui::RadioButton("Flawed Theory (Legacy)", &palette_select, PALETTE_SELECT_OLD);
+					ImGui::EndMenu();
+				}
+				if(ImGui::BeginMenu("Scale")) {
+					int prev_scale = display_scale;
+					ImGui::RadioButton("2x", &display_scale, 2);
+					ImGui::RadioButton("3x", &display_scale, 3);
+					ImGui::RadioButton("4x", &display_scale, 4);
+					ImGui::RadioButton("5x", &display_scale, 5);
+					ImGui::RadioButton("6x", &display_scale, 6);
+					if(display_scale != prev_scale && !isFullScreen) {
+						SDL_SetWindowSize(mainWindow, GT_WIDTH * display_scale, GT_HEIGHT * display_scale);
+					}
+					ImGui::EndMenu();
+				}
+				if(ImGui::BeginMenu("Grid")) {
+					ImGui::RadioButton("No grid", &grid_mode, GRID_NONE);
+					ImGui::RadioButton("25% opacity", &grid_mode, GRID_25);
+					ImGui::RadioButton("50% opacity", &grid_mode, GRID_50);
+					ImGui::RadioButton("75% opacity", &grid_mode, GRID_75);
+					ImGui::RadioButton("Full black grid", &grid_mode, GRID_FULL);
 					ImGui::EndMenu();
 				}
 				ImGui::EndMenu();
@@ -1377,7 +1413,7 @@ int main(int argC, char* argV[]) {
 	SDL_SetColorKey(vRAM_Surface, SDL_FALSE, 0);
 	SDL_SetColorKey(gRAM_Surface, SDL_FALSE, 0);
 
-	mainWindow = SDL_CreateWindow(WINDOW_TITLE, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+	mainWindow = SDL_CreateWindow(WINDOW_TITLE, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, GT_WIDTH * display_scale, GT_HEIGHT * display_scale, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 	mainRenderer = SDL_CreateRenderer(mainWindow, -1, EmulatorConfig::defaultRendererFlags);
 	framebufferTexture = SDL_CreateTexture(mainRenderer, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING, GT_WIDTH, GT_HEIGHT * 2);
 
