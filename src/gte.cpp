@@ -873,6 +873,7 @@ void refreshScreen() {
 	dest.h = GT_HEIGHT * scale;
 	dest.x = (scr_w - dest.w) / 2;
 	dest.y = (scr_h - dest.h) / 2;
+	//SDL_BlitScaled(vRAM_Surface, &src, screenSurface, &dest);
 	SDL_UpdateTexture(framebufferTexture, NULL, vRAM_Surface->pixels, vRAM_Surface->pitch);
 
 	SDL_RenderClear(mainRenderer);
