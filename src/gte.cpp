@@ -59,7 +59,18 @@ using namespace std;
 
 const int GT_WIDTH = 128;
 const int GT_HEIGHT = 128;
+const int VIEWPORT_ASPECT_W = 4;
+const int VIEWPORT_ASPECT_H = 3;
+const int MIN_DISPLAY_SCALE = 2;
 int display_scale = 4;
+
+int viewport_width(int scale) {
+	return (GT_HEIGHT * scale * VIEWPORT_ASPECT_W + VIEWPORT_ASPECT_H - 1) / VIEWPORT_ASPECT_H;
+}
+
+int viewport_height(int scale) {
+	return GT_HEIGHT * scale;
+}
 
 RomType loadedRomType;
 
@@ -86,8 +97,7 @@ bool menuOpening = false;
 #define GRID_NONE 0
 #define GRID_25   1
 #define GRID_50   2
-#define GRID_75   3
-#define GRID_FULL 4
+#define GRID_FULL 3
 int grid_mode = GRID_NONE;
 int resetQueued = 0;
 #define MUTE_SOURCE_MANUAL 1
@@ -215,6 +225,51 @@ std::vector<BaseWindow*> toolWindows;
 
 SDL_Renderer* mainRenderer = NULL;
 SDL_Texture* framebufferTexture = NULL;
+SDL_Texture* gridOverlayTexture = NULL;
+int gridOverlayScale = 0;
+
+void rebuildGridOverlay(int scale) {
+	if(gridOverlayTexture && gridOverlayScale == scale) {
+		return;
+	}
+
+	if(gridOverlayTexture) {
+		SDL_DestroyTexture(gridOverlayTexture);
+		gridOverlayTexture = NULL;
+	}
+
+	int w = GT_WIDTH * scale;
+	int h = GT_HEIGHT * scale;
+	gridOverlayTexture = SDL_CreateTexture(mainRenderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, w, h);
+	SDL_SetTextureBlendMode(gridOverlayTexture, SDL_BLENDMODE_BLEND);
+
+	SDL_Texture* prev_target = SDL_GetRenderTarget(mainRenderer);
+	SDL_SetRenderTarget(mainRenderer, gridOverlayTexture);
+	SDL_SetRenderDrawBlendMode(mainRenderer, SDL_BLENDMODE_NONE);
+	SDL_SetRenderDrawColor(mainRenderer, 0, 0, 0, 0);
+	SDL_RenderClear(mainRenderer);
+	SDL_SetRenderDrawColor(mainRenderer, 0, 0, 0, 255);
+
+	SDL_Rect line;
+	for(int i = 1; i < GT_WIDTH; ++i) {
+		line.x = i * scale;
+		line.y = 0;
+		line.w = 1;
+		line.h = h;
+		SDL_RenderFillRect(mainRenderer, &line);
+	}
+	for(int i = 1; i < GT_HEIGHT; ++i) {
+		line.x = 0;
+		line.y = i * scale;
+		line.w = w;
+		line.h = 1;
+		SDL_RenderFillRect(mainRenderer, &line);
+	}
+
+	SDL_SetRenderTarget(mainRenderer, prev_target);
+	SDL_SetTextureScaleMode(gridOverlayTexture, SDL_ScaleModeNearest);
+	gridOverlayScale = scale;
+}
 
 bool isFullScreen = false;
 
@@ -710,7 +765,7 @@ extern "C" {
 	}
 
 	void takeScreenShot() {
-		SDL_Surface *screenshot = SDL_CreateRGBSurface(0, GT_WIDTH * display_scale, GT_HEIGHT * display_scale, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
+		SDL_Surface *screenshot = SDL_CreateRGBSurface(0, viewport_width(display_scale), viewport_height(display_scale), 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
 		SDL_RenderReadPixels(mainRenderer, NULL, SDL_PIXELFORMAT_ARGB8888, screenshot->pixels, screenshot->pitch);
 		SDL_SaveBMP(screenshot, "screenshot.bmp");
 		SDL_FreeSurface(screenshot);
@@ -860,44 +915,36 @@ bool checkHotkey(SDL_Keycode  key) {
 #endif
 
 void refreshScreen() {
-	SDL_Rect src, dest;
+	SDL_Rect src, dest, viewport_dest;
 	int scr_w, scr_h;
 	src.x = 0;
 	src.y = (system_state.dma_control & DMA_VID_OUT_PAGE_BIT) ? GT_HEIGHT : 0;
 	src.w = GT_WIDTH;
 	src.h = GT_HEIGHT;
 	SDL_GetWindowSize(mainWindow, &scr_w, &scr_h);
-	int scale = min(scr_w / GT_WIDTH, scr_h / GT_HEIGHT);
-	if(scale < 1) scale = 1;
+	int scale_h = scr_h / GT_HEIGHT;
+	int scale_w = (scr_w * VIEWPORT_ASPECT_H) / (GT_HEIGHT * VIEWPORT_ASPECT_W);
+	int scale = min(scale_h, scale_w);
+	if(scale < MIN_DISPLAY_SCALE) scale = MIN_DISPLAY_SCALE;
+	viewport_dest.w = viewport_width(scale);
+	viewport_dest.h = viewport_height(scale);
+	viewport_dest.x = (scr_w - viewport_dest.w) / 2;
+	viewport_dest.y = (scr_h - viewport_dest.h) / 2;
 	dest.w = GT_WIDTH * scale;
 	dest.h = GT_HEIGHT * scale;
-	dest.x = (scr_w - dest.w) / 2;
-	dest.y = (scr_h - dest.h) / 2;
-	//SDL_BlitScaled(vRAM_Surface, &src, screenSurface, &dest);
+	dest.x = viewport_dest.x + (viewport_dest.w - dest.w) / 2;
+	dest.y = viewport_dest.y;
 	SDL_UpdateTexture(framebufferTexture, NULL, vRAM_Surface->pixels, vRAM_Surface->pitch);
 
 	SDL_RenderClear(mainRenderer);
 	SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
 
-	if(grid_mode != GRID_NONE && scale > 1) {
-		static const Uint8 grid_alphas[] = { 0, 64, 128, 192, 255 };
-		SDL_SetRenderDrawBlendMode(mainRenderer, SDL_BLENDMODE_BLEND);
-		SDL_SetRenderDrawColor(mainRenderer, 0, 0, 0, grid_alphas[grid_mode]);
-		SDL_Rect line;
-		for(int i = 1; i < GT_WIDTH; ++i) {
-			line.x = dest.x + i * scale;
-			line.y = dest.y;
-			line.w = 1;
-			line.h = dest.h;
-			SDL_RenderFillRect(mainRenderer, &line);
-		}
-		for(int i = 1; i < GT_HEIGHT; ++i) {
-			line.x = dest.x;
-			line.y = dest.y + i * scale;
-			line.w = dest.w;
-			line.h = 1;
-			SDL_RenderFillRect(mainRenderer, &line);
-		}
+	if(grid_mode != GRID_NONE && scale >= MIN_DISPLAY_SCALE) {
+		static const Uint8 grid_alphas[] = { 0, 64, 128, 255 };
+		rebuildGridOverlay(scale);
+		SDL_SetTextureAlphaMod(gridOverlayTexture, grid_alphas[grid_mode]);
+		SDL_SetTextureBlendMode(gridOverlayTexture, SDL_BLENDMODE_BLEND);
+		SDL_RenderCopy(mainRenderer, gridOverlayTexture, NULL, &dest);
 	}
 
 #if !defined(WASM_BUILD)
@@ -942,7 +989,7 @@ void refreshScreen() {
 					ImGui::RadioButton("5x", &display_scale, 5);
 					ImGui::RadioButton("6x", &display_scale, 6);
 					if(display_scale != prev_scale && !isFullScreen) {
-						SDL_SetWindowSize(mainWindow, GT_WIDTH * display_scale, GT_HEIGHT * display_scale);
+						SDL_SetWindowSize(mainWindow, viewport_width(display_scale), viewport_height(display_scale));
 					}
 					ImGui::EndMenu();
 				}
@@ -950,7 +997,6 @@ void refreshScreen() {
 					ImGui::RadioButton("No grid", &grid_mode, GRID_NONE);
 					ImGui::RadioButton("25% opacity", &grid_mode, GRID_25);
 					ImGui::RadioButton("50% opacity", &grid_mode, GRID_50);
-					ImGui::RadioButton("75% opacity", &grid_mode, GRID_75);
 					ImGui::RadioButton("Full black grid", &grid_mode, GRID_FULL);
 					ImGui::EndMenu();
 				}
@@ -1404,6 +1450,7 @@ int main(int argC, char* argV[]) {
 	randomize_memory();
 	
 	SDL_Init(SDL_INIT_VIDEO);
+	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
 	atexit(SDL_Quit);
 
 	bmpFont = SDL_CreateRGBSurfaceFrom(font_map, 128, 128, 32, 4 * 128, rmask, gmask, bmask, amask);
@@ -1414,10 +1461,11 @@ int main(int argC, char* argV[]) {
 	SDL_SetColorKey(vRAM_Surface, SDL_FALSE, 0);
 	SDL_SetColorKey(gRAM_Surface, SDL_FALSE, 0);
 
-	mainWindow = SDL_CreateWindow(WINDOW_TITLE, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, GT_WIDTH * display_scale, GT_HEIGHT * display_scale, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
-	SDL_SetWindowMinimumSize(mainWindow, GT_WIDTH, GT_HEIGHT);
+	mainWindow = SDL_CreateWindow(WINDOW_TITLE, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, viewport_width(display_scale), viewport_height(display_scale), SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+	SDL_SetWindowMinimumSize(mainWindow, viewport_width(MIN_DISPLAY_SCALE), viewport_height(MIN_DISPLAY_SCALE));
 	mainRenderer = SDL_CreateRenderer(mainWindow, -1, EmulatorConfig::defaultRendererFlags);
 	framebufferTexture = SDL_CreateTexture(mainRenderer, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING, GT_WIDTH, GT_HEIGHT * 2);
+	SDL_SetTextureScaleMode(framebufferTexture, SDL_ScaleModeNearest);
 
 #ifndef WASM_BUILD
 	main_imgui_ctx = ImGui::CreateContext();
