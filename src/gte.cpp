@@ -1415,6 +1415,7 @@ int main(int argC, char* argV[]) {
 	SDL_SetColorKey(gRAM_Surface, SDL_FALSE, 0);
 
 	mainWindow = SDL_CreateWindow(WINDOW_TITLE, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, GT_WIDTH * display_scale, GT_HEIGHT * display_scale, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+	SDL_SetWindowMinimumSize(mainWindow, GT_WIDTH, GT_HEIGHT);
 	mainRenderer = SDL_CreateRenderer(mainWindow, -1, EmulatorConfig::defaultRendererFlags);
 	framebufferTexture = SDL_CreateTexture(mainRenderer, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING, GT_WIDTH, GT_HEIGHT * 2);
 
