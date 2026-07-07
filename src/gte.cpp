@@ -251,7 +251,7 @@ void rebuildGridOverlay(int scale) {
 	SDL_SetRenderDrawColor(mainRenderer, 0, 0, 0, 255);
 
 	SDL_Rect line;
-	for(int i = 1; i < GT_WIDTH; ++i) {
+	for(int i = 0; i < GT_WIDTH; ++i) {
 		line.x = i * scale;
 		line.y = 0;
 		line.w = 1;
@@ -945,6 +945,31 @@ void refreshScreen() {
 		SDL_SetTextureAlphaMod(gridOverlayTexture, grid_alphas[grid_mode]);
 		SDL_SetTextureBlendMode(gridOverlayTexture, SDL_BLENDMODE_BLEND);
 		SDL_RenderCopy(mainRenderer, gridOverlayTexture, NULL, &dest);
+	}
+	
+	src.x = GT_WIDTH-1;
+	src.w = 1;
+	dest.w = dest.w * 86.0 / 512.0;
+	dest.x -= dest.w;
+
+	SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
+
+	dest.x += dest.w + dest.h;
+
+	SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
+
+	if(grid_mode != GRID_NONE && scale >= MIN_DISPLAY_SCALE) {
+		static const Uint8 grid_alphas[] = { 0, 64, 128, 255 };
+		src.x = 0;
+		src.y = 0;
+		src.w = dest.w;
+		src.h = dest.h;
+		SDL_SetTextureAlphaMod(gridOverlayTexture, grid_alphas[grid_mode]);
+		SDL_SetTextureBlendMode(gridOverlayTexture, SDL_BLENDMODE_BLEND);
+		SDL_RenderCopy(mainRenderer, gridOverlayTexture, &src, &dest);
+		dest.x -= dest.w + dest.h;
+		src.x += scale - (dest.w % scale);
+		SDL_RenderCopy(mainRenderer, gridOverlayTexture, &src, &dest);
 	}
 
 #if !defined(WASM_BUILD)
