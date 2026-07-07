@@ -103,6 +103,49 @@ int resetQueued = 0;
 #define MUTE_SOURCE_MANUAL 1
 #define MUTE_SOURCE_MENU 2
 int muteMask = 0;
+bool paddle_emulation_enabled = false;
+bool paddle_touch_mode = false;
+//bool dksPaddle_detected = false;
+//SDL_JoystickID dksPaddle_instanceID = -1;
+//int32_t currentPaddleRawValue = 0;
+
+// void PaddleInit() {
+//     int num_joysticks = SDL_NumJoysticks();
+//     dksPaddle_detected = false; 
+
+//     for (int i = 0; i < num_joysticks; i++) {
+//         const char* name = SDL_JoystickNameForIndex(i);
+        
+//         // Check if the device name contains your new Product Descriptor
+// 		if (name != NULL && strstr(name, "Paddle") != NULL) {
+// 	            SDL_Joystick* j = SDL_JoystickOpen(i); 
+//             if (j) {
+//                 dksPaddle_instanceID = SDL_JoystickInstanceID(j);
+//                 dksPaddle_detected = true;
+                
+//                 // Optional: Print the full device name
+//                 printf("Hardware Verified: %s (Instance ID: %d)\n", name, dksPaddle_instanceID);
+//             }
+//             break; 
+//         }
+//     }
+
+// }
+
+// Static or global variables to track the timer
+// static uint32_t lastPaddleCheck = 0;
+// const uint32_t PADDLE_CHECK_INTERVAL = 1000; // Check every 1 second
+
+// void UpdatePaddleStatus() {
+//     // Only run the scan if we don't have a paddle yet
+//     if (!dksPaddle_detected) {
+//         uint32_t currentTime = SDL_GetTicks();
+//         if (currentTime - lastPaddleCheck > PADDLE_CHECK_INTERVAL) {
+//             PaddleInit();
+//             lastPaddleCheck = currentTime;
+//         }
+//     }
+// }
 
 void SaveNVRAM() {
 	fstream file;
@@ -770,6 +813,48 @@ extern "C" {
 		SDL_SaveBMP(screenshot, "screenshot.bmp");
 		SDL_FreeSurface(screenshot);
 	}
+
+#ifdef WASM_BUILD
+	extern "C" {
+		EMSCRIPTEN_KEEPALIVE
+		void SetPaddleMode(bool enabled) {
+			paddle_emulation_enabled = enabled;
+			if (paddle_emulation_enabled){
+				if (paddle_touch_mode) {
+					SDL_SetRelativeMouseMode(SDL_FALSE);
+				}
+				else
+				{
+					SDL_SetRelativeMouseMode(SDL_TRUE);
+				}
+			}
+		}
+		void SetPaddleTouchMode(bool enabled) {
+			paddle_touch_mode = enabled;
+			// If we switch to touch, we must ensure relative mode is off
+			if (paddle_touch_mode) {
+				SDL_SetRelativeMouseMode(SDL_FALSE);
+			}
+			else
+			{
+				SDL_SetRelativeMouseMode(SDL_TRUE);
+			}
+		}
+		void EMSCRIPTEN_KEEPALIVE SetPaddleValue(int val) {
+        // Map the 0-255 value directly to the joystick bits
+        // instead of relying on the mouse-coordinate math
+			if (joysticks != nullptr) {
+				joysticks->SetPaddleBitsDirect(val); 
+			}
+    	}
+
+		void EMSCRIPTEN_KEEPALIVE UpdatePaddleFromMouseJS(int index, int dx) {
+			// Calls your existing logic that adds dx to the current paddle position
+			joysticks->UpdatePaddleFromMouse(0, dx);
+		}
+
+	}
+	#endif
 }
 #ifndef WASM_BUILD
 template <typename T>
@@ -999,6 +1084,9 @@ void refreshScreen() {
 				ImGui::MenuItem("Toggle Instant Blits", NULL, &(blitter->instant_mode));
 				ImGui::SliderInt("Volume", &AudioCoprocessor::singleton_acp_state->volume, 0, 256);
 				ImGui::Checkbox("Mute", &AudioCoprocessor::singleton_acp_state->isMuted);
+				if (ImGui::Checkbox("Enable Paddle Emulation", &paddle_emulation_enabled)) {
+					joysticks->SetHeldButtons(0);//clear bits on change just in case
+				}
 				if(ImGui::BeginMenu("Pallete")) {
 					ImGui::RadioButton("Unscaled Capture", &palette_select, PALETTE_SELECT_CAPTURE);
 					ImGui::RadioButton("Full Contrast", &palette_select, PALETTE_SELECT_SCALED);
@@ -1102,6 +1190,10 @@ void refreshScreen() {
 			if(appMute) muteMask |= MUTE_SOURCE_MANUAL;
 			else muteMask &= ~MUTE_SOURCE_MANUAL;
 			AudioCoprocessor::singleton_acp_state->isMuted = (muteMask != 0);
+			ImGui::Separator(); // Adds a nice visual line
+			if (ImGui::Checkbox("Enable Paddle Emulation", &paddle_emulation_enabled)) {
+				joysticks->SetHeldButtons(0);//clear bits on change just in case
+			}
 			ImGui::EndMenu();
 		}
 
@@ -1143,6 +1235,43 @@ EM_BOOL mainloop(double time, void* userdata) {
                 return true;
         }
         frame_time_accumulator -= target_frame_period_ms;
+#else
+// UpdatePaddleStatus();//lazy dev checker
+// if (dksPaddle_detected) {
+//     // We treat the full joystick range as our "Window Width"
+//     // Logical range of SDL Axis is 65535 units wide
+//     const int virtualWidth = 65535;
+    
+//     // Offset the raw value (-32768 to 32767) to be 0 to 65535
+//     int normalizedX = currentPaddleRawValue + 32768;
+
+//     joysticks->UpdatePaddleFromCursorPos(0, normalizedX, virtualWidth);
+// } 
+//else 
+if (paddle_emulation_enabled) {
+	if (paddle_touch_mode){ //touch / absolute
+		// Fallback to mouse if hardware isn't plugged in
+		int mx, my, winW, winH;
+		SDL_GetMouseState(&mx, &my);
+		SDL_GetWindowSize(mainWindow, &winW, &winH);
+		joysticks->UpdatePaddleFromCursorPos(0, mx, winW);
+	} else { //mouse mode delta
+		if (showMenu) {
+			if (SDL_GetRelativeMouseMode()) SDL_SetRelativeMouseMode(SDL_FALSE);
+		} else {
+			// Not in menu? Ensure the mouse is captured
+			if (!SDL_GetRelativeMouseMode()) SDL_SetRelativeMouseMode(SDL_TRUE);
+			
+			int dx, dy;
+			SDL_GetRelativeMouseState(&dx, &dy);
+			joysticks->UpdatePaddleFromMouse(0, dx);
+		}
+	}
+}//paddle emulation
+else {
+    if(SDL_GetRelativeMouseMode()) SDL_SetRelativeMouseMode(SDL_FALSE);
+}
+	
 #endif
 
 #ifdef WRAPPER_MODE
@@ -1305,6 +1434,15 @@ EM_BOOL mainloop(double time, void* userdata) {
 						running = false;
 					}
 				}
+				else if (e.window.event == SDL_WINDOWEVENT_FOCUS_LOST) {
+					SDL_SetRelativeMouseMode(SDL_FALSE);
+				} 
+				else if (e.window.event == SDL_WINDOWEVENT_FOCUS_GAINED) {
+					if (paddle_emulation_enabled && !paddle_touch_mode) {
+						SDL_SetRelativeMouseMode(SDL_TRUE);
+					}
+				}
+
 			} else if((e.type == SDL_KEYDOWN) || (e.type == SDL_KEYUP)) {
 				if(e.key.repeat == 0) {
 					if((e.type == SDL_KEYUP) || !checkHotkey(e.key.keysym.sym)) {
@@ -1360,6 +1498,26 @@ EM_BOOL mainloop(double time, void* userdata) {
 								break;
 						}
 					}
+			// 	}
+            // } else if (e.type == SDL_JOYAXISMOTION) {
+            //     if (dksPaddle_detected && e.jaxis.axis == 0) {
+            //         currentPaddleRawValue = e.jaxis.value; 
+            //     }
+            // } else if (e.type == SDL_JOYBUTTONDOWN || e.type == SDL_JOYBUTTONUP) {
+			// 	//printf("Button Press: %d\n", e.jbutton.button);
+
+            //     if (dksPaddle_detected && e.jbutton.button == 0) {
+
+			// 		bool isDown = (e.type == SDL_JOYBUTTONDOWN);
+					
+			// 		joysticks->SetPaddleAButtonDirect(isDown);
+
+            //     }
+			//  } else if (e.type == SDL_JOYDEVICEREMOVED) {
+			// 	if (dksPaddle_detected && e.jdevice.which == dksPaddle_instanceID) {
+			// 		dksPaddle_detected = false;
+			// 		dksPaddle_instanceID = -1; // Reset it
+			// 		printf("DKS Paddle Lost. Reverting to Mouse.\n");
 				}
             } else {
 				joysticks->update(&e, showMenu || resetQueued);
@@ -1542,6 +1700,7 @@ int main(int argC, char* argV[]) {
 
 	emscripten_request_animation_frame_loop(mainloop, 0);
 #else
+	//PaddleInit();
 	SDL_RaiseWindow(mainWindow);
 	while(running) {
 		mainloop(0, NULL);
