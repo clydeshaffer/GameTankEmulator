@@ -790,7 +790,6 @@ extern "C" {
 		}
 		void SetPaddleTouchMode(bool enabled) {
 			paddle_touch_mode = enabled;
-			// If we switch to touch, we must ensure relative mode is off
 			if (paddle_touch_mode) {
 				SDL_SetRelativeMouseMode(SDL_FALSE);
 			}
@@ -800,15 +799,12 @@ extern "C" {
 			}
 		}
 		void EMSCRIPTEN_KEEPALIVE SetPaddleValue(int val) {
-        // Map the 0-255 value directly to the joystick bits
-        // instead of relying on the mouse-coordinate math
 			if (joysticks != nullptr) {
 				joysticks->SetPaddleBitsDirect(val); 
 			}
     	}
 
 		void EMSCRIPTEN_KEEPALIVE UpdatePaddleFromMouseJS(int index, int dx) {
-			// Calls your existing logic that adds dx to the current paddle position
 			joysticks->UpdatePaddleFromMouse(0, dx);
 		}
 
@@ -1149,7 +1145,7 @@ void refreshScreen() {
 			if(appMute) muteMask |= MUTE_SOURCE_MANUAL;
 			else muteMask &= ~MUTE_SOURCE_MANUAL;
 			AudioCoprocessor::singleton_acp_state->isMuted = (muteMask != 0);
-			ImGui::Separator(); // Adds a nice visual line
+			ImGui::Separator();
 			if (ImGui::Checkbox("Enable Paddle Emulation", &paddle_emulation_enabled)) {
 				joysticks->SetHeldButtons(0);//clear bits on change just in case
 			}
@@ -1197,7 +1193,6 @@ EM_BOOL mainloop(double time, void* userdata) {
 #else 
 if (paddle_emulation_enabled) {
 	if (paddle_touch_mode){ //touch / absolute
-		// Fallback to mouse if hardware isn't plugged in
 		int mx, my, winW, winH;
 		SDL_GetMouseState(&mx, &my);
 		SDL_GetWindowSize(mainWindow, &winW, &winH);
@@ -1206,9 +1201,7 @@ if (paddle_emulation_enabled) {
 		if (showMenu) {
 			if (SDL_GetRelativeMouseMode()) SDL_SetRelativeMouseMode(SDL_FALSE);
 		} else {
-			// Not in menu? Ensure the mouse is captured
 			if (!SDL_GetRelativeMouseMode()) SDL_SetRelativeMouseMode(SDL_TRUE);
-			
 			int dx, dy;
 			SDL_GetRelativeMouseState(&dx, &dy);
 			joysticks->UpdatePaddleFromMouse(0, dx);

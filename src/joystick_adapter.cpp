@@ -262,7 +262,7 @@ void JoystickAdapter::SetPaddleBitsDirect(int val) {
     if (p & 0x80) paddle_state |= GameTankButtons::GamepadButtonMask::PADDLE_MODE;
 
 	uint16_t current = held1Mask;
-	uint16_t paddle_bits_mask = 0xFF0F; // Adjust this mask to cover ONLY your paddle bits
+	uint16_t paddle_bits_mask = 0xFF0F; // Adjust this mask to cover ONLY paddle bits
 	current &= ~paddle_bits_mask; 
 	current |= (paddle_state & paddle_bits_mask);
 	SetHeldButtons(current);
@@ -271,10 +271,8 @@ void JoystickAdapter::SetPaddleAButtonDirect(bool pressedState) {
     uint16_t current = held1Mask;
     
     if (pressedState) {
-        // Set the A bit to 1
         current |= GameTankButtons::A;
     } else {
-        // Set the A bit to 0 using a bitwise AND with the inverse mask
         current &= ~GameTankButtons::A;
     }
     
@@ -287,11 +285,8 @@ void JoystickAdapter::UpdatePaddleFromCursorPos(int player, int mouseX, int wind
 }
 
 void JoystickAdapter::UpdatePaddleFromMouse(int index, int dx) {
-    // Take the current paddle value and add the delta
-    // You might want a sensitivity multiplier here (e.g., dx * 2)
     int newValue = currentPaddleValue[index] + dx;
 
-    // Clamp between 0 and 255 for the GameTank
     if (newValue > 255) newValue = 255;
     if (newValue < 0) newValue = 0;
 

@@ -308,21 +308,15 @@
       
         canvas.addEventListener('mousemove', function(e) {
             if (typeof Module.ccall !== 'undefined' && window.paddleModeEnabled) {
-                
-                if (window.isTouchMode) {
-                    // --- ABSOLUTE MODE (Existing logic) ---
+                if (window.isTouchMode) { //absolute
                     const rect = canvas.getBoundingClientRect();
                     const margin = rect.width / 6;
                     let x = (e.clientX - (rect.left + margin)) / (rect.width - margin*2);
                     let paddleVal = Math.min(Math.max(x, 0), 1) * 255;
                     Module.ccall('SetPaddleValue', null, ['number'], [Math.floor(paddleVal)]);
-                } else {
-                    // --- DELTA MODE (New logic) ---
-                    // movementX is the raw change provided by the browser
+                } else { //delta
                     const dx = e.movementX || e.mozMovementX || 0;
-                    
                     if (dx !== 0) {
-                        // We call your Delta function in C++ instead of setting the absolute value
                         Module.ccall('UpdatePaddleFromMouseJS', null, ['number', 'number'], [0, dx]);
                     }
                 }
@@ -332,21 +326,11 @@
         canvas.addEventListener('mousedown', function(e) {
             if (window.paddleModeEnabled && !window.isTouchMode) {
                 canvas.requestPointerLock();
-                // Force SDL to update its internal state
                 if (Module._SDL_SetRelativeMouseMode) {
-                    Module._SDL_SetRelativeMouseMode(1); // 1 is TRUE
+                    Module._SDL_SetRelativeMouseMode(1);
                 }
             }
         });
-
-        // Listen for the lock being dropped (like when hitting ESC)
-        document.addEventListener('pointerlockchange', function() {
-            if (document.pointerLockElement !== canvas) {
-                console.log("Pointer Lock Lost");
-                // You could call a C++ function here to let the emulator know
-                // e.g., Module._HandlePointerLockLost();
-            }
-        }, false);
       
       var statusElement = document.getElementById('status');
       var progressElement = document.getElementById('progress');
