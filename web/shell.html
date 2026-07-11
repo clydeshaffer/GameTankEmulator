@@ -131,7 +131,7 @@
             <button type="submit">Submit</button>
         </form>
 
-        <button id="screenshotUpload" onclick=>Update screenshot</button>
+        <button id="screenshotUpload" onclick="">Update screenshot</button>
 
         <input id="RomFileInput2" type="file" onchange="useFileInput2(this);" style="display: none"/>
         <input type="button" id="loadimg2" value="Upload new ROM" onclick="document.getElementById('RomFileInput2').click();" />
@@ -253,6 +253,15 @@
 
         
         
+      </div> </div> 
+    <div class="emscripten landscapeOnly">
+      <div style="padding: 10px; display: inline-block;">
+          <label for="paddleToggle" style="cursor: pointer; display: flex; align-items: center;">
+              <input type="checkbox" id="paddleToggle" 
+               onchange="window.paddleModeEnabled = this.checked; Module.ccall('SetPaddleMode', null, ['boolean'], [this.checked])" 
+               style="margin-right: 10px;">
+              <span style="font-family: sans-serif; font-size: 14px;">Enable Paddle Mode (Mouse)</span>
+          </label>
       </div>
 
     </div>
@@ -263,11 +272,16 @@
       <span id="description-span"></span>
       
       <h2>Player 1 Controls:</h2>
+      Gamepad:<br>
       <ul>
         <li>Arrow Keys = Directional Buttons</li>
         <li>Enter = Start</li>
         <li>Z, X, C = A, B, C</li>
         <li>B, N, M = also A, B, C</li>
+      </ul>
+      Paddle (Mouse):<br>
+      <ul>
+        <li>Mouse left/right = Paddle left/right</li>
       </ul>
       <h2>Player 2 Controls:</h2>
       <ul>
@@ -288,6 +302,36 @@
     </div>
 
     <script type='text/javascript'>
+      const canvas = document.getElementById('canvas');
+
+      window.paddleModeEnabled = false;
+      
+        canvas.addEventListener('mousemove', function(e) {
+            if (typeof Module.ccall !== 'undefined' && window.paddleModeEnabled) {
+                if (window.isTouchMode) { //absolute
+                    const rect = canvas.getBoundingClientRect();
+                    const margin = rect.width / 6;
+                    let x = (e.clientX - (rect.left + margin)) / (rect.width - margin*2);
+                    let paddleVal = Math.min(Math.max(x, 0), 1) * 255;
+                    Module.ccall('SetPaddleValue', null, ['number'], [Math.floor(paddleVal)]);
+                } else { //delta
+                    const dx = e.movementX || e.mozMovementX || 0;
+                    if (dx !== 0) {
+                        Module.ccall('UpdatePaddleFromMouseJS', null, ['number', 'number'], [0, dx]);
+                    }
+                }
+            }
+        });
+
+        canvas.addEventListener('mousedown', function(e) {
+            if (window.paddleModeEnabled && !window.isTouchMode) {
+                canvas.requestPointerLock();
+                if (Module._SDL_SetRelativeMouseMode) {
+                    Module._SDL_SetRelativeMouseMode(1);
+                }
+            }
+        });
+      
       var statusElement = document.getElementById('status');
       var progressElement = document.getElementById('progress');
       var spinnerElement = document.getElementById('spinner');

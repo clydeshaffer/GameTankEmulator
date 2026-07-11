@@ -247,3 +247,50 @@ bool JoystickAdapter::CheckSystemButtonPressed() {
 	systemMenuPressed = false;
 	return ret;
 }
+
+void JoystickAdapter::SetPaddleBitsDirect(int val) {
+    uint8_t p = ~(uint8_t)val;//invert the bits for the ADC paddle
+
+    uint16_t paddle_state = 0;
+    if (p & 0x01) paddle_state |= GameTankButtons::GamepadButtonMask::PADDLE_UP;
+    if (p & 0x02) paddle_state |= GameTankButtons::GamepadButtonMask::PADDLE_DOWN;
+    if (p & 0x04) paddle_state |= GameTankButtons::GamepadButtonMask::LEFT;
+    if (p & 0x08) paddle_state |= GameTankButtons::GamepadButtonMask::RIGHT;
+    if (p & 0x10) paddle_state |= GameTankButtons::GamepadButtonMask::PADDLE_X;
+    if (p & 0x20) paddle_state |= GameTankButtons::GamepadButtonMask::PADDLE_Y;
+    if (p & 0x40) paddle_state |= GameTankButtons::GamepadButtonMask::PADDLE_Z;
+    if (p & 0x80) paddle_state |= GameTankButtons::GamepadButtonMask::PADDLE_MODE;
+
+	uint16_t current = held1Mask;
+	uint16_t paddle_bits_mask = 0xFF0F; // Adjust this mask to cover ONLY paddle bits
+	current &= ~paddle_bits_mask; 
+	current |= (paddle_state & paddle_bits_mask);
+	SetHeldButtons(current);
+}
+void JoystickAdapter::SetPaddleAButtonDirect(bool pressedState) {
+    uint16_t current = held1Mask;
+    
+    if (pressedState) {
+        current |= GameTankButtons::A;
+    } else {
+        current &= ~GameTankButtons::A;
+    }
+    
+    SetHeldButtons(current);
+}
+
+void JoystickAdapter::UpdatePaddleFromCursorPos(int player, int mouseX, int windowWidth) {
+    uint8_t p = ((uint8_t)((mouseX * 255) / windowWidth));
+	SetPaddleBitsDirect(p);
+}
+
+void JoystickAdapter::UpdatePaddleFromMouse(int index, int dx) {
+    int newValue = currentPaddleValue[index] + dx;
+
+    if (newValue > 255) newValue = 255;
+    if (newValue < 0) newValue = 0;
+
+    currentPaddleValue[index] = (uint8_t)newValue;
+	SetPaddleBitsDirect(newValue);
+
+}

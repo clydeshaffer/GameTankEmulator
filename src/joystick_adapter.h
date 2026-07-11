@@ -11,7 +11,13 @@ namespace GameTankButtons {
 		B = 0b0001000000000000,
 		C = 0b0010000000000000,
 		START = 0b0000000000100000,
-		ALLDIRS = 0b0000111100001100
+		ALLDIRS = 0b0000111100001100,
+		PADDLE_UP = 0b0000100000000000,
+		PADDLE_DOWN = 0b0000010000000000,
+		PADDLE_X = 0b0000000000000010,
+		PADDLE_Y = 0b0000000000000100,
+		PADDLE_Z = 0b0000000000001000,
+		PADDLE_MODE = 0b0000000000000001
 	};
 
 	enum ButtonId {
@@ -65,6 +71,7 @@ private:
 	};
 	SDL_GameController* gGameController = NULL;
 	SDL_JoystickID gGameControllerId = 0;
+	uint8_t currentPaddleValue[4] = {128, 128, 128, 128};
 public:
 	JoystickAdapter();
 	~JoystickAdapter();
@@ -75,4 +82,9 @@ public:
 	void SaveBindings();
 	void Reset();
 	bool CheckSystemButtonPressed();
+	void UpdatePaddleFromCursorPos(int player, int mouseX, int windowWidth);
+	void UpdatePaddleFromMouse(int index, int dx);
+	void SetPaddleBitsDirect(int val);
+	void SetPaddleAButtonDirect(bool pressedState);
+
 };

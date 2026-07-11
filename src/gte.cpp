@@ -103,6 +103,8 @@ int resetQueued = 0;
 #define MUTE_SOURCE_MANUAL 1
 #define MUTE_SOURCE_MENU 2
 int muteMask = 0;
+bool paddle_emulation_enabled = false;
+bool paddle_touch_mode = false;
 
 void SaveNVRAM() {
 	fstream file;
@@ -770,6 +772,44 @@ extern "C" {
 		SDL_SaveBMP(screenshot, "screenshot.bmp");
 		SDL_FreeSurface(screenshot);
 	}
+
+#ifdef WASM_BUILD
+	extern "C" {
+		EMSCRIPTEN_KEEPALIVE
+		void SetPaddleMode(bool enabled) {
+			paddle_emulation_enabled = enabled;
+			if (paddle_emulation_enabled){
+				if (paddle_touch_mode) {
+					SDL_SetRelativeMouseMode(SDL_FALSE);
+				}
+				else
+				{
+					SDL_SetRelativeMouseMode(SDL_TRUE);
+				}
+			}
+		}
+		void SetPaddleTouchMode(bool enabled) {
+			paddle_touch_mode = enabled;
+			if (paddle_touch_mode) {
+				SDL_SetRelativeMouseMode(SDL_FALSE);
+			}
+			else
+			{
+				SDL_SetRelativeMouseMode(SDL_TRUE);
+			}
+		}
+		void EMSCRIPTEN_KEEPALIVE SetPaddleValue(int val) {
+			if (joysticks != nullptr) {
+				joysticks->SetPaddleBitsDirect(val); 
+			}
+    	}
+
+		void EMSCRIPTEN_KEEPALIVE UpdatePaddleFromMouseJS(int index, int dx) {
+			joysticks->UpdatePaddleFromMouse(0, dx);
+		}
+
+	}
+	#endif
 }
 #ifndef WASM_BUILD
 template <typename T>
@@ -999,6 +1039,9 @@ void refreshScreen() {
 				ImGui::MenuItem("Toggle Instant Blits", NULL, &(blitter->instant_mode));
 				ImGui::SliderInt("Volume", &AudioCoprocessor::singleton_acp_state->volume, 0, 256);
 				ImGui::Checkbox("Mute", &AudioCoprocessor::singleton_acp_state->isMuted);
+				if (ImGui::Checkbox("Enable Paddle Emulation", &paddle_emulation_enabled)) {
+					joysticks->SetHeldButtons(0);//clear bits on change just in case
+				}
 				if(ImGui::BeginMenu("Pallete")) {
 					ImGui::RadioButton("Unscaled Capture", &palette_select, PALETTE_SELECT_CAPTURE);
 					ImGui::RadioButton("Full Contrast", &palette_select, PALETTE_SELECT_SCALED);
@@ -1102,6 +1145,10 @@ void refreshScreen() {
 			if(appMute) muteMask |= MUTE_SOURCE_MANUAL;
 			else muteMask &= ~MUTE_SOURCE_MANUAL;
 			AudioCoprocessor::singleton_acp_state->isMuted = (muteMask != 0);
+			ImGui::Separator();
+			if (ImGui::Checkbox("Enable Paddle Emulation", &paddle_emulation_enabled)) {
+				joysticks->SetHeldButtons(0);//clear bits on change just in case
+			}
 			ImGui::EndMenu();
 		}
 
@@ -1143,6 +1190,28 @@ EM_BOOL mainloop(double time, void* userdata) {
                 return true;
         }
         frame_time_accumulator -= target_frame_period_ms;
+#else 
+if (paddle_emulation_enabled) {
+	if (paddle_touch_mode){ //touch / absolute
+		int mx, my, winW, winH;
+		SDL_GetMouseState(&mx, &my);
+		SDL_GetWindowSize(mainWindow, &winW, &winH);
+		joysticks->UpdatePaddleFromCursorPos(0, mx, winW);
+	} else { //mouse mode delta
+		if (showMenu) {
+			if (SDL_GetRelativeMouseMode()) SDL_SetRelativeMouseMode(SDL_FALSE);
+		} else {
+			if (!SDL_GetRelativeMouseMode()) SDL_SetRelativeMouseMode(SDL_TRUE);
+			int dx, dy;
+			SDL_GetRelativeMouseState(&dx, &dy);
+			joysticks->UpdatePaddleFromMouse(0, dx);
+		}
+	}
+}//mouse paddle emulation
+else {
+    if(SDL_GetRelativeMouseMode()) SDL_SetRelativeMouseMode(SDL_FALSE);
+}
+	
 #endif
 
 #ifdef WRAPPER_MODE
@@ -1305,6 +1374,15 @@ EM_BOOL mainloop(double time, void* userdata) {
 						running = false;
 					}
 				}
+				else if (e.window.event == SDL_WINDOWEVENT_FOCUS_LOST) {
+					SDL_SetRelativeMouseMode(SDL_FALSE);
+				} 
+				else if (e.window.event == SDL_WINDOWEVENT_FOCUS_GAINED) {
+					if (paddle_emulation_enabled && !paddle_touch_mode) {
+						SDL_SetRelativeMouseMode(SDL_TRUE);
+					}
+				}
+
 			} else if((e.type == SDL_KEYDOWN) || (e.type == SDL_KEYUP)) {
 				if(e.key.repeat == 0) {
 					if((e.type == SDL_KEYUP) || !checkHotkey(e.key.keysym.sym)) {
@@ -1421,6 +1499,7 @@ EM_BOOL mainloop(double time, void* userdata) {
 		}
 		cpu_core->Reset();
 		cartridge_state.write_mode = false;
+		joysticks->SetHeldButtons(0);//clear paddle bits before reset
 		joysticks->Reset();
 		resetQueued = 0;
 	}

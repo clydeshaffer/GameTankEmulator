@@ -97,7 +97,7 @@ else ifeq ($(OS), wasm)
 	COMPILER_FLAGS += -O2 -s USE_SDL=2 -D WASM_BUILD -D EMBED_ROM_FILE='"$(ROMFILE)"' -s TOTAL_STACK=512mb
 	DEFINES += -D DISABLE_ESC
 	BIN_NAME = index.html
-	LINKER_FLAGS += --embed-file $(ROMFILE) --shell-file $(WEB_SHELL) -s EXPORTED_FUNCTIONS='["_LoadRomFile", "_main", "_SetButtons", "_PauseEmulation", "_ResumeEmulation", "_takeScreenShot"]' -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]' -lidbfs.js
+	LINKER_FLAGS += --embed-file $(ROMFILE) --shell-file $(WEB_SHELL) -s EXPORTED_FUNCTIONS='["_LoadRomFile", "_main", "_SetButtons", "_PauseEmulation", "_ResumeEmulation", "_takeScreenShot", "_SetPaddleMode", "_SetPaddleTouchMode", "_UpdatePaddleFromMouseJS"]' -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]' -lidbfs.js
 	SRCS :=  $(filter-out $(foreach src,$(SRCS),$(if $(findstring imgui,$(src)), $(src))),$(SRCS))
 	SRCS := $(filter-out %window.cpp, $(SRCS))
 else #BSD/Linux
