@@ -36,6 +36,7 @@
 #include "ui/ui_utils.h"
 #include "devtools/profiler.h"
 #include "devtools/disassembler.h"
+#include "paddle.h"
 
 #ifndef WASM_BUILD
 #include "devtools/profiler_window.h"
@@ -103,7 +104,7 @@ int resetQueued = 0;
 #define MUTE_SOURCE_MANUAL 1
 #define MUTE_SOURCE_MENU 2
 int muteMask = 0;
-bool paddle_emulation_enabled = false;
+bool mouse_paddle_enabled = false;
 bool paddle_touch_mode = false;
 
 void SaveNVRAM() {
@@ -777,8 +778,8 @@ extern "C" {
 	extern "C" {
 		EMSCRIPTEN_KEEPALIVE
 		void SetPaddleMode(bool enabled) {
-			paddle_emulation_enabled = enabled;
-			if (paddle_emulation_enabled){
+			mouse_paddle_enabled = enabled;
+			if (mouse_paddle_enabled){
 				if (paddle_touch_mode) {
 					SDL_SetRelativeMouseMode(SDL_FALSE);
 				}
@@ -1039,8 +1040,14 @@ void refreshScreen() {
 				ImGui::MenuItem("Toggle Instant Blits", NULL, &(blitter->instant_mode));
 				ImGui::SliderInt("Volume", &AudioCoprocessor::singleton_acp_state->volume, 0, 256);
 				ImGui::Checkbox("Mute", &AudioCoprocessor::singleton_acp_state->isMuted);
-				if (ImGui::Checkbox("Enable Paddle Emulation", &paddle_emulation_enabled)) {
-					joysticks->SetHeldButtons(0);//clear bits on change just in case
+				if (ImGui::BeginMenu("Paddle Support")) {
+					if (ImGui::Checkbox("Enable Mouse Paddle", &mouse_paddle_enabled)) {
+						joysticks->SetHeldButtons(0);//clear bits on change just in case
+					}
+					if (ImGui::Checkbox("Enable Joystick Paddle", &joystick_paddle_enabled)) {
+						joysticks->SetHeldButtons(0);//clear bits on change just in case
+					}
+					ImGui::EndMenu();
 				}
 				if(ImGui::BeginMenu("Pallete")) {
 					ImGui::RadioButton("Unscaled Capture", &palette_select, PALETTE_SELECT_CAPTURE);
@@ -1146,9 +1153,15 @@ void refreshScreen() {
 			else muteMask &= ~MUTE_SOURCE_MANUAL;
 			AudioCoprocessor::singleton_acp_state->isMuted = (muteMask != 0);
 			ImGui::Separator();
-			if (ImGui::Checkbox("Enable Paddle Emulation", &paddle_emulation_enabled)) {
-				joysticks->SetHeldButtons(0);//clear bits on change just in case
-			}
+			if (ImGui::BeginMenu("Paddle Support")) {
+					if (ImGui::Checkbox("Enable Mouse Paddle", &mouse_paddle_enabled)) {
+						joysticks->SetHeldButtons(0);//clear bits on change just in case
+					}
+					if (ImGui::Checkbox("Enable Joystick Paddle", &joystick_paddle_enabled)) {
+						joysticks->SetHeldButtons(0);//clear bits on change just in case
+					}
+					ImGui::EndMenu();
+				}
 			ImGui::EndMenu();
 		}
 
@@ -1191,7 +1204,8 @@ EM_BOOL mainloop(double time, void* userdata) {
         }
         frame_time_accumulator -= target_frame_period_ms;
 #else 
-if (paddle_emulation_enabled) {
+
+if (mouse_paddle_enabled) {
 	if (paddle_touch_mode){ //touch / absolute
 		int mx, my, winW, winH;
 		SDL_GetMouseState(&mx, &my);
@@ -1208,6 +1222,14 @@ if (paddle_emulation_enabled) {
 		}
 	}
 }//mouse paddle emulation
+else if (joystick_paddle_enabled) {
+		// We treat the full joystick range as our "Window Width"
+		// Logical range of SDL Axis is 65535 units wide
+		const int virtualWidth = 65535;
+		// Offset the raw value (-32768 to 32767) to be 0 to 65535
+		int normalizedX = currentPaddleRawValue + 32768;
+		joysticks->UpdatePaddleFromCursorPos(0, normalizedX, virtualWidth);
+} 
 else {
     if(SDL_GetRelativeMouseMode()) SDL_SetRelativeMouseMode(SDL_FALSE);
 }
@@ -1378,7 +1400,7 @@ else {
 					SDL_SetRelativeMouseMode(SDL_FALSE);
 				} 
 				else if (e.window.event == SDL_WINDOWEVENT_FOCUS_GAINED) {
-					if (paddle_emulation_enabled && !paddle_touch_mode) {
+					if (mouse_paddle_enabled && !paddle_touch_mode) {
 						SDL_SetRelativeMouseMode(SDL_TRUE);
 					}
 				}
@@ -1439,7 +1461,31 @@ else {
 						}
 					}
 				}
-            } else {
+            }
+#ifndef WASM_BUILD
+			else if (e.type == SDL_JOYAXISMOTION) {
+				if (paddleDetected && e.jaxis.axis == 0) {
+					if ( e.jaxis.which == paddle_instanceID) {
+						currentPaddleRawValue = e.jaxis.value;
+					}               
+				}
+            } else if (e.type == SDL_JOYBUTTONDOWN || e.type == SDL_JOYBUTTONUP) {
+                if (paddleDetected && e.jbutton.button == 0) {
+					bool isDown = (e.type == SDL_JOYBUTTONDOWN);
+					joysticks->SetPaddleAButtonDirect(isDown);
+                }
+			 } else if (e.type == SDL_JOYDEVICEREMOVED) {
+				if (paddleDetected && e.jdevice.which == paddle_instanceID) {
+					paddleDetected = false;
+					paddle_instanceID = -1; // Reset it
+					printf("Paddle/JoyStick Disconnected\n");
+				}
+				PaddleInit();
+			} else if (e.type == SDL_JOYDEVICEADDED) {
+				PaddleInit();
+            } 
+#endif
+			 else {
 				joysticks->update(&e, showMenu || resetQueued);
 			}
         }
@@ -1502,6 +1548,7 @@ else {
 		joysticks->SetHeldButtons(0);//clear paddle bits before reset
 		joysticks->Reset();
 		resetQueued = 0;
+		currentPaddleRawValue = 0;
 	}
 	return running;
 }
@@ -1621,6 +1668,7 @@ int main(int argC, char* argV[]) {
 
 	emscripten_request_animation_frame_loop(mainloop, 0);
 #else
+	PaddleInit();
 	SDL_RaiseWindow(mainWindow);
 	while(running) {
 		mainloop(0, NULL);
