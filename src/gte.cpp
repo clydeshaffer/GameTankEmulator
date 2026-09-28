@@ -90,8 +90,13 @@ std::string currentRomFilePath;
 std::string nvramFileFullPath;
 std::string flashFileFullPath;
 
+#define MAX_FRAME_FLIP_PROFILE_VSYNCS 8
+
 bool vsyncProfileArmed = false;
 bool vsyncProfileRunning = false;
+bool frameFlipProfileArmed = false;
+bool frameFlipProfileRunning = false;
+int frameFlipProfileVsyncLimit = MAX_FRAME_FLIP_PROFILE_VSYNCS;
 
 bool showMenu = false;
 bool menuOpening = false;
@@ -551,6 +556,14 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 						profiler.ResetTimers();
 						profiler.last_blitter_activity = blitter->pixels_this_frame;
 						blitter->pixels_this_frame = 0;
+					}
+					if(frameFlipProfileArmed) {
+						profiler.DeepProfileStart();
+						frameFlipProfileArmed = false;
+						frameFlipProfileRunning = true;
+					} else if(frameFlipProfileRunning) {
+						profiler.DeepProfileStop(loadedMemoryMap, SourceMap::singleton);
+						frameFlipProfileRunning = false;
 					}
 				}
 				system_state.dma_control = value;
@@ -1099,8 +1112,21 @@ void refreshScreen() {
 				if(ImGui::MenuItem("Dump RAM to file (F6)")) {
 					doRamDump();
 				}
-				if(ImGui::MenuItem("Deep Profile Single Vsync")) {
-					vsyncProfileArmed = true;
+				if(ImGui::BeginMenu("Deep Profile")) {
+					if(ImGui::MenuItem("Single Vsync")) {
+						vsyncProfileArmed = true;
+					}
+					if(ImGui::IsItemHovered()) {
+						ImGui::SetTooltip("Capture function call timing between the next two VSyncs");
+					}
+					if(ImGui::MenuItem("Single Frame Flip")) {
+						frameFlipProfileArmed = true;
+						frameFlipProfileVsyncLimit = MAX_FRAME_FLIP_PROFILE_VSYNCS;
+					}
+					if(ImGui::IsItemHovered()) {
+						ImGui::SetTooltip("Capture function call timing between the next two frame flips. Capped at 8 VSync periods");
+					}
+					ImGui::EndMenu();
 				}
 				ImGui::EndMenu();
 			}
@@ -1340,6 +1366,13 @@ else {
 					} else if(vsyncProfileRunning) {
 						profiler.DeepProfileStop(loadedMemoryMap, SourceMap::singleton);
 						vsyncProfileRunning = false;
+					} else if(frameFlipProfileRunning) {
+						if(frameFlipProfileVsyncLimit == 0) {
+							profiler.DeepProfileStop(loadedMemoryMap, SourceMap::singleton);
+							frameFlipProfileRunning = false;
+						} else {
+							--frameFlipProfileVsyncLimit;
+						}
 					}
 				}
 				if(!profiler.measure_by_frameflip) {

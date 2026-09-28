@@ -126,6 +126,7 @@ void Profiler::exportTimelineToJSON(const std::vector<ProfileEvent>& timeline, c
 }
 
 void Profiler::DeepProfileStop(MemoryMap* memory_map, SourceMap* source_map) {
+    if(!deepProfileIsRecording) return;
     deepProfileIsRecording = false;
     exportTimelineToJSON(timeline, "./deep_profile.json", memory_map, source_map);
 }
