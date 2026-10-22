@@ -64,7 +64,7 @@ void AudioCoprocessor::fill_audio(void *udata, uint8_t *stream, int len) {
             stream16[i] *= state->isMuted ? 0 : 1;
         }
         state->irqCounter -= state->clksPerHostSample;
-        if(state->irqCounter < 0) {
+        while(state->irqCounter < 0 && state->irqRate > 0) {
             if(state->resetting) {
                 state->resetting = false;
                 state->cpu->Reset();

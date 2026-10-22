@@ -1198,6 +1198,7 @@ void mos6502::Reset()
 	sp = 0xFD;
 
 	status |= CONSTANT;
+	SET_INTERRUPT(1);
 
 	illegalOpcode = false;
 	waiting = false;
