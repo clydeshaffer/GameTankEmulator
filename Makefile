@@ -102,7 +102,7 @@ else ifeq ($(OS), wasm)
 	SRCS := $(filter-out %window.cpp, $(SRCS))
 else #BSD/Linux
 	OBJS += $(NATIVE_OBJS)
-	COMPILER_FLAGS = `sdl2-config --cflags` $(EXTRA_INCLUDES)
+	COMPILER_FLAGS = `sdl2-config --cflags` $(EXTRA_INCLUDES) -include src/compat.h
 	OPTIM_FLAGS = -O2
 	LINKER_FLAGS = `sdl2-config --libs`
 endif
