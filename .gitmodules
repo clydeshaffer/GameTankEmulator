@@ -1,6 +1,3 @@
-[submodule "mos6502"]
-	path = src/mos6502
-	url = https://github.com/clydeshaffer/mos6502.git
 [submodule "asm/CubicleKnight"]
 	path = asm/CubicleKnight
 	url = https://github.com/clydeshaffer/CubicleKnight.git
