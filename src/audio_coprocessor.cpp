@@ -41,6 +41,8 @@ void AudioCoprocessor::register_write(uint16_t address, uint8_t value) {
 	}
 }
 
+constexpr int FADE_IN_SAMPLE_COUNT = 882; // ~20ms ramp at 44100 Hz
+
 void AudioCoprocessor::fill_audio(void *udata, uint8_t *stream, int len) {
     ACPState *state = (ACPState*) udata;
     uint16_t *stream16 = (uint16_t*) stream;
@@ -78,6 +80,19 @@ void AudioCoprocessor::fill_audio(void *udata, uint8_t *stream, int len) {
             }
         }
     }
+    ACPState *s = static_cast<ACPState *>(udata);
+    if (s->fade_in_samples > 0) {
+        const int total_fade = FADE_IN_SAMPLE_COUNT; // match obtained.freq / 50
+        int16_t *samples = reinterpret_cast<int16_t *>(stream);
+        int count = len / sizeof(int16_t);
+
+        for (int i = 0; i < count && s->fade_in_samples > 0; ++i) {
+            float gain = 1.0f - (static_cast<float>(s->fade_in_samples) / total_fade);
+            samples[i] = static_cast<int16_t>(samples[i] * gain);
+            s->fade_in_samples--;
+        }
+    }
+
 }
 
 ACPState* AudioCoprocessor::singleton_acp_state;
@@ -127,7 +142,7 @@ void ACP_CPUStopped() {
 
 void AudioCoprocessor::StartAudio() {
     SDL_AudioSpec wanted, obtained;
-
+    
     /* Set the audio format */
     wanted.freq = 44100;
     wanted.format = AUDIO_S16SYS;
@@ -137,7 +152,7 @@ void AudioCoprocessor::StartAudio() {
     wanted.userdata = &state;
 
     SDL_InitSubSystem(SDL_INIT_AUDIO);
-
+    state.fade_in_samples = FADE_IN_SAMPLE_COUNT;
     state.device = SDL_OpenAudioDevice(NULL, 0, &wanted, &obtained, 0);
 
     /* Open the audio device, forcing the desired format */
@@ -146,10 +161,9 @@ void AudioCoprocessor::StartAudio() {
     } else {
         printf("Opened audio device:\n\tFreq: %d\n\tFormat %s\n\tChannels: %d\n\tSamples: %d\n",
             obtained.freq, AudioFormatString(obtained.format), obtained.channels, obtained.samples);
-        state.format = obtained.format;
-        SDL_PauseAudioDevice(state.device, 0);
-
         state.clksPerHostSample = 315000000 / (88 * obtained.freq);
+        state.fade_in_samples = obtained.freq / 50; // ~20ms ramp (882 samples at 44100 Hz)        
+        SDL_PauseAudioDevice(state.device, 0);
     }
 }
 
