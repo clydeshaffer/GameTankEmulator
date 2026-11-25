@@ -26,19 +26,19 @@ private:
     SystemState* system_state;
     SDL_Surface*& vram_surface;
 
-    uint8_t counterVX;
-    uint8_t counterVY;
-    uint8_t counterGX;
-    uint8_t counterGY;
-    uint8_t counterW;
-    uint8_t counterH;
+    uint8_t counterVX = 0;
+    uint8_t counterVY = 0;
+    uint8_t counterGX = 0;
+    uint8_t counterGY = 0;
+    uint8_t counterW = 0;
+    uint8_t counterH = 0;
 
-    uint8_t params[DMA_PARAMS_COUNT];
+    uint8_t params[DMA_PARAMS_COUNT] = {};
 
-    bool trigger;
-    bool init;
-    bool irq;
-    bool running;
+    bool trigger = false;
+    bool init = false;
+    bool irq = false;
+    bool running = false;
 
     uint64_t last_updated_cycle = 0;
 
@@ -54,7 +54,7 @@ public:
 
     bool instant_mode = false;
     uint64_t pixels_this_frame = 0;
-    
+
     uint8_t gram_mid_bits;
 
     Blitter(mos6502*& cpu_core, Timekeeper* timekeeper, SystemState* system_state, SDL_Surface*& vram_surface) : cpu_core(cpu_core), timekeeper(timekeeper), system_state(system_state), vram_surface(vram_surface) {};
