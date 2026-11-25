@@ -1706,6 +1706,7 @@ int main(int argC, char* argV[]) {
 	while(running) {
 		mainloop(0, NULL);
 	}
+	soundcard->fade_out();
 	joysticks->SaveBindings();
 #endif
 
@@ -1713,6 +1714,8 @@ int main(int argC, char* argV[]) {
 	if(savingThread.joinable()) {
 		savingThread.join();
 	}
+	while(soundcard->is_fading()){}
+	soundcard->shutdown();
 #endif
 	return 0;
 }

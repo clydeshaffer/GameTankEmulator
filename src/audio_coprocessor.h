@@ -30,6 +30,7 @@ typedef struct ACPState {
 	bool isEmulationPaused;
 	int fade_in_samples;
 	int fade_in_total;
+	bool fading_out;
 } ACPState;
 
 class AudioCoprocessor {
@@ -47,4 +48,7 @@ public:
 	void dump_ram(const char* filename);
 	uint16_t get_irq_cycle_count();
 	static void fill_audio(void *udata, uint8_t *stream, int len);
+	void fade_out();
+	bool is_fading();
+	void shutdown();
 };

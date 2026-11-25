@@ -60,35 +60,46 @@ void AudioCoprocessor::fill_audio(void *udata, uint8_t *stream, int len) {
         if(stream16 != NULL) {
             stream16[i] = state->dacReg;
             stream16[i] -= 128;
-            stream16[i] *= state->volume;
+
+            float gain = 1.0f;
+            if ((state->fade_in_samples > 0) && (state->fade_in_total > 0)) {
+                gain = 1.0f - (static_cast<float>(state->fade_in_samples) / static_cast<float>(state->fade_in_total));
+                if(gain < 0.5f) gain = 0;
+                else {
+                    gain = (gain - 0.5f) * 2;
+                }
+                if(state->fading_out) {
+                    gain = 1.0f - gain;
+                }
+                state->fade_in_samples--;
+                if((state->fade_in_samples == 0) && (state->fading_out)) {
+                    state->fading_out = false;
+                    state->isMuted = true;
+                }
+            }
+
+            stream16[i] *= static_cast<uint16_t>(static_cast<float>(state->volume) * gain);
+
             stream16[i] *= state->isMuted ? 0 : 1;
         }
         state->irqCounter -= state->clksPerHostSample;
-        while(state->irqCounter < 0 && state->irqRate > 0) {
-            if(state->resetting) {
-                state->resetting = false;
-                state->cpu->Reset();
-            }
-            state->irqCounter += state->irqRate;
-            state->cycle_counter = 0;
-            if(state->running) {
-                state->cpu->IRQ();
-                state->cpu->ClearIRQ();
-                state->cpu->Run(state->cycles_per_sample, state->cycle_counter);
+        if(!state->fading_out) {
+            while(state->irqCounter < 0 && state->irqRate > 0) {
+                if(state->resetting) {
+                    state->resetting = false;
+                    state->cpu->Reset();
+                }
+                state->irqCounter += state->irqRate;
+                state->cycle_counter = 0;
+                if(state->running) {
+                    state->cpu->IRQ();
+                    state->cpu->ClearIRQ();
+                    state->cpu->Run(state->cycles_per_sample, state->cycle_counter);
+                }
             }
         }
+        
     }
-    if (state->fade_in_samples > 0 && state->fade_in_total > 0 && stream16 != NULL) {
-        int16_t *samples = reinterpret_cast<int16_t *>(stream);
-        int count = len / sizeof(int16_t);
-
-        for (int i = 0; i < count && state->fade_in_samples > 0; ++i) {
-            float gain = 1.0f - (static_cast<float>(state->fade_in_samples) / state->fade_in_total);
-            samples[i] = static_cast<int16_t>(samples[i] * gain);
-            state->fade_in_samples--;
-        }
-    }
-
 }
 
 ACPState* AudioCoprocessor::singleton_acp_state;
@@ -158,7 +169,7 @@ void AudioCoprocessor::StartAudio() {
         printf("Opened audio device:\n\tFreq: %d\n\tFormat %s\n\tChannels: %d\n\tSamples: %d\n",
             obtained.freq, AudioFormatString(obtained.format), obtained.channels, obtained.samples);
         state.clksPerHostSample = 315000000 / (88 * obtained.freq);
-        state.fade_in_total = obtained.freq / 50; // 20ms ramp
+        state.fade_in_total = obtained.freq;
         state.fade_in_samples = state.fade_in_total;
         SDL_PauseAudioDevice(state.device, 0);
     }
@@ -203,4 +214,19 @@ void AudioCoprocessor::dump_ram(const char* filename) {
 
 uint16_t AudioCoprocessor::get_irq_cycle_count() {
     return state.last_irq_cycles;
+}
+
+void AudioCoprocessor::fade_out() {
+    state.fading_out = true;
+    state.fade_in_samples = state.fade_in_total;
+}
+
+bool AudioCoprocessor::is_fading() {
+    return state.fading_out;
+}
+
+void AudioCoprocessor::shutdown() {
+    if(state.device != 0) {
+        SDL_CloseAudioDevice(state.device);
+    }
 }
