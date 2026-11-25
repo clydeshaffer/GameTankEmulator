@@ -78,6 +78,17 @@ void AudioCoprocessor::fill_audio(void *udata, uint8_t *stream, int len) {
             }
         }
     }
+    if (state->fade_in_samples > 0 && state->fade_in_total > 0 && stream16 != NULL) {
+        int16_t *samples = reinterpret_cast<int16_t *>(stream);
+        int count = len / sizeof(int16_t);
+
+        for (int i = 0; i < count && state->fade_in_samples > 0; ++i) {
+            float gain = 1.0f - (static_cast<float>(state->fade_in_samples) / state->fade_in_total);
+            samples[i] = static_cast<int16_t>(samples[i] * gain);
+            state->fade_in_samples--;
+        }
+    }
+
 }
 
 ACPState* AudioCoprocessor::singleton_acp_state;
@@ -127,7 +138,7 @@ void ACP_CPUStopped() {
 
 void AudioCoprocessor::StartAudio() {
     SDL_AudioSpec wanted, obtained;
-
+    
     /* Set the audio format */
     wanted.freq = 44100;
     wanted.format = AUDIO_S16SYS;
@@ -146,10 +157,10 @@ void AudioCoprocessor::StartAudio() {
     } else {
         printf("Opened audio device:\n\tFreq: %d\n\tFormat %s\n\tChannels: %d\n\tSamples: %d\n",
             obtained.freq, AudioFormatString(obtained.format), obtained.channels, obtained.samples);
-        state.format = obtained.format;
-        SDL_PauseAudioDevice(state.device, 0);
-
         state.clksPerHostSample = 315000000 / (88 * obtained.freq);
+        state.fade_in_total = obtained.freq / 50; // 20ms ramp
+        state.fade_in_samples = state.fade_in_total;
+        SDL_PauseAudioDevice(state.device, 0);
     }
 }
 
