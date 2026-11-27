@@ -80,7 +80,6 @@ ImVec2 PatchingWindow::Render() {
                     ImGui::TableSetColumnIndex(2);
                     ImGui::Text("%s",binding.path.c_str());
                     ImGui::TableSetColumnIndex(3);
-                     ImGui::Text("%s",binding.path.c_str());
                     if(ImGui::Button("X")) {
                         del_index = row;
                     };
