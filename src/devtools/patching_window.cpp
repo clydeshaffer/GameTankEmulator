@@ -24,10 +24,10 @@ ImVec2 PatchingWindow::Render() {
         static uint8_t manual_bank = 0;
         ImGui::Text("Addr");
         ImGui::SameLine();
-        ImGui::InputScalar("##", ImGuiDataType_U16, &manual_addr, NULL, NULL, "%x", ImGuiInputTextFlags_CharsHexadecimal);
+        ImGui::InputScalar("##address", ImGuiDataType_U16, &manual_addr, NULL, NULL, "%x", ImGuiInputTextFlags_CharsHexadecimal);
         ImGui::Text("Bank");
         ImGui::SameLine();
-        ImGui::InputScalar("###", ImGuiDataType_U8, &manual_bank, NULL, NULL, "%x", ImGuiInputTextFlags_CharsHexadecimal);
+        ImGui::InputScalar("##bank", ImGuiDataType_U8, &manual_bank, NULL, NULL, "%x", ImGuiInputTextFlags_CharsHexadecimal);
         if(ImGui::Button("Pick file")) {
             char* filename = tinyfd_openFileDialog(
                 "Pick a file to patch to this address",
@@ -71,6 +71,7 @@ ImVec2 PatchingWindow::Render() {
         while(clipper.Step()) {
             for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; row++)
                 {
+                    ImGui::PushID(row);
                     ImGui::TableNextRow();
                     BinFileBinding& binding = gameconfig->bin_bindings.at(row);
                     ImGui::TableSetColumnIndex(0);
@@ -80,10 +81,10 @@ ImVec2 PatchingWindow::Render() {
                     ImGui::TableSetColumnIndex(2);
                     ImGui::Text("%s",binding.path.c_str());
                     ImGui::TableSetColumnIndex(3);
-                     ImGui::Text("%s",binding.path.c_str());
                     if(ImGui::Button("X")) {
                         del_index = row;
                     };
+                    ImGui::PopID();
                 }
         }
         if(del_index != -1) {
