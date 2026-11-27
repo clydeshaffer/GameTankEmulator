@@ -24,10 +24,10 @@ ImVec2 PatchingWindow::Render() {
         static uint8_t manual_bank = 0;
         ImGui::Text("Addr");
         ImGui::SameLine();
-        ImGui::InputScalar("##", ImGuiDataType_U16, &manual_addr, NULL, NULL, "%x", ImGuiInputTextFlags_CharsHexadecimal);
+        ImGui::InputScalar("##address", ImGuiDataType_U16, &manual_addr, NULL, NULL, "%x", ImGuiInputTextFlags_CharsHexadecimal);
         ImGui::Text("Bank");
         ImGui::SameLine();
-        ImGui::InputScalar("###", ImGuiDataType_U8, &manual_bank, NULL, NULL, "%x", ImGuiInputTextFlags_CharsHexadecimal);
+        ImGui::InputScalar("##bank", ImGuiDataType_U8, &manual_bank, NULL, NULL, "%x", ImGuiInputTextFlags_CharsHexadecimal);
         if(ImGui::Button("Pick file")) {
             char* filename = tinyfd_openFileDialog(
                 "Pick a file to patch to this address",
