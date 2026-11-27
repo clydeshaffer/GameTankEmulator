@@ -71,6 +71,7 @@ ImVec2 PatchingWindow::Render() {
         while(clipper.Step()) {
             for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; row++)
                 {
+                    ImGui::PushID(row);
                     ImGui::TableNextRow();
                     BinFileBinding& binding = gameconfig->bin_bindings.at(row);
                     ImGui::TableSetColumnIndex(0);
@@ -83,6 +84,7 @@ ImVec2 PatchingWindow::Render() {
                     if(ImGui::Button("X")) {
                         del_index = row;
                     };
+                    ImGui::PopID();
                 }
         }
         if(del_index != -1) {
